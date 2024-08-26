@@ -1,0 +1,9 @@
+{
+    "totvsLanguageServer.welcomePage": false,
+    "totvsLanguageServer.editor.linter.includes": "/Users/jeancarlospandolfosaggin/central-compras/includes",
+    "protheusDoc.autor_default": "Jean Carlos Pandolfo Saggin",
+    "protheusDoc.versao_default": "1.0",
+    "protheusDoc.empresa_default": "Advanced Solutions",
+    "editor.fontFamily": "Menlo, Monaco, 'Courier New', monospace",
+    "editor.fontSize": 12
+}
