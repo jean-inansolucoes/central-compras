@@ -1,0 +1,137 @@
+0001#STR0001#ALL#Print registered Purchase Requisitions or Delivery
+0002#STR0002#ALL#Authorizations that still have not been printed.
+0003#STR0003#ALL#Issue of Purchase Orders or Delivery Authorizations
+0004#STR0004#ALL#Z.Form
+0005#STR0005#ALL#Management
+0006#STR0006#ALL#CANCELLED BY THE OPERATOR
+0007#STR0007#ALL#D I S C O U N T S -->
+0008#STR0008#ALL#Delivery Location: 
+0009#STR0009#ALL#ZIP :
+0010#STR0010#ALL#Collection Address: 
+0011#STR0011#ALL#Payment Terms     
+0012#STR0012#ALL#| Issue Date    |
+0013#STR0013#ALL#Goods` Total : 
+0014#STR0014#ALL#Adjustment:
+0015#STR0015#ALL#| IPI   :
+0016#STR0016#ALL#| Notes
+0017#STR0017#ALL#| Group :
+0018#STR0018#ALL#| Grand Total : 
+0019#STR0019#ALL#|           Order Release     
+0020#STR0020#ALL#| Freight Notes 
+0021#STR0021#ALL#Purchaser
+0022#STR0022#ALL#Managem.
+0023#STR0023#ALL#Board Dir.
+0024#STR0024#ALL#|   NOTE: The goods will only be accepted if the Invoice contains the number of our Purchase Order.    
+0025#STR0025#ALL#| Note     
+0026#STR0026#ALL#| Buyer        
+0027#STR0027#ALL#| Management   
+0028#STR0028#ALL#| Board of Direct. 
+0029#STR0029#ALL#|   NOTE: The goods will only be accepted if the Invoice contains the number of the Delivery Authoriz. 
+0030#STR0030#ALL#Continued...
+0031#STR0031#ALL#| P U R C H A S E  O R D E R    
+0032#STR0032#ALL#| D E L I V E R Y    A U T H O R. 
+0033#STR0033#ALL# - continued  
+0034#STR0034#ALL#a. Issue 
+0035#STR0035#ALL#a.Cop
+0036#STR0036#ALL#Sta.Reg.: 
+0037#STR0037#ALL#PHO: 
+0038#STR0038#ALL#Fax Number: 
+0039#STR0039#ALL#CNPJ: 
+0040#STR0040#ALL#CNPJ: 
+0041#STR0041#ALL#SI:
+0042#STR0042#ALL#Phone 
+0043#STR0043#ALL#Item|
+0044#STR0044#ALL#Code      
+0045#STR0045#ALL#|Goods` Description
+0046#STR0046#ALL#|UM|  Quant.
+0047#STR0047#ALL#|Unit Value    |IPI  |  Total Value   |  Deliv.  |  C.C.              | P.R. |
+0048#STR0048#ALL#|Unit Value    |  Total Value   | Delivery | CC or PO Number      
+0049#STR0049#ALL#|Freight:
+0050#STR0050#ALL#      R E L E A S E D   O R D E R
+0051#STR0051#ALL#      B L O C K E D   O R D E R 
+0052#STR0052#ALL#Respons.Purchaser :
+0053#STR0053#ALL#Alternative Purch. :
+0054#STR0054#ALL#Approver(s) :
+0055#STR0055#ALL#|Unit Value    |IPI  |  Total Value   |  Deliv.  |  C.C.   | P.R. |
+0056#STR0056#ALL#|Unit Value    |      Total Value     |  Deliv.  |  C.C.              | P.R. |
+0057#STR0057#ALL#|Unit Value    |      Total Value     |  Deliv.  |  C.C.   | P.R. |
+0058#STR0058#ALL#| Expenses: 
+0059#STR0059#ALL#| Insurance:
+0060#STR0060#ALL#BLQ:Locked
+0061#STR0061#ALL#Ok:Released
+0062#STR0062#ALL#??:Wait.Rel.
+0063#STR0063#ALL#Total of taxes:        
+0064#STR0064#ALL#Total with taxes:      
+0065#STR0065#ALL#PO 
+0066#STR0066#ALL#CC 
+0067#STR0067#ALL###:Rel.Level
+0068#STR0068#ALL#P U R C H A S E  O R D E R     
+0069#STR0069#ALL#D E L I V E R Y   A U T H O R I Z A T .  
+0070#STR0070#ALL#Issue Date     
+0071#STR0071#ALL#IPI:
+0072#STR0072#ALL#ICMS:
+0073#STR0073#ALL#Freight:
+0074#STR0074#ALL#Expenses:
+0075#STR0075#ALL#Group:
+0076#STR0076#ALL#INSURANCE:
+0077#STR0077#ALL#Notes       
+0078#STR0078#ALL#Grand Total:
+0079#STR0079#ALL#Order Release      
+0080#STR0080#ALL#Freight Note:  
+0081#STR0081#ALL#NOTE: We will only accept goods of which the Invoice holds our Purchase Order number.
+0082#STR0082#ALL#Approval Caption: 
+0083#STR0083#ALL#NOTE: We will only accept the goods of which the Invoice holds the delivery authorization number.
+0084#STR0084#ALL#Release Authoriz.  
+0085#STR0085#ALL#DELIVERY AUTHORIZATION RELEASED    
+0086#STR0086#ALL#DELIVERY AUTHORIZATION LOCKED      
+0087#STR0087#ALL#Company:
+0088#STR0088#ALL#Address:
+0089#STR0089#ALL#ZIP Code:
+0090#STR0090#ALL#City:
+0091#STR0091#ALL#STATE:
+0092#STR0092#ALL#PHONE:
+0093#STR0093#ALL#Fax Number:
+0094#STR0094#ALL#PHONE:
+0095#STR0095#ALL#State Reg.:
+0096#STR0096#ALL#CNPJ/CPF:
+0097#STR0097#ALL#Descript.
+0098#STR0098#ALL#Unit Value
+0099#STR0099#ALL#Total Value
+0100#STR0100#ALL#P.O or C.C Number
+0101#STR0101#ALL#Continue next page...           
+0102#STR0102#ALL#Purchase order / Delivery authorization  
+0103#STR0103#ALL#Purchase order / Delivery authorization (Products)   
+0104#STR0104#ALL#Attention
+0105#STR0105#ALL#Check the parameters defined for this report in the configurator for current user.            
+0106#STR0106#ALL#Company Name:
+0107#STR0107#ALL#Code:
+0108#STR0108#ALL#Store:
+0109#STR0109#ALL#District:
+0110#STR0110#ALL#City:
+0111#STR0111#ALL#State:
+0112#STR0112#ALL#ZIP:
+0113#STR0113#ALL#CNPJ/CPF:
+0114#STR0114#ALL#Fax Number:
+0115#STR0115#ALL#MU
+0116#STR0116#ALL#Delivery Dt
+0117#STR0117#ALL#Deliv.
+0118#STR0118#ALL#2.UM
+0119#STR0119#ALL#% IPI
+0120#STR0120#ALL#Number
+0121#STR0121#ALL#C.C.
+0122#STR0122#ALL#S.C.
+0123#STR0123#ALL#SC Number
+0124#STR0124#BRA#EIN/SSN:
+0124#STR0124#COL#CNPJ/CPF:
+0124#STR0124#MEX#EIN/SSN
+0124#STR0124#PER#EIN/SSN:
+0125#STR0125#ALL#The purchase order reached its reissue limit.
+0126#STR0126#ALL#Reprint 99th issue
+0127#STR0127#ALL#Back to the 1st issue
+0128#STR0128#ALL#Cancel
+0129#STR0129#ALL#PC / AE
+0130#STR0130#ALL#   O R D E R  R E J E C T E D
+0131#STR0131#ALL#REJ:Rejected
+0132#STR0132#ALL#On account Sender
+0133#STR0133#ALL#On account Recipient
+0134#STR0134#ALL#On account Third Party

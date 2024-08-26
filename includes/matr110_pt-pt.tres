@@ -1,0 +1,103 @@
+0001#STR0001#ALL#Emissão dos pedidos de compras ou autorizações de entrega
+0002#STR0002#ALL#Registados e que ainda não foram impressos
+0003#STR0003#ALL#Emissão Dos Pedidos De Compras Ou Autorizações De Entrega
+0004#STR0004#ALL#Código de barras
+0005#STR0005#ALL#Administração
+0006#STR0006#ALL#Cancelado Pelo Operador
+0007#STR0007#ALL#D e s c o n t o s -->
+0008#STR0008#ALL#Local de entrega  : 
+0009#STR0009#ALL#Código postal :
+0010#STR0010#ALL#Local de cobrança : 
+0011#STR0011#ALL#Condição de pagt 
+0012#STR0012#ALL#|data De Emissão|
+0013#STR0013#ALL#Total das mercadorias : 
+0015#STR0015#ALL#| iva   :
+0016#STR0016#ALL#| Observações
+0017#STR0017#ALL#| grupo :
+0018#STR0018#ALL#| total crial : 
+0019#STR0019#ALL#|           Autorização Do Pedido
+0020#STR0020#ALL#| obs. do frete: 
+0022#STR0022#ALL#Gerência
+0023#STR0023#ALL#Directoria
+0024#STR0024#ALL#|   Factura: Só Aceitaremos A Mercadoria Se Na Sua Factura Constar O Número Do Nosso Pedido De Compras.
+0025#STR0025#ALL#| Observações
+0026#STR0026#ALL#| comprador    
+0027#STR0027#ALL#| gerência     
+0028#STR0028#ALL#| directoria    
+0029#STR0029#ALL#|   Factura: Só Aceitaremos A Mercadoria Se Na Sua Factura Constar O Número Da Autorização De Entrega.
+0032#STR0032#ALL#| a u t.   d e   e n t r e g a   
+0033#STR0033#ALL# - continuação
+0034#STR0034#ALL#A.emissão 
+0035#STR0035#ALL#A.via
+0036#STR0036#ALL# i.e.: 
+0037#STR0037#ALL#Tel: 
+0038#STR0038#ALL#Fax: 
+0039#STR0039#ALL#Nif: 
+0040#STR0040#ALL#Nif: 
+0041#STR0041#ALL#Ie:
+0042#STR0042#ALL#Telefone: 
+0044#STR0044#ALL#Código      
+0045#STR0045#ALL#|descrição Do Material
+0046#STR0046#ALL#|um|  Quant.
+0047#STR0047#ALL#|valor unitário|iva  |  valor total   | entrega  |  c.c.              | s.c. |
+0048#STR0048#ALL#|valor unitário|  valor total   | entrega  | número da op  ou  cc 
+0049#STR0049#ALL#| frete :
+0050#STR0050#ALL#      P E D I D O   A P R O V A D O
+0051#STR0051#ALL#     p e d i d o   b l o q u e a d o 
+0052#STR0052#ALL#Comprador responsável :
+0053#STR0053#ALL#Compradores alternativos :
+0054#STR0054#ALL#Quem autoriza :
+0055#STR0055#ALL#|valor unitário|iva  |  valor total   | entrega  |  c.c.   | s.c. |
+0056#STR0056#ALL#|valor unitário|      valor total     | entrega  |  c.c.              | s.c. |
+0057#STR0057#ALL#|valor unitário|      valor total     | entrega  |  c.c.   | s.c. |
+0058#STR0058#ALL#| despesas :
+0059#STR0059#ALL#| seguro :
+0060#STR0060#ALL#Blq:bloqueado
+0061#STR0061#ALL#Ok:autorizado
+0062#STR0062#ALL#??:aguar.aprov
+0063#STR0063#ALL#Total dos impostos:    
+0064#STR0064#ALL#Total com impostos:    
+0065#STR0065#ALL#Op 
+0066#STR0066#ALL#Cc 
+0067#STR0067#ALL###:nível Lib
+0069#STR0069#ALL#A U T O R I Z A ç ã O  D E  E N T R E G A
+0070#STR0070#ALL#Data De Emissão
+0071#STR0071#ALL#Ipi      :
+0072#STR0072#ALL#Icms     :
+0073#STR0073#ALL#Transportar    :
+0076#STR0076#ALL#Seguro   :
+0077#STR0077#ALL#Observações 
+0078#STR0078#ALL#Total geral :
+0079#STR0079#ALL#Autorização Do Pedido
+0080#STR0080#ALL#Obs. do frete: 
+0081#STR0081#ALL#Nota: Só Aceitaremos A Mercadoria Se Na Sua Factura Constar O Número Do Nosso Pedido De Compras.
+0082#STR0082#ALL#Legendas da aprovação : 
+0083#STR0083#ALL#Nota: Só Aceitaremos A Mercadoria Se Na Sua Factura Constar O Número Da Autorização De Entrega.
+0084#STR0084#ALL#Dev. autorização 
+0085#STR0085#ALL#Autorização de entrega devolvida    
+0086#STR0086#ALL#Autorização de entrega bloqueada   
+0088#STR0088#ALL#Morada:
+0089#STR0089#ALL#Cep:
+0091#STR0091#ALL#Uf:
+0092#STR0092#ALL#Tel.:
+0093#STR0093#ALL#Fax:
+0094#STR0094#ALL#Telefone:
+0095#STR0095#ALL#Ins. Dist..:
+0096#STR0096#ALL#Número de contribuinte/número de contribuinte:
+0097#STR0097#ALL#Descrição
+0098#STR0098#ALL#Valor Unitário
+0100#STR0100#ALL#Número Da Op Ou Cc
+0101#STR0101#ALL#Continua na próxima página .... 
+0102#STR0102#ALL#Pedido De Compras / Autorização De Entrega
+0103#STR0103#ALL#Pedido de compras / autorização de entrega (artigos)
+0105#STR0105#ALL#Verifique os parâmetros definidos para esse relatório no configurador para o utilizador corrente.
+0106#STR0106#ALL#Razao social:
+0107#STR0107#ALL#Código:
+0109#STR0109#ALL#Localidade:
+0110#STR0110#ALL#Concelho:
+0112#STR0112#ALL#Cep:
+0113#STR0113#ALL#Número de contribuinte/número de contribuinte:
+0114#STR0114#ALL#Fax:
+0115#STR0115#ALL#Um
+0123#STR0123#ALL#Nr.SC
+0124#STR0124#COL#CNPJ/CPF:

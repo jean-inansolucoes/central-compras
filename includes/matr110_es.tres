@@ -1,0 +1,137 @@
+0001#STR0001#ALL#Emision de los pedidos de compras o autorizaciones de entrega
+0002#STR0002#ALL#registrados y que aun no se imprimieron
+0003#STR0003#ALL#Emision de los Pedidos de Compras o Autorizaciones de Entrega
+0004#STR0004#ALL#A Rayas
+0005#STR0005#ALL#Administracion
+0006#STR0006#ALL#ANULADO POR EL OPERADOR
+0007#STR0007#ALL#D E S C U E N T O S ->
+0008#STR0008#ALL#Local de Entrega  : 
+0009#STR0009#ALL#CP :
+0010#STR0010#ALL#Local de Cobranza:
+0011#STR0011#ALL#Condicion de pago 
+0012#STR0012#ALL#| Fecha emision |
+0013#STR0013#ALL#Total de las mercaderias:
+0014#STR0014#ALL#Reajuste :
+0015#STR0015#ALL#| I V A: 
+0016#STR0016#ALL#| Observaciones
+0017#STR0017#ALL#| Grupo :
+0018#STR0018#ALL#| Total general:
+0019#STR0019#ALL#|           Aprobacion del pedido
+0020#STR0020#ALL#| Obs. del flete:
+0021#STR0021#ALL#Comprador
+0022#STR0022#ALL#Gerencia
+0023#STR0023#ALL#Directoria
+0024#STR0024#ALL#|   NOTA: Solo aceptaremos la mercaderia si en su Factura consta el numero de nuestro Pedido de Compras.
+0025#STR0025#ALL#| Observaciones
+0026#STR0026#ALL#| Comprador    
+0027#STR0027#ALL#| Gerencia     
+0028#STR0028#ALL#| Directoria   
+0029#STR0029#ALL#|   NOTA: Solo aceptaremos la mercaderia si en su Factura consta el numero de la Autorizacion de Entrega.
+0030#STR0030#ALL#Continua ...
+0031#STR0031#ALL#| P E D I D O  D E  C O M P R A S
+0032#STR0032#ALL#| A U T.   D E   E N T R E G A   
+0033#STR0033#ALL# - continuacion
+0034#STR0034#ALL#a.Emision 
+0035#STR0035#ALL#a.Cop
+0036#STR0036#ALL#I.E.:
+0037#STR0037#ALL#TEL:  
+0038#STR0038#ALL#Fax:  
+0039#STR0039#ALL#Num.Contrib.: 
+0040#STR0040#ALL#Num.Contrib.: 
+0041#STR0041#ALL#IE :
+0042#STR0042#ALL#TEL.: 
+0043#STR0043#ALL#Item|
+0044#STR0044#ALL#Codigo      
+0045#STR0045#ALL#|Descripcion del Material
+0046#STR0046#ALL#|UM|  Cant.
+0047#STR0047#ALL#|Valor Unitario|IVA  |  Valor Total   | Entrega  |  CCOSTO            | S.C. |
+0048#STR0048#ALL#|Valor Unitario|  Valor Total   | Entrega  | Numero de la OP o CC 
+0049#STR0049#ALL#| Flete :
+0050#STR0050#ALL#      P E D I D O   A P R O B A D O
+0051#STR0051#ALL#     P E D I D O   B L O Q U E A D O 
+0052#STR0052#ALL#Comprador Responsable :
+0053#STR0053#ALL#Compradores Alternativos :
+0054#STR0054#ALL#Aprobador(es) :
+0055#STR0055#ALL#|Valor Unitario|IVA  |  Valor Total   | Entrega  |  CCOSTO | S.C. |
+0056#STR0056#ALL#|Valor Unitario|      Valor Total     | Entrega  |  CCOSTO            | S.C. |
+0057#STR0057#ALL#|Valor Unitario|      Valor Total     | Entrega  |  CCOSTO | S.C. |
+0058#STR0058#ALL#| COSTOS :
+0059#STR0059#ALL#| SEGURO :
+0060#STR0060#ALL#BLQ:Bloqueado
+0061#STR0061#ALL#Ok:Aprobado
+0062#STR0062#ALL#??:Esper.Lib
+0063#STR0063#ALL#Total de los Impuestos:
+0064#STR0064#ALL#Total com Impuestos:
+0065#STR0065#ALL#OP 
+0066#STR0066#ALL#CC 
+0067#STR0067#ALL###:Nivel Lib
+0068#STR0068#ALL#P E D I D O  D E  C O M P R A S
+0069#STR0069#ALL#A U T O R I Z A C I O N  D E  E N T R E G A
+0070#STR0070#ALL#Fecha de Emision
+0071#STR0071#ALL#IPI      :
+0072#STR0072#ALL#ICMS     :
+0073#STR0073#ALL#Flete    :
+0074#STR0074#ALL#Gastos   :
+0075#STR0075#ALL#Grupo    :
+0076#STR0076#ALL#SEGURO   :
+0077#STR0077#ALL#Observaciones 
+0078#STR0078#ALL#Total Gral  :
+0079#STR0079#ALL#Liberacion de Pedido
+0080#STR0080#ALL#Obs. de Flete: 
+0081#STR0081#ALL#NOTA: Solo aceptaremos la mercaderia si en la Factura consta el numero de nuestro Pedido de Compras.
+0082#STR0082#ALL#Leyendas de la Aprobacion : 
+0083#STR0083#ALL#NOTA: Solo aceptaremos la mercaderia si en la Factura consta el numero de la Autorizacion de Entrega.
+0084#STR0084#ALL#Liber. Autorizacion 
+0085#STR0085#ALL#AUTORIZACION DE ENTREGA LIBERADA    
+0086#STR0086#ALL#AUTORIZACION DE ENTREGA BLOQUEADA   
+0087#STR0087#ALL#Empresa:
+0088#STR0088#ALL#Direccion:
+0089#STR0089#ALL#CP:
+0090#STR0090#ALL#Ciudad:
+0091#STR0091#ALL#UF:
+0092#STR0092#ALL#TEL:
+0093#STR0093#ALL#FAX:
+0094#STR0094#ALL#TEL:
+0095#STR0095#ALL#Ins. Estat.:
+0096#STR0096#ALL#CNPJ/CPF:
+0097#STR0097#ALL#Descrip.
+0098#STR0098#ALL#Valor Unitario
+0099#STR0099#ALL#Valor Total
+0100#STR0100#ALL#Numero de OP o CC
+0101#STR0101#ALL#Continua en Proxima Pagina .... 
+0102#STR0102#ALL#Pedido de Compras / Autorizac. de Entrega
+0103#STR0103#ALL#Pedido de Compras / Autorizac. de Entrega (Productos)
+0104#STR0104#ALL#Atencion
+0105#STR0105#ALL#Verifique los parametros definidos para este informe en el configurador, para el usuario corriente.
+0106#STR0106#ALL#Razon Social:
+0107#STR0107#ALL#Codigo:
+0108#STR0108#ALL#Tienda:
+0109#STR0109#ALL#Barrio:
+0110#STR0110#ALL#Municipio:
+0111#STR0111#ALL#Estado:
+0112#STR0112#ALL#CP:
+0113#STR0113#ALL#RCPJ/RCPF:
+0114#STR0114#ALL#FAX:
+0115#STR0115#ALL#UM
+0116#STR0116#ALL#Fc. Entrega
+0117#STR0117#ALL#Entrega
+0118#STR0118#ALL#2ª UM
+0119#STR0119#ALL#% IPI
+0120#STR0120#ALL#Cant.
+0121#STR0121#ALL#C.C.
+0122#STR0122#ALL#S.C.
+0123#STR0123#ALL#Nro.SC
+0124#STR0124#BRA#CNPJ/CPF:
+0124#STR0124#COL#NIT:
+0124#STR0124#MEX#RFC
+0124#STR0124#PER#RUC:
+0125#STR0125#ALL#El pedido de compras llego al limite de reemisiones.
+0126#STR0126#ALL#Reimprimir 99ª emision
+0127#STR0127#ALL#Volver a la 1ª emision
+0128#STR0128#ALL#Anular
+0129#STR0129#ALL#PC / AE
+0130#STR0130#ALL#P E D I D O  R E C H A Z A D O
+0131#STR0131#ALL#REC:Rechazado
+0132#STR0132#ALL#Por cuenta del remitente
+0133#STR0133#ALL#Por cuenta del destinatario
+0134#STR0134#ALL#Por cuenta de terceros
