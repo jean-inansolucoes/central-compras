@@ -1,8 +1,9 @@
-#include "rwmake.ch" 
+#include "totvs.ch"
+#INCLUDE "RWMAKE.CH"
 #include "colors.ch"
 #include "Topconn.ch"
 
-#define VERSION iif(findFunction('U_JSGETVER'), U_JSGETVER(), '1.0' )            // retorna versão da integração
+#define VERSION U_JSGETVER()            // retorna versão da integração
 
 /*/{Protheus.doc} CopyToSrv
 Função para copiar arquivos da maquina local para o server do protheus

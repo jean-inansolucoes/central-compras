@@ -38,7 +38,7 @@ Rotina para gestão de compras, elaboração inteligente de pedidos e acompanhament
 User Function GMPAICOM()
                        
 	Local oCboAna as object
-	Local oFndFor as object
+	// Local oFndFor as object
 	local oFndPrd as object
 	local _cFilFor := "" as character	
 	Local oFntTxt := TFont():New("Tahoma",,015,,.F.,,,,,.F.,.T.)
@@ -55,82 +55,87 @@ User Function GMPAICOM()
 	Local aCboAna  := {"1=Diário","2=Semanal","3=Mensal"}
 	Local aCabFor  := {}															// Cabeçalho do browse do grid de fornecedores
 	Local aStrFor  := {} 
-	Local oGir001, oGir002, oGir003, oGir004, oGir005, oGir006 := Nil
+	Local oGir001, oGir002, oGir003, oGir004, oGir005/* , oGir006 */ := Nil
 	Local aHeaPro  := {}
+	local aFields  := {"B1_COD","B1_DESC","B1_UM","NECCOMP","QTDBLOQ","PRCNEGOC","ULTPRECO","CONSMED","DURACAO","DURAPRV","ESTOQUE","EMPENHO","QTDCOMP","LEADTIME","TPLDTIME","PREVENT","B1_LM","B1_QE","B1_LE","B1_PROC","B1_LOJPROC"} 
 	Local aAlter   := {"NECCOMP","QTDBLOQ","PRCNEGOC","B1_LM", "B1_QE", "B1_LE", "B1_PROC", "B1_UM", "LEADTIME", "B1_DESC" }
 	Local nX       := 0
-	Local oLblOrd  := Nil
-	Local oCboOrd  := Nil
-	Local aCboOrd  := {}
-	Local oCboExi  := Nil
+	// Local oLblOrd  := Nil
+	// Local oCboOrd  := Nil
+	// Local oCboExi  := Nil
 	Local oPanAna  := Nil
 	local oAliFor  as object
 	local oLayer   as object
-	local oLayer1  as object
+	// local oLayer1  as object
 	Local oGroup1  as object
 	local oWinFor  as object
 	local oLblPer  as object
 	local bok      := {|| Nil }
 	local bCancel  := {|| oDlgCom:End() }
 	local aButtons := {} as array
-	local oBmpCri, oBmpAlt, oBmpMed, oBmpBai, oBmpSem, oBmpSol := nil
+	local oBmpCri, oBmpAlt, oBmpMed, oBmpBai, oBmpSem/* , oBmpSol */ := nil
 	local oRadMenu as object
 	local aRadMenu := { "Todos os produtos", "Apenas sugestões de compra", "Apenas risco de ruptura" }
 	local oBtnFil  as object
 	local cLastRun := "" as character
+	local oLine    as object
 	
-	Private _cFilPrd := "" as character
-	Private _aTypes  := {} as array
-	Private nRadMenu := 1 as numeric
-	Private cFormula := AllTrim( SuperGetMv( 'MV_X_PNC01',,"" ) )			// Formula de cálculo da necessidade de compra
-	Private cZB6     := AllTrim( SuperGetMv( 'MV_X_PNC04',,"" ) )			// Alias da tabela ZB6 no ambiente do cliente
-	Private cZB3     := AllTrim( SuperGetMv( 'MV_X_PNC02',,"" ) )			// Alias da tabela ZB3 no ambiente do cliente	
-	Private cMarca   := GetMark()
-	Private oLblDia  := Nil
-	Private nGetQtd  := 0
-	Private cCboAna  := '1' 
-	Private cCboExi  := 'Z..A'
-	Private cCboOrd  := ""
-	Private oDias    := Nil
-	Private aCarCom  := {}															// Dados dos produtos no carrinho de compras
-	Private cMark    := GetMark()
-	Private cFndFor  := Space( TAMSX3( 'A2_NOME' )[01] )
-	Private lGir001  := lGir002 := lGir003 := lGir004 := lGir005 := lGir006 := .T.
-	Private oDlgCom  := Nil
-	Private oBrwFor  := Nil
-	Private aColPro  := {}
-	Private oBrwPro  := Nil
-	Private aSelFor  := {}															// Fornecedores com check-box marcado
-	Private nPosPrd  := 0
-	Private nPosDes  := 0
-	Private nPosLtM  := 0 
-	Private nPosUnM  := 0 
-	Private nPosChk  := 0
-	Private nPosFor  := 0
-	Private nPosLoj  := 0
-	Private nPosLeg  := 0 
-	Private nPosBlq  := 0
-	Private nPosNec  := 0
-	Private nPosNeg  := 0
-	Private nPosUlt  := 0
-	Private nPosCon  := 0 
-	Private nPosDur  := 0 
-	Private nPosEmE  := 0 
-	Private nPosVen  := 0 
-	Private nPosQtd  := 0 
-	Private nPosLdT  := 0 
-	Private nPosTLT  := 0 as numeric
-	Private nPosPrv  := 0
-	Private aConfig  := {}															// Guarda configurações da rotina para uso durante a execução
-	Private nSpinBx  := 0
-	Private oLblAna  := Nil
-	Private oDash    := Nil
-	Private aEvePen  := {}															// Vetor para guardar eventos pendentes de serem resolvidos
-	Private nPosQtE  := 0 as numeric				
-	Private nPosLtE  := 0 as numeric
-	Private nMVPNC11 := SuperGetMv( 'MV_X_PNC11',,1 )					// Tipo de Análise (1=Pelo Fornecedor Padrão ou 2=Pelo Produto)
-	Private _aFil    := { cFilAnt } as array
+	Private aCboOrd   := {}
+	Private _cFilPrd  := "" as character
+	Private _aTypes   := {} as array
+	Private nRadMenu  := 1 as numeric
+	Private cFormula  := AllTrim( SuperGetMv( 'MV_X_PNC01',,"" ) )			// Formula de cálculo da necessidade de compra
+	Private cZB6      := AllTrim( SuperGetMv( 'MV_X_PNC04',,"" ) )			// Alias da tabela ZB6 no ambiente do cliente
+	Private cZB3      := AllTrim( SuperGetMv( 'MV_X_PNC02',,"" ) )			// Alias da tabela ZB3 no ambiente do cliente	
+	Private cMarca    := GetMark()
+	Private oLblDia   := Nil
+	Private nGetQtd   := 0
+	Private cCboAna   := '1' 
+	Private cCboExi   := 'Z..A'
+	Private cCboOrd   := ""
+	Private oDias     := Nil
+	Private aCarCom   := {}															// Dados dos produtos no carrinho de compras
+	Private cMark     := GetMark()
+	Private lGir001   := lGir002 := lGir003 := lGir004 := lGir005 := /* lGir006 := */ .T.
+	Private oDlgCom   := Nil
+	Private oBrwFor   := Nil
+	Private aColPro   := {}
+	Private oBrwPro   := Nil
+	Private aSelFor   := {}															// Fornecedores com check-box marcado
+	Private nPosPrd   := 0
+	Private nPosDes   := 0
+	Private nPosLtM   := 0 
+	Private nPosUnM   := 0 
+	Private nPosChk   := 0
+	Private nPosFor   := 0
+	Private nPosLoj   := 0
+	Private nPosBlq   := 0
+	Private nPosNec   := 0
+	Private nPosNeg   := 0
+	Private nPosUlt   := 0
+	Private nPosCon   := 0 
+	Private nPosDur   := 0 
+	Private nPosEmE   := 0 
+	Private nPosVen   := 0 
+	Private nPosQtd   := 0 
+	Private nPosLdT   := 0 
+	Private nPosTLT   := 0 as numeric
+	Private nPosPrv   := 0
+	Private aConfig   := {}															// Guarda configurações da rotina para uso durante a execução
+	Private nSpinBx   := 0
+	Private nPosInc   := 0 as numeric
+	Private oLblAna   := Nil
+	Private oDash     := Nil
+	Private aEvePen   := {}															// Vetor para guardar eventos pendentes de serem resolvidos
+	Private nPosQtE   := 0 as numeric				
+	Private nPosLtE   := 0 as numeric
+	Private nMVPNC11  := SuperGetMv( 'MV_X_PNC11',,1 )					// Tipo de Análise (1=Pelo Fornecedor Padrão ou 2=Pelo Produto)
+	Private _aFil     := { cFilAnt } as array
 	Private _aProdFil := {} as array
+	Private _aFilters := { Space(200),;
+						   Space(200),; 
+						   Space(TAMSX3('B1_PROC')[1]),; 
+						   "" }
 
 	// Variáveis para o relatório referente ao pedido de compra
 	Private cPicA2_CEP	:= PesqPict("SA2","A2_CEP")
@@ -193,160 +198,40 @@ User Function GMPAICOM()
 	aAdd( aCabFor, { 'L.T.(I)'     , {|| RetField('SA2',1,FWxFilial("SA2") + FORTMP->B1_PROC + FORTMP->B1_LOJPROC, "A2_X_LTIME" )},;
 		 'N', '@E 999', 2, 03, 00, .T. /* lCanEdit */, {|| A2LTMCHG() }, Nil, Nil, 'FORTMP->A2_X_LTIME' } )
 	
-	// Monta dinamicamente cabeçalho do grid de produtos
-	Aadd( aHeaPro, { " "    ,"LEGENDA", "@BMP", 2, 0, ".F." ,"", "C", "", "V" ,"" , "","","V" } )
-	aAdd( aHeaPro, { "Check", "MARK"  , "@BMP", 2, 0, ".F." ,"", "C", "", "V" ,"" , "","","V" } )
-	aAdd( aHeaPro, { AllTrim( GetSX3Cache( 'B1_COD', 'X3_TITULO' ) ),;
-					'B1_COD',;
-					GetSX3Cache( 'B1_COD', 'X3_PICTURE' ),;
-					GetSX3Cache( 'B1_COD', 'X3_TAMANHO' ),;
-					GetSX3Cache( 'B1_COD', 'X3_DECIMAL' ),;
-					GetSX3Cache( 'B1_COD', 'X3_VALID'   ),;
-					GetSX3Cache( 'B1_COD', 'X3_USADO'   ),;
-					GetSX3Cache( 'B1_COD', 'X3_TIPO'    ),;
-					GetSX3Cache( 'B1_COD', 'X3_F3'      ),;
-					GetSX3Cache( 'B1_COD', 'X3_CONTEXT' ),;
-					GetSX3Cache( 'B1_COD', 'X3_CBOX'    ),;
-					GetSX3Cache( 'B1_COD', 'X3_RELACAO' ) } )
-	
-	aAdd( aHeaPro, { AllTrim( GetSX3Cache( 'B1_DESC', 'X3_TITULO' ) ),;
-					'B1_DESC',;
-					GetSX3Cache( 'B1_DESC', 'X3_PICTURE' ),;
-					GetSX3Cache( 'B1_DESC', 'X3_TAMANHO' ),;
-					GetSX3Cache( 'B1_DESC', 'X3_DECIMAL' ),;
-					GetSX3Cache( 'B1_DESC', 'X3_VALID'   ),;
-					GetSX3Cache( 'B1_DESC', 'X3_USADO'   ),;
-					GetSX3Cache( 'B1_DESC', 'X3_TIPO'    ),;
-					GetSX3Cache( 'B1_DESC', 'X3_F3'      ),;
-					GetSX3Cache( 'B1_DESC', 'X3_CONTEXT' ),;
-					GetSX3Cache( 'B1_DESC', 'X3_CBOX'    ),;
-					GetSX3Cache( 'B1_DESC', 'X3_RELACAO' ) } )
-
-	aAdd( aHeaPro, { AllTrim( GetSX3Cache( 'B1_UM', 'X3_TITULO' ) ),;
-					'B1_UM',;
-					GetSX3Cache( 'B1_UM', 'X3_PICTURE' ),;
-					GetSX3Cache( 'B1_UM', 'X3_TAMANHO' ),;
-					GetSX3Cache( 'B1_UM', 'X3_DECIMAL' ),;
-					GetSX3Cache( 'B1_UM', 'X3_VALID'   ),;
-					GetSX3Cache( 'B1_UM', 'X3_USADO'   ),;
-					GetSX3Cache( 'B1_UM', 'X3_TIPO'    ),;
-					GetSX3Cache( 'B1_UM', 'X3_F3'      ),;
-					GetSX3Cache( 'B1_UM', 'X3_CONTEXT' ),;
-					GetSX3Cache( 'B1_UM', 'X3_CBOX'    ),;
-					GetSX3Cache( 'B1_UM', 'X3_RELACAO' ) } )
-	
-	aAdd( aHeaPro, { "Nec.Com", "NECCOMP" , "@E 999,999"   ,  7, 0,       ,  , "N",   , "V" ,   ,  } )
-	aAdd( aHeaPro, { "Ped.Blq", "QTDBLOQ" , "@E 999,999"   ,  7, 0,       ,  , "N",   , "V" ,   ,  } )
-	aAdd( aHeaPro, { "Prc.Neg", "PRCNEGOC", "@E 999,999.99", 11, 2,       ,  , "N",   , "V" ,   ,  } )
-	aAdd( aHeaPro, { "Ult.Prc", "ULTPRECO", "@E 999,999.99", 11, 2,       ,  , "N",   , "V" ,   ,  } )
-	aAdd( aHeaPro, { "Cons.Md(D)", "CONSMED" , "@E 999.9999"  , 10, 4,       ,  , "N",   , "V" ,   ,  } )
-	aAdd( aHeaPro, { "Duracao", "DURACAO" , "@E 999"       ,  3, 0,       ,  , "N",   , "V" ,   ,  } )
-	aAdd( aHeaPro, { "Dur.Prv", "DURAPRV" , "@E 999"       ,  3, 0,       ,  , "N",   , "V" ,   ,  } )
-	aAdd( aHeaPro, { "Em Est.", "ESTOQUE" , "@E 999,999"   ,  7, 0,       ,  , "N",   , "V" ,   ,  } )
-	aAdd( aHeaPro, { "Empenho", "EMPENHO" , "@E 999,999"   ,  7, 0,       ,  , "N",   , "V" ,   ,  } ) 
-	aAdd( aHeaPro, { "Qt.Comp", "QTDCOMP" , "@E 999,999"   ,  7, 0,       ,  , "N",   , "V" ,   ,  } )
-	aAdd( aHeaPro, { "L-Time" , "LEADTIME", "@E 999"       ,  3, 0,       ,  , "N",   , "V" ,   ,  } )
-	aAdd( aHeaPro, { "Tp.Ld.T", "TPLDTIME", "@x"           ,  1, 0,       ,  , "C",   , "V" ,"C=Calculado;F=Fornecedor;P=Produto", } )
-	aAdd( aHeaPro, { "Prv.Ent", "PREVENT" , "@D"           ,  8, 0,       ,  , "D",   , "V" ,   ,  } )
-
-	aAdd( aHeaPro, { AllTrim( GetSX3Cache( 'B1_LM', 'X3_TITULO' ) ),;
-					'B1_LM',;
-					GetSX3Cache( 'B1_LM', 'X3_PICTURE' ),;
-					GetSX3Cache( 'B1_LM', 'X3_TAMANHO' ),;
-					GetSX3Cache( 'B1_LM', 'X3_DECIMAL' ),;
-					GetSX3Cache( 'B1_LM', 'X3_VALID'   ),;
-					GetSX3Cache( 'B1_LM', 'X3_USADO'   ),;
-					GetSX3Cache( 'B1_LM', 'X3_TIPO'    ),;
-					GetSX3Cache( 'B1_LM', 'X3_F3'      ),;
-					GetSX3Cache( 'B1_LM', 'X3_CONTEXT' ),;
-					GetSX3Cache( 'B1_LM', 'X3_CBOX'    ),;
-					GetSX3Cache( 'B1_LM', 'X3_RELACAO' ) } )
-	
-	aAdd( aHeaPro, { AllTrim( GetSX3Cache( 'B1_QE', 'X3_TITULO' ) ),;
-					'B1_QE',;
-					GetSX3Cache( 'B1_QE', 'X3_PICTURE' ),;
-					GetSX3Cache( 'B1_QE', 'X3_TAMANHO' ),;
-					GetSX3Cache( 'B1_QE', 'X3_DECIMAL' ),;
-					GetSX3Cache( 'B1_QE', 'X3_VALID'   ),;
-					GetSX3Cache( 'B1_QE', 'X3_USADO'   ),;
-					GetSX3Cache( 'B1_QE', 'X3_TIPO'    ),;
-					GetSX3Cache( 'B1_QE', 'X3_F3'      ),;
-					GetSX3Cache( 'B1_QE', 'X3_CONTEXT' ),;
-					GetSX3Cache( 'B1_QE', 'X3_CBOX'    ),;
-					GetSX3Cache( 'B1_QE', 'X3_RELACAO' ) } )
-
-	aAdd( aHeaPro, { AllTrim( GetSX3Cache( 'B1_LE', 'X3_TITULO' ) ),;
-					'B1_LE',;
-					GetSX3Cache( 'B1_LE', 'X3_PICTURE' ),;
-					GetSX3Cache( 'B1_LE', 'X3_TAMANHO' ),;
-					GetSX3Cache( 'B1_LE', 'X3_DECIMAL' ),;
-					GetSX3Cache( 'B1_LE', 'X3_VALID'   ),;
-					GetSX3Cache( 'B1_LE', 'X3_USADO'   ),;
-					GetSX3Cache( 'B1_LE', 'X3_TIPO'    ),;
-					GetSX3Cache( 'B1_LE', 'X3_F3'      ),;
-					GetSX3Cache( 'B1_LE', 'X3_CONTEXT' ),;
-					GetSX3Cache( 'B1_LE', 'X3_CBOX'    ),;
-					GetSX3Cache( 'B1_LE', 'X3_RELACAO' ) } )
-
-	aAdd( aHeaPro, { AllTrim( GetSX3Cache( 'B1_PROC', 'X3_TITULO' ) ),;
-					'B1_PROC',; 
-					GetSX3Cache( 'B1_PROC', 'X3_PICTURE' ),;
-					GetSX3Cache( 'B1_PROC', 'X3_TAMANHO' ),;
-					GetSX3Cache( 'B1_PROC', 'X3_DECIMAL' ),;
-					Nil,;
-					GetSX3Cache( 'B1_PROC', 'X3_USADO'   ),;
-					GetSX3Cache( 'B1_PROC', 'X3_TIPO'    ),;
-					GetSX3Cache( 'B1_PROC', 'X3_F3'      ),;
-					GetSX3Cache( 'B1_PROC', 'X3_CONTEXT' ),;
-					GetSX3Cache( 'B1_PROC', 'X3_CBOX'    ),;
-					GetSX3Cache( 'B1_PROC', 'X3_RELACAO' ) } )
-
-	aAdd( aHeaPro, { AllTrim( GetSX3Cache( 'B1_LOJPROC', 'X3_TITULO' ) ),;
-					'B1_LOJPROC',;
-					GetSX3Cache( 'B1_LOJPROC', 'X3_PICTURE' ),;
-					GetSX3Cache( 'B1_LOJPROC', 'X3_TAMANHO' ),;
-					GetSX3Cache( 'B1_LOJPROC', 'X3_DECIMAL' ),;
-					Nil,;
-					GetSX3Cache( 'B1_LOJPROC', 'X3_USADO'   ),;
-					GetSX3Cache( 'B1_LOJPROC', 'X3_TIPO'    ),;
-					GetSX3Cache( 'B1_LOJPROC', 'X3_F3'      ),;
-					GetSX3Cache( 'B1_LOJPROC', 'X3_CONTEXT' ),;
-					GetSX3Cache( 'B1_LOJPROC', 'X3_CBOX'    ),;
-					GetSX3Cache( 'B1_LOJPROC', 'X3_RELACAO' ) } )								
-	
+	aHeaPro := getColPro( aFields, aAlter )							
 	// Guarda o posicionamento dos campos para posteriormente utilizá-los ao longo do fonte
-	nPosLeg := aScan( aHeaPro, {|x| AllTrim( x[2] ) == "LEGENDA"    } )
-	nPosPrd := aScan( aHeaPro, {|x| AllTrim( x[2] ) == "B1_COD"     } ) 
-	nPosDes := aScan( aHeaPro, {|x| AllTrim( x[2] ) == "B1_DESC"    } )
-	nPosUnM := aScan( aHeaPro, {|x| AllTrim( x[2] ) == "B1_UM"      } )
-	nPosChk := aScan( aHeaPro, {|x| AllTrim( x[2] ) == "MARK"       } )
-	nPosLtM := aScan( aHeaPro, {|x| AllTrim( x[2] ) == "B1_LM"      } )
-	nPosFor := aScan( aHeaPro, {|x| AllTrim( x[2] ) == "B1_PROC"    } )
-	nPosLoj := aScan( aHeaPro, {|x| AllTrim( x[2] ) == "B1_LOJPROC" } )
-	nPosNec := aScan( aHeaPro, {|x| AllTrim( x[2] ) == "NECCOMP"    } )
-	nPosNeg := aScan( aHeaPro, {|x| AllTrim( x[2] ) == "PRCNEGOC"   } )
-	nPosUlt := aScan( aHeaPro, {|x| AllTrim( x[2] ) == "ULTPRECO"   } )
-	nPosCon := aScan( aHeaPro, {|x| AllTrim( x[2] ) == "CONSMED"    } )
-	nPosDur := aScan( aHeaPro, {|x| AllTrim( x[2] ) == "DURACAO"    } )
-	nPosDuP := aScan( aHeaPro, {|x| AllTrim( x[2] ) == "DURAPRV"    } )
-	nPosEmE := aScan( aHeaPro, {|x| AllTrim( x[2] ) == "ESTOQUE"    } )
-	nPosVen := aScan( aHeaPro, {|x| AllTrim( x[2] ) == "EMPENHO"    } ) 
-	nPosQtd := aScan( aHeaPro, {|x| AllTrim( x[2] ) == "QTDCOMP"    } )
-	nPosPrv := aScan( aHeaPro, {|x| AllTrim( x[2] ) == "PREVENT"    } )
-	nPosLdT := aScan( aHeaPro, {|x| AllTrim( x[2] ) == "LEADTIME"   } )
-	nPosTLT := aScan( aHeaPro, {|x| AllTrim( x[2] ) == "TPLDTIME"   } )		// Tipo do Lead-Time (C=Calculado P=Produto ou F=Fornecedor)
-	nPosBlq := aScan( aHeaPro, {|x| AllTrim( x[2] ) == "QTDBLOQ"    } )
-	nPosQtE := aScan( aHeaPro, {|x| AllTrim( x[2] ) == "B1_QE"      } )
-	nPosLtE := aScan( aHeaPro, {|x| AllTrim( x[2] ) == "B1_LE"      } )
+	nPosPrd := aScan( aFields, {|x| x == "B1_COD"     } ) 
+	nPosDes := aScan( aFields, {|x| x == "B1_DESC"    } )
+	nPosUnM := aScan( aFields, {|x| x == "B1_UM"      } )
+	nPosLtM := aScan( aFields, {|x| x == "B1_LM"      } )
+	nPosFor := aScan( aFields, {|x| x == "B1_PROC"    } )
+	nPosLoj := aScan( aFields, {|x| x == "B1_LOJPROC" } )
+	nPosNec := aScan( aFields, {|x| x == "NECCOMP"    } )
+	nPosNeg := aScan( aFields, {|x| x == "PRCNEGOC"   } )
+	nPosUlt := aScan( aFields, {|x| x == "ULTPRECO"   } )
+	nPosCon := aScan( aFields, {|x| x == "CONSMED"    } )
+	nPosDur := aScan( aFields, {|x| x == "DURACAO"    } )
+	nPosDuP := aScan( aFields, {|x| x == "DURAPRV"    } )
+	nPosEmE := aScan( aFields, {|x| x == "ESTOQUE"    } )
+	nPosVen := aScan( aFields, {|x| x == "EMPENHO"    } ) 
+	nPosQtd := aScan( aFields, {|x| x == "QTDCOMP"    } )
+	nPosPrv := aScan( aFields, {|x| x == "PREVENT"    } )
+	nPosLdT := aScan( aFields, {|x| x == "LEADTIME"   } )
+	nPosTLT := aScan( aFields, {|x| x == "TPLDTIME"   } )		// Tipo do Lead-Time (C=Calculado P=Produto ou F=Fornecedor)
+	nPosBlq := aScan( aFields, {|x| x == "QTDBLOQ"    } )
+	nPosQtE := aScan( aFields, {|x| x == "B1_QE"      } )
+	nPosLtE := aScan( aFields, {|x| x == "B1_LE"      } )
+	nPosInc := len( aFields ) + 1
+	nPosChk := len( aFields ) + 2
 	
 	// Ordena por padrão pela necessidade de compra
 	aCboOrd := {}
 	For nX := 1 to Len( aHeaPro )
-		If !Empty( aHeaPro[nX][01] )
-			aAdd( aCboOrd, AllTrim( cValToChar( nX ) ) +'='+ AllTrim( aHeaPro[nX][01] ) )
+		If !Empty( aHeaPro[nX][1] )
+			aAdd( aCboOrd, AllTrim( cValToChar( nX ) ) +'='+ AllTrim( aHeaPro[nX][1] ) )
 		EndIf
 	Next nX
-	cCboOrd := AllTrim( cValToChar( nPosNec ) )
+	_aFilters[4] := AllTrim( cValToChar( nPosNec ) )
 	
 	// Realiza leitura das preferências da rotina
 	Processa( {|| fLoadCfg() }, 'Aguarde!','Lendo configurações da rotina...' )
@@ -362,7 +247,7 @@ User Function GMPAICOM()
 	lGir003 := aConfig[04]			// Pré-definição itens médio giro
 	lGir004 := aConfig[05]			// Pré-definição itens baixo giro
 	lGir005 := aConfig[06]			// Pré-definições itens sem giro
-	lGir006 := aConfig[07]			// Pré-definições itens sob demanda
+	// lGir006 := aConfig[07]			// Pré-definições itens sob demanda
 	cCboAna := aConfig[08]			// Pré-definições tipo de análise de sazonalidade
 	nGetQtd := aConfig[09]			// Pré-definições da qtde de períodos analisados
 	_aTypes := typesDef( aConfig[21] )			// pré-definições dos tipos de produtos a serem analisados
@@ -370,13 +255,12 @@ User Function GMPAICOM()
 	// Botões da EnchoiceBar
 	// aAdd( aButtons, { "BTNWARN"  , {|| fShowEv() }           , "Riscos de Ruptura" } )
 	aAdd( aButtons, { "BMPMANUT" , {|| doFormul( cFormula ) }, "Formula de Cálculo" } )
-	// aAdd( aButtons, { "BTNLEG"   , {|| fLegenda() }          , "Legenda de Produtos" } )
-	// aAdd( aButtons, { "BTNNOTIFY", {|| fShowEv( oBrwPro:aCols[ oBrwPro:nAt][nPosPrd] ) }, "Eventos do Produto" } )
-	aAdd( aButtons, { "BTNEMPEN" , {|| fShowEm( oBrwPro:aCols[ oBrwPro:nAt][nPosPrd] ) }, "Empenhos do Produto" } )
+	// aAdd( aButtons, { "BTNNOTIFY", {|| fShowEv( aColPro[ oBrwPro:nAt][nPosPrd] ) }, "Eventos do Produto" } )
+	aAdd( aButtons, { "BTNEMPEN" , {|| iif( oBrwPro:nAt > 0, fShowEm( aColPro[ oBrwPro:nAt][nPosPrd] ), Nil ) }, "Empenhos do Produto" } )
 	// aAdd( aButtons, { "BTNPEDFOR", {|| fPedFor( 1 ) }        , "Pedidos do Produto com o Fornecedor Padrão" } )
-	aAdd( aButtons, { "BTNPEDIDO", {|| fPedFor( 2 ) }        , "Pedidos do Produto" } )
+	aAdd( aButtons, { "BTNPEDIDO", {|| iif( oBrwPro:nAt > 0, fPedFor( 2 ), Nil ) }, "Pedidos do Produto" } )
 	aAdd( aButtons, { "BTNIMPORT", {|| impData() }           , "Importar Indices dos Produtos" } )
-	aAdd( aButtons, { "BTNENTR"  , {|| entryDocs( oBrwPro:aCols[ oBrwPro:nAt ][nPosPrd] ) }		 , "Compras do Produto" } )
+	aAdd( aButtons, { "BTNENTR"  , {|| iif( oBrwPro:nAt > 0, entryDocs( aColPro[ oBrwPro:nAt ][nPosPrd] ), Nil ) }, "Compras do Produto" } )
 	aAdd( aButtons, { "BTNPAICFG", {|| internalParms() }     , "Parâmetros Internos" } )
 
 	// Valida existência do parâmetro para que o sistema possa alimentar a data e hora da última execução do recálculo dos dados de produtos
@@ -402,28 +286,23 @@ User Function GMPAICOM()
 	@ nVer*NPERCSUP, 000 GROUP oGrpPro TO nVer, nHor OF oDlgCom COLOR 0, 16777215 PIXEL
 
 	oLayer := FWLayer():New()
-	oLayer:Init( oGroup1 )
-	oLayer:AddColumn( "colFor" , 40, .T. )
-	oLayer:AddColumn( "colPar" , 30, .T. )
-	oLayer:AddColumn( "colDash", 30, .T. )
-	oLayer:AddWindow( 'colFor' , 'winFor' , 'Fornecedores', 100, .F., .F., {|| Nil })
-	oLayer:AddWindow( 'colPar' , 'winPar' , 'Filtros e Parâmetros', 100, .F., .F., {|| Nil })
-	oLayer:AddWindow( 'colDash', 'winDash', 'Gráfico do Produto', 100, .F., .F., {|| Nil })
-	oWinFor  := oLayer:GetWinPanel( 'colFor' , 'winFor')
-	oWinPar  := oLayer:GetWinPanel( 'colPar' , 'winPar')
-	oWinDash := oLayer:GetWinPanel( 'colDash', 'winDash')
-
-	oLayer1 := FWLayer():New()
-	oLayer1:Init( oGrpPro )
-	oLayer1:AddColumn( "colPro", 100, .T. )
-	oLayer1:AddWindow( 'colPro' , 'winPro' , 'Produtos', 100, .F., .F., {|| Nil })
-	oWinPro  := oLayer1:GetWinPanel( 'colPro' , 'winPro')
-
-	oFndFor := TButton():New( (oWinFor:nTop)+1, (oWinFor:nRight/2)-34, "Filtrar",oDlgCom,{|| _cFilFor := lookData( _cFilFor ),;
-																							oBrwFor:SetFilterDefault( doFilter( _cFilFor, 'A2_NOME' )),;
-																							oBrwFor:Refresh(.T.),;
-																							oBrwFor:UpdateBrowse() }, 30,10,,,.F.,.T.,.F.,,.F.,,,.F. )
-	oFndFor:SetCSS( CBTNSTYLE ) 
+	oLayer:Init( oDlgCom )
+	oLayer:AddLine( "line1", round((250/aSize[6])*100,0), .T. )
+	oLayer:AddColumn( "colFor" , 40, .F., "line1" )
+	oLayer:AddColumn( "colPar" , 30, .F., "line1" )
+	oLayer:AddColumn( "colDash", 30, .F., "line1" )
+	oLayer:AddWindow( 'colFor' , 'winFor' , 'Fornecedores', 100, .F., .F., /* {|| Nil } */, "line1")
+	oLayer:AddWindow( 'colPar' , 'winPar' , 'Filtros e Parâmetros', 100, .F., .F., /* {|| Nil } */, "line1")
+	oLayer:AddWindow( 'colDash', 'winDash', 'Gráfico do Produto', 100, .F., .F., /* {|| Nil } */, "line1")
+	oWinFor  := oLayer:GetWinPanel( 'colFor' , 'winFor', "line1")
+	oWinPar  := oLayer:GetWinPanel( 'colPar' , 'winPar', "line1")
+	oWinDash := oLayer:GetWinPanel( 'colDash', 'winDash', "line1")
+	
+	oLayer:AddLine( "line2", 100-round((250/aSize[6])*100,0), .T. )
+	oLayer:AddColumn( "colPro", 100, .F., "line2" )
+	oLayer:AddWindow( 'colPro' , 'winPro' , 'Produtos', 100, .F., .F., /* {|| Nil } */, "line2")
+	oWinPro  := oLayer:GetWinPanel( 'colPro' , 'winPro', "line2")
+	oLine := oLayer:GetLinePanel( 'line2' )
 
 	oBrwFor := FWBrowse():New( oWinFor )
 	oBrwFor:SetDataTable()
@@ -443,10 +322,25 @@ User Function GMPAICOM()
 	oBrwFor:SetLineHeight( 20 )
 	oBrwFor:Activate()
 
-	oBrwPro := MsNewGetDados():New( NESP, NESP, nHor-NESP, nVer-NESP, GD_UPDATE, "AllwaysTrue", "AllwaysTrue",, aAlter,, Len( aColPro ), "U_PCOMVLD()", "", "AllwaysTrue", oWinPro, aHeaPro, aColPro)
-	oBrwPro:bChange := {|| Processa( {|| fLoadAna() }, 'Aguarde!','Analisando sazonalidade do produto...' ) }
-	oBrwPro:oBrowse:bLDblClick := {|| iif( oBrwPro:oBrowse:nColPos == nPosChk, fMarkPro(), oBrwPro:EditCell() ) }
-	oBrwPro:oBrowse:align := CONTROL_ALIGN_ALLCLIENT
+	oBrwPro := FWBrowse():New(  oWinPro )
+	oBrwPro:SetDataArray()
+	oBrwPro:SetArray( aColPro )
+	oBrwPro:DisableReport()
+	oBrwPro:DisableConfig()
+	oBrwPro:AddLegend( "aColPro[oBrwPro:nAt]["+ cValToChar( nPosInc ) +"] >= "+ cValToChar( aConfig[10] ), LG_CRITICO, "Itens Criticos" )
+	oBrwPro:AddLegend( "aColPro[oBrwPro:nAt]["+ cValToChar( nPosInc ) +"] < "+ cValToChar( aConfig[10] ) +" .and. "+;
+					   "aColPro[oBrwPro:nAt]["+ cValToChar( nPosInc ) +"] >= "+ cValToChar( aConfig[11] ), LG_ALTO, "Alto Giro" )
+	oBrwPro:AddLegend( "aColPro[oBrwPro:nAt]["+ cValToChar( nPosInc ) +"] < "+ cValToChar( aConfig[11] ) +" .and. "+;
+					   "aColPro[oBrwPro:nAt]["+ cValToChar( nPosInc ) +"] >= "+ cValToChar( aConfig[12] ), LG_MEDIO, "Medio Giro" )
+	oBrwPro:AddLegend( "aColPro[oBrwPro:nAt]["+ cValToChar( nPosInc ) +"] < "+ cValToChar( aConfig[12] ) +" .and. "+;
+					   "aColPro[oBrwPro:nAt]["+ cValToChar( nPosInc ) +"] >= "+ cValToChar( aConfig[13] ), LG_BAIXO, "Baixo Giro" )
+	oBrwPro:AddLegend( "aColPro[oBrwPro:nAt]["+ cValToChar( nPosInc ) +"] < "+ cValToChar( aConfig[13] ), LG_SEMGIRO, "Sem Giro" )
+	oBrwPro:AddMarkColumn( {|| iif( aColPro[oBrwPro:nAt][nPosChk], "LBOK", "LBNO" ) }, {|| fMarkPro() }, {|| Nil } )
+	oBrwPro:SetColumns( aHeaPro )
+	oBrwPro:GetColumn(nPosFor+2):xF3 := "SA2"
+	oBrwPro:SetEditCell( .T., {|| U_PCOMVLD() } )
+	oBrwPro:SetLineHeight( 20 )
+	oBrwPro:Activate()
 	
 	@ 12, 10 SAY oLblPrj PROMPT "Projeção de estoque para..." SIZE 080, 011 OF oWinPar FONT oFntTxt COLORS 8421504, 16777215 PIXEL
 	oDias := tSpinBox():new( 10, 90, oWinPar, {|x| nSpinBx := x, Processa( {|| fLoadInf() }, 'Aguarde!','Executando filtro de produtos...' ) }, 28, 13)
@@ -460,21 +354,24 @@ User Function GMPAICOM()
 	oBmpMed := TBitmap():New(050, 010, 10, 10, LG_MEDIO   /*cResName*/, /*cBmpFile*/, .T./*lNoBorder*/, oWinPar, /*bLClicked*/, /*bRClicked*/, /*lScroll*/, /*lStretch*/, /*oCursor*/, /*uParam14*/, /*uParam15*/, /*bWhen*/, .T./* lDimPixels */, /*bValid*/)
 	oBmpBai := TBitmap():New(060, 010, 10, 10, LG_BAIXO   /*cResName*/, /*cBmpFile*/, .T./*lNoBorder*/, oWinPar, /*bLClicked*/, /*bRClicked*/, /*lScroll*/, /*lStretch*/, /*oCursor*/, /*uParam14*/, /*uParam15*/, /*bWhen*/, .T./* lDimPixels */, /*bValid*/)
 	oBmpSem := TBitmap():New(070, 010, 10, 10, LG_SEMGIRO /*cResName*/, /*cBmpFile*/, .T./*lNoBorder*/, oWinPar, /*bLClicked*/, /*bRClicked*/, /*lScroll*/, /*lStretch*/, /*oCursor*/, /*uParam14*/, /*uParam15*/, /*bWhen*/, .T./* lDimPixels */, /*bValid*/)
-	oBmpSol := TBitmap():New(080, 010, 10, 10, LG_SOLICIT /*cResName*/, /*cBmpFile*/, .T./*lNoBorder*/, oWinPar, /*bLClicked*/, /*bRClicked*/, /*lScroll*/, /*lStretch*/, /*oCursor*/, /*uParam14*/, /*uParam15*/, /*bWhen*/, .T./* lDimPixels */, /*bValid*/)
+	// oBmpSol := TBitmap():New(080, 010, 10, 10, LG_SOLICIT /*cResName*/, /*cBmpFile*/, .T./*lNoBorder*/, oWinPar, /*bLClicked*/, /*bRClicked*/, /*lScroll*/, /*lStretch*/, /*oCursor*/, /*uParam14*/, /*uParam15*/, /*bWhen*/, .T./* lDimPixels */, /*bValid*/)
 
 	@ 30, 20 CHECKBOX oGir001 VAR lGir001 PROMPT "Críticos"     		SIZE 048, 008 OF oWinPar COLORS 8421504, 16777215 FONT oFntCbo ON CHANGE Processa( {|| fLoadInf() }, 'Aguarde!','Executando filtro de produtos...' ) PIXEL
 	@ 40, 20 CHECKBOX oGir002 VAR lGir002 PROMPT "Alto Giro"    		SIZE 048, 008 OF oWinPar COLORS 8421504, 16777215 FONT oFntCbo ON CHANGE Processa( {|| fLoadInf() }, 'Aguarde!','Executando filtro de produtos...' ) PIXEL
 	@ 50, 20 CHECKBOX oGir003 VAR lGir003 PROMPT "Médio Giro"   		SIZE 048, 008 OF oWinPar COLORS 8421504, 16777215 FONT oFntCbo ON CHANGE Processa( {|| fLoadInf() }, 'Aguarde!','Executando filtro de produtos...' ) PIXEL
 	@ 60, 20 CHECKBOX oGir004 VAR lGir004 PROMPT "Baixo Giro"   		SIZE 048, 008 OF oWinPar COLORS 8421504, 16777215 FONT oFntCbo ON CHANGE Processa( {|| fLoadInf() }, 'Aguarde!','Executando filtro de produtos...' ) PIXEL
 	@ 70, 20 CHECKBOX oGir005 VAR lGir005 PROMPT "Sem Giro"     		SIZE 048, 008 OF oWinPar COLORS 8421504, 16777215 FONT oFntCbo ON CHANGE Processa( {|| fLoadInf() }, 'Aguarde!','Executando filtro de produtos...' ) PIXEL
-	@ 80, 20 CHECKBOX oGir006 VAR lGir006 PROMPT "Por Solicitação"  	SIZE 048, 008 OF oWinPar COLORS 8421504, 16777215 FONT oFntCbo ON CHANGE Processa( {|| fLoadInf() }, 'Aguarde!','Executando filtro de produtos...' ) PIXEL
+	// @ 80, 20 CHECKBOX oGir006 VAR lGir006 PROMPT "Por Solicitação"  	SIZE 048, 008 OF oWinPar COLORS 8421504, 16777215 FONT oFntCbo ON CHANGE Processa( {|| fLoadInf() }, 'Aguarde!','Executando filtro de produtos...' ) PIXEL
 	
 	oRadMenu := TRadMenu():New( 30, 70, aRadMenu,, oWinPar,,,,,,,,100,12,,,,.T.)
 	oRadMenu:bSetGet := {|u| iif( pCount()==0, nRadMenu, nRadMenu := u ) }
 	oRadMenu:bChange := {|| Processa( {|| fLoadInf() }, 'Aguarde!','Executando filtro de produtos...' ) }
 
-	oBtnFil := TButton():New( 70, 70, "Multi-filiais",oWinPar,{|| _aFil := userFil( _aFil ),;
-							Processa( {|| fLoadInf() }, 'Aguarde!','Executando filtro de produtos...' ) }, 80,15,,,.F.,.T.,.F.,,.F.,,,.F. )
+	oBtnFil := TButton():New( 30, 170, "Filiais",oWinPar,{|| _aFil := userFil( _aFil ),;
+							Processa( {|| fLoadInf() }, 'Aguarde!','Executando filtro de produtos...' ) }, (oWinPar:nWidth/2)*0.2,15,,,.F.,.T.,.F.,,.F.,,,.F. )
+	// Botão de filtro de produto
+	oFndPrd := TButton():New( 50, 170, "Produtos", oWinPar,{|| _aFilters := prodFilter( _aFilters ),;
+															Processa( {|| fLoadInf() }, 'Aguarde!','Executando filtro de produtos...' ) }, (oWinPar:nWidth/2)*0.2,15,,,.F.,.T.,.F.,,.F.,,,.F. )
 
 	@ 06, 04 SAY oLblPer PROMPT "Período: " SIZE (oWinDash:nWidth/2)*0.1, 011 OF oWinDash FONT oFntTxt COLORS 8421504, 16777215 PIXEL
 	@ 04, 06+(oWinDash:nWidth/2)*0.1 MSCOMBOBOX oCboAna VAR cCboAna ITEMS aCboAna SIZE (oWinDash:nWidth/2)*0.4, 013 OF oWinDash COLORS 8421504, 16777215 FONT oFntCbo ON CHANGE Processa( {|| fLoadAna() }, 'Aguarde!', 'Analisando sazonalidade do produto...' ) PIXEL
@@ -492,18 +389,16 @@ User Function GMPAICOM()
     oDash:SetPicture( '@E 9,999,999' )
     oDash:Activate()
 	
-	// Botão de filtro de produto
-	oFndPrd := TButton():New( (oWinPro:nTop)+1+125, (oWinFor:nRight/2)-34, "Filtrar",oDlgCom,{|| _cFilPrd := prodFilter( _cFilPrd, _aTypes ),;
-																							Processa( {|| fLoadInf() }, 'Aguarde!','Executando filtro de produtos...' ) }, 30,10,,,.F.,.T.,.F.,,.F.,,,.F. )
-	oFndPrd:SetCSS( CBTNSTYLE ) 
-	@ (oWinPro:nTop)+2+125, (oWinFor:nRight/2) SAY oLblOrd PROMPT "Ordenar por..." SIZE 040, 011 OF oDlgCom FONT oFntTxt COLORS 8421504, 16777215 PIXEL
-	@ (oWinPro:nTop)+1+125, (oWinFor:nRight/2)+44 MSCOMBOBOX oCboOrd VAR cCboOrd ITEMS aCboOrd SIZE 60, 012 OF oDlgCom COLORS 8421504, 16777215 FONT oFntCbo ON CHANGE fSortGrd() PIXEL
-	@ (oWinPro:nTop)+1+125, (oWinFor:nRight/2)+108 MSCOMBOBOX oCboExi VAR cCboExi ITEMS { 'A..Z', 'Z..A' } SIZE 28, 012 OF oDlgCom COLORS 8421504, 16777215 FONT oFntCbo ON CHANGE fSortGrd() PIXEL
+	// @ nLinePos+1, (oWinFor:nRight/2) SAY oLblOrd PROMPT "Ordenar por..." SIZE 040, 011 OF oDlgCom FONT oFntTxt COLORS 8421504, 16777215 PIXEL
+	// @ nLinePos, (oWinFor:nRight/2)+44 MSCOMBOBOX oCboOrd VAR cCboOrd ITEMS aCboOrd SIZE 60, 012 OF oDlgCom COLORS 8421504, 16777215 FONT oFntCbo ON CHANGE fSortGrd() PIXEL
+	// @ nLinePos, (oWinFor:nRight/2)+108 MSCOMBOBOX oCboExi VAR cCboExi ITEMS { 'A..Z', 'Z..A' } SIZE 28, 012 OF oDlgCom COLORS 8421504, 16777215 FONT oFntCbo ON CHANGE fSortGrd() PIXEL
 	
-	ACTIVATE MSDIALOG oDlgCom CENTERED ON INIT Eval({|| EnchoiceBar( oDlgCom, bOk, bCancel,,aButtons ),; 
-														Processa( {|| fLoadFor() }, 'Aguarde!','Identificando fornecedores...' ),;
-														oBrwFor:SetFocus(),; 
-														Processa({|| fEvents() }, 'Aguarde!','Identificando alertas de ruptura...') }) 
+	ACTIVATE MSDIALOG oDlgCom CENTERED ON INIT Eval({|| EnchoiceBar( oDlgCom, bOk, bCancel,,aButtons ),;
+														_aFilters := prodFilter( _aFilters ),;
+														Processa( {|| fLoadInf() }, 'Aguarde!','Executando filtro de produtos...' ) }) 
+														/* Processa( {|| fLoadFor() }, 'Aguarde!','Identificando fornecedores...' ) ,;*/
+														/* oBrwFor:SetFocus(),; */ 
+														/* Processa({|| fEvents() }, 'Aguarde!','Identificando alertas de ruptura...') */  
 	oAliFor:Delete()
 	
 Return ( Nil )
@@ -1175,7 +1070,7 @@ Static Function fRetDia( nSpinBx, lNoInt )
 	
 	if !lNoInt
 		oLblDia:CCAPTION := "dias ( até "+ cRet +" )"
-		oDlgCom:Refresh()
+		oLblDia:CtrlRefresh()
 	EndIf
 	
 Return ( cRet )
@@ -2107,9 +2002,9 @@ Static Function fPedFor( nOpc )
 	
 	Local oBtnFec
 	Local oGetDes
-	Local cGetDes   := oBrwPro:aCols[ oBrwPro:nAt ][ nPosDes ]
+	Local cGetDes   := aColPro[ oBrwPro:nAt ][ nPosDes ]
 	Local oGetPrd
-	Local cGetPrd   := oBrwPro:aCols[ oBrwPro:nAt ][ nPosPrd ]
+	Local cGetPrd   := aColPro[ oBrwPro:nAt ][ nPosPrd ]
 	Local oLblPrd   := 0
 	Local nX        := 0
 	Local aHeaderEx := {}
@@ -2124,7 +2019,7 @@ Static Function fPedFor( nOpc )
 	Private oDlgPed := Nil
 	
 	cTitulo += iif( nOpc == 1, ' com o fornecedor '+;
-	           AllTrim( RetField( 'SA2', 1, xFilial( 'SA2' ) + oBrwPro:aCols[ oBrwPro:nAt ][ nPosFor ] + oBrwPro:aCols[ oBrwPro:nAt ][ nPosLoj ], 'A2_NOME' )),;
+	           AllTrim( RetField( 'SA2', 1, xFilial( 'SA2' ) + aColPro[ oBrwPro:nAt ][ nPosFor ] + aColPro[ oBrwPro:nAt ][ nPosLoj ], 'A2_NOME' )),;
 	           ' referente ao produto' )
 	
 	// Define campo de legenda manualmente
@@ -2166,7 +2061,7 @@ Static Function fPedFor( nOpc )
     @ 136, 463 BUTTON oBtnFec PROMPT "&Fechar"   SIZE 037, 012 OF oDlgPed ACTION oDlgPed:End() PIXEL
     
     ACTIVATE MSDIALOG oDlgPed CENTERED ON INIT ;
-	Processa( {|| fPedPen( .F./*lNoInt*/, nOpc, oBrwPro:aCols[ oBrwPro:nAt ][ nPosPrd ] /*cProd*/ ) }, 'Aguarde!','Buscando pedidos não atendidos!' )
+	Processa( {|| fPedPen( .F./*lNoInt*/, nOpc, aColPro[ oBrwPro:nAt ][ nPosPrd ] /*cProd*/ ) }, 'Aguarde!','Buscando pedidos não atendidos!' )
 	
 Return ( Nil )
 
@@ -2352,7 +2247,7 @@ Static Function fLoadAna( lNoInt )
 	aSort( aPer,,,{ |x, y| x[1] < y[1] } )
 	
 	// Antes de processar os dados para o gráfico, verifica se existe conteúdo no grid de produtos
-	if oBrwPro != Nil .and. Len( oBrwPro:aCols ) > 0
+	if oBrwPro != Nil .and. Len( aColPro ) > 0
 		
 		for nX := 1 to len( aFilData )
 			// QUery para identificação dos diferentes cadastros de clientes equivalentes as filiais do cadastro de empresas
@@ -2370,7 +2265,7 @@ Static Function fLoadAna( lNoInt )
 			aEval( aCliLoja, {|x| nAux++, cINCli += "'"+ x +"'" + iif( nAux < len( aCliLoja ), ',', '' ) } )
 		next nX
 
-		aTemp   := StrTokArr( AllTrim( oBrwPro:aCols[ oBrwPro:nAt ][ nPosDes ] ), ' ' )
+		aTemp   := StrTokArr( AllTrim( aColPro[ oBrwPro:nAt ][ nPosDes ] ), ' ' )
 		cDesPro := ""
 		aEval( aTemp, { |x| cDesPro += SubStr( x, 01, iif( Len( x ) >= 3, 3, Len( x ) ) ) +' ' } )
 		
@@ -2382,11 +2277,11 @@ Static Function fLoadAna( lNoInt )
 			// Query para identificar saídas referente ao produto
 			cQuery := "SELECT ROUND(COALESCE(SUM(D2.D2_QUANT),0),0) QTDVEN FROM "+ RetSqlName( 'SD2' ) +" D2 " + CEOL
 			cQuery += "WHERE D2.D2_FILIAL "+ U_JSFILIAL( 'SD2', _aFil ) +" "+ CEOL
-			cQuery += "  AND D2.D2_COD     = '"+ oBrwPro:aCols[ oBrwPro:nAt ][ nPosPrd ] +"' " + CEOL
+			cQuery += "  AND D2.D2_COD     = '"+ aColPro[ oBrwPro:nAt ][ nPosPrd ] +"' " + CEOL
 			cQuery += "  AND D2.D2_TIPO    = 'N' " + CEOL		// Apenas notas de saída do tipo N
 			cQuery += "  AND D2.D2_EMISSAO BETWEEN '"+ DtoS( aPer[nX][01] ) +"' AND '"+ DtoS( aPer[nX][02] ) +"' " + CEOL
 			if ! Empty( cINCli )			// Codigos de clientes referente as filiais do cadastro de empresas
-				cQuery += "  AND D2.D2_CLIENTE NOT IN ( "+ cINCli +" ) " + CEOl
+				cQuery += "  AND D2.D2_CLIENTE NOT IN ( "+ cINCli +" ) " + CEOL
 			endif
 			cQuery += "  AND D2.D_E_L_E_T_ = ' ' " + CEOL
 		
@@ -2400,7 +2295,6 @@ Static Function fLoadAna( lNoInt )
 		
 	EndIf
 	oDash:Activate()
-	oDlgCom:Refresh()
 	
 	RestArea( aArea )
 Return ( Nil )
@@ -2414,13 +2308,10 @@ Função para recálculo dos dados do grid de compras com base nos parâmetros estip
 /*/
 Static Function fLoadInf()
 	
-	Local aArea   := FORTMP->( GetArea() )
 	Local cQuery  := ""
-	Local cExpFor := ""
-	Local nRecFor := FORTMP->( Recno() )
 	Local nQtdPrd := 0
 	Local nAtual  := 0
-	Local cTmp    := Upper( AllTrim( _cFilPrd ) )
+	Local cTmp    := Upper( AllTrim( _aFilters[1] ) )
 	Local aTmp    := StrTokArr( cTmp, ' ' )
 	Local nX      := 0
 	Local nIndGir := 0
@@ -2431,7 +2322,6 @@ Static Function fLoadInf()
 	Local aInfPrd := {}
 	Local nOpcOrd := 0
 	Local cExpOrd := ""
-	Local lAllFor := iif( Empty( cFndFor ), .T., .F. )
 	Local aAux    := {}
 	Local nDurPrv := 0
 	local nLeadTime := 0 as numeric
@@ -2448,32 +2338,12 @@ Static Function fLoadInf()
 	Default lNoInt := .F.								// Default é rodar "Com Interface"
 	
 	_aProdFil := {} 
-
+	aAux := StrTokArr(_aFilters[2],'/')
 	// Cria expressão para a query SQL
-	aEval( _aTypes, {|x| y++, cTypes += "'"+ x +"'" + iif( y < len( _aTypes ),',','' ) } )
+	aEval( aAux, {|x| y++, cTypes += "'"+ x +"'" + iif( y < len( aAux ),',','' ) } )
 
-	If Select( "FORTMP" ) > 0
-		
-		DbSelectArea( 'FORTMP' )
-		FORTMP->( DbGoTop() )
-		
-		If !FORTMP->( EOF() )
-			
-			cExpFor := ""	
-			While !FORTMP->( EOF() )
-				if !Empty( FORTMP->MARK )
-					cExpFor += iif( Empty( cExpFor ), "","," ) + "'" + FORTMP->B1_PROC + FORTMP->B1_LOJPROC + "'"
-				Else
-					lAllFor := .F.
-				EndIf
-				FORTMP->( DbSkip() )
-			EndDo
-			
-			// Devolve o posicionamento do fornecedor
-			FORTMP->( DbGoTo( nRecFor ) )
-			
-		EndIf
-	EndIf
+	DbSelectArea( 'FORTMP' )
+	ZAP
 
 	// Monta string referente aos armazens que serão utilizados para somatório dos saldos dos produtos
 	aAux    := StrTokArr( AllTrim( aConfig[16] ), '/' )
@@ -2510,7 +2380,7 @@ Static Function fLoadInf()
 		
 		// Consulta todos os produtos para exibí-los no grid
 		cQuery := "SELECT COALESCE(B2.B2_FILIAL, '"+ cFilAnt +"') FILIAL, B1.B1_COD, B1.B1_DESC, B1.B1_UM, B1.B1_LM, B1.B1_QE, B1.B1_LE, B1.B1_PROC, " + CEOL
-	    cQuery += "       B1.B1_LOJPROC, B1.R_E_C_N_O_ RECSB1, COALESCE(SUM(B2.B2_QATU),0) ESTOQUE, COALESCE(SUM(B2.B2_RESERVA+B2.B2_QEMP),0) EMPENHO " + CEOL
+	    cQuery += "       B1.B1_LOJPROC, B1.R_E_C_N_O_ RECSB1, COALESCE(SUM(B2.B2_QATU),0) ESTOQUE, COALESCE(SUM(B2.B2_RESERVA+B2.B2_QEMP),0) EMPENHO, " + CEOL
 		
 		// Identifica o lead-time do fornecedor
 		if SA2->( FieldPos( 'A2_X_LTIME' ) ) > 0
@@ -2582,18 +2452,19 @@ Static Function fLoadInf()
 	    		cQuery += "  AND B1.B1_DESC LIKE '%"+ aTmp[nX] +"%' " + CEOL
 	    	Next nX 
 		EndIf
-	    
-	    if !lAllFor	.and. nMVPNC11 == 1		// Verifica se tem fornecedor sinalizado e o tipo de análise for por fornecedor
-	    	cQuery += "  AND CONCAT( B1.B1_PROC, B1.B1_LOJPROC ) IN ( "+ iif( Empty( cExpFor ), "'"+ Replicate( '9', TAMSX3('B1_PROC')[01] ) +"'", cExpFor ) +" ) " + CEOL
-	    EndIf
+
+		// Verifica se o filtro de fornecedor padrão foi informado na pesquisa de produtos
+		if ! Empty( _aFilters[3] )
+			cQuery += "  AND B1.B1_PROC = '"+ _aFilters[3] +"' " + CEOL
+		endif
 	    
 	    cQuery += "  AND B1.D_E_L_E_T_ = ' ' " + CEOL
-		cQuery += "GROUP BY COALESCE(B2.B2_FILIAL, '"+ cFilAnt +"'), B1.B1_COD, B1.B1_DESC, B1.B1_UM, B1.B1_LM, B1.B1_QE, B1.B1_LE, B1.B1_PROC, " + CEOL
-		cQuery += "         B1.B1_LOJPROC, B1.R_E_C_N_O_ "+ CEOL
+		cQuery += "GROUP BY COALESCE(B2.B2_FILIAL, '"+ cFilAnt +"'), B1.B1_COD, B1.B1_DESC, B1.B1_UM, B1.B1_LM, B1.B1_QE, B1.B1_PE, B1.B1_LE, B1.B1_PROC, " + CEOL
+		cQuery += "         B1.B1_LOJPROC, B1.R_E_C_N_O_, A2PAD.A2_X_LTIME "+ CEOL
 		cQuery += "ORDER BY FILIAL, B1.B1_COD, B1.B1_DESC "	+ CEOL		
 	    
-		CopyToClipBoard( cQuery )
-		MsgInfo( 'Query copiada!', 'SQL' )
+		// CopyToClipBoard( cQuery )
+		// MsgInfo( 'Query copiada!', 'SQL' )
 
 		DBUseArea( .T., "TOPCONN", TcGenQry(,,cQuery), "PRDTMP", .F., .T. )
 	    Count to nQtdPrd
@@ -2612,30 +2483,43 @@ Static Function fLoadInf()
 	    		nAtual++
 	    		IncProc( 'Analisando '+ AllTrim( SubStr( PRDTMP->B1_DESC, 01, 30 ) ) + '('+ AllTrim( cValToChar( nAtual ) ) +'/'+ AllTrim( cValToChar( nQtdPrd ) ) +')' )
 	    		
-				if nMVPNC11 == 1
-					cFornece := PRDTMP->B1_PROC
-					cLoja    := PRDTMP->B1_LOJPROC
-				else
-					aAux := {}
-					aAux := betterSupplier( PRDTMP->B1_COD, PRDTMP->B1_PROC, PRDTMP->B1_LOJPROC )
-					cFornece := aAux[1]		// Codigo do fornecedor
-					cLoja    := aAux[2]		// Codigo da loja
-				endif
+				aAux := {}
+				aAux := betterSupplier( PRDTMP->B1_COD, PRDTMP->B1_PROC, PRDTMP->B1_LOJPROC )
+				cFornece := PADR( aAux[1], TAMSX3('A2_COD')[1], ' ')		// Codigo do fornecedor
+				cLoja    := PADR( aAux[2], TAMSX3('A2_LOJA')[1], ' ' )		// Codigo da loja
 
-				// Se o fornecedor não está configurado para ser exibido, desconsidera o registro do produto
-				FORTMP->( DBSeek( cFornece + cLoja ) )
-				if Empty( FORTMP->MARK )
-					PRDTMP->( DBSkip() )
-					Loop
+				if ! FORTMP->( DBSeek( cFornece + cLoja ) )
+					RecLock( 'FORTMP', .T. )
+					FORTMP->MARK        := cMarca
+					FORTMP->B1_PROC     := cFornece
+					FORTMP->B1_LOJPROC  := cLoja
+					FORTMP->LEADTIME    := calcLt( Nil, cFornece, cLoja )
+
+					DBSelectArea( 'SA2' )
+					SA2->( DBSetOrder( 1 ) )
+					if SA2->( DBSeek( FWxFilial( 'SA2' ) + cFornece + cLoja ) )
+						FORTMP->A2_NOME     := SA2->A2_NOME
+						FORTMP->A2_NREDUZ   := SA2->A2_NREDUZ
+						FORTMP->A2_EMAIL    := SA2->A2_EMAIL
+						FORTMP->A2_X_LTIME  := SA2->A2_X_LTIME
+					else
+						FORTMP->A2_NOME     := "SEM FORNECEDOR"
+						FORTMP->A2_NREDUZ   := "SEM FORNECEDOR"
+						FORTMP->A2_EMAIL    := " "
+						FORTMP->A2_X_LTIME  := 0
+					endif
+					FORTMP->PEDIDO := iif( aScan( aCarCom, {|x| x[13]+x[14] == FORTMP->B1_PROC + FORTMP->B1_LOJPROC } ) > 0, 'S', 'N' )									
+					FORTMP->( MsUnlock() )
+
 				endif
 
 				// Identifica lead-time conforme regra definida para produto, fornecedor (informado) ou fornecedor (calculado)
 				if PRDTMP->B1_PE > 0
 					nLeadTime := PRDTMP->B1_PE
 					cLeadTime := 'P'		// Produto
-				elseif FORTMP->A2_X_LTIME > 0
-					nLeadTime := FORTMP->A2_X_LTIME
-					cLeadTime := 'F'		// Fornecedor
+				elseif PRDTMP->A2_X_LTIME > 0
+					nLeadTime := PRDTMP->A2_X_LTIME
+					cLeadTime := 'F'		// Fornecedor Padrao
 				else
 					nLeadTime := calcLt( PRDTMP->B1_COD, cFornece, cLoja )
 					cLeadTime := 'C'		// Calculado
@@ -2678,7 +2562,7 @@ Static Function fLoadInf()
 				nPrice  := lastPrice( PRDTMP->B1_COD, cFornece, cLoja )
 				
 				aAdd( _aProdFil,{ nIndGir,;
-								iif( aScan( aCarCom, {|x| x[1] == PRDTMP->B1_COD .and. x[13] == cFornece .and. x[14] == cLoja } ) > 0, CIMGMRK, CIMGNOMRK ),;
+								aScan( aCarCom, {|x| x[1] == PRDTMP->B1_COD .and. x[13] == cFornece .and. x[14] == cLoja } ) > 0,;
 								PRDTMP->B1_COD,;
 								PRDTMP->B1_DESC,;
 								PRDTMP->B1_UM,;
@@ -2713,7 +2597,7 @@ Static Function fLoadInf()
 	for nX := 1 to len( _aProdFil )
 		
 		// Reclassifica o giro do produto fazendo uma média entre as filiais
-		if nX > 0 .and. _aProdFil[nX-1][3] == _aProdFil[nX][3]
+		if nX > 1 .and. _aProdFil[nX-1][3] == _aProdFil[nX][3]
 			nSumGiro += _aProdFil[nX][1]
 			nQtdGiro += 1
 		else
@@ -2725,14 +2609,12 @@ Static Function fLoadInf()
 		// Obtém a classificação de giro do produto
 		nGiro   := aScan( aGiros, {|x| nIndGir >= x[1] .and. nIndGir <= x[2] } )
 		if nGiro == 0	// Se a classificação de giro não puder ser identificada, não exibe o produto
-			hlp( 'ATENCAO',;
-				 'O produto '+ AllTrim( _aProdFil[nX][4] ) +' não possui classificação de giro!',;
-				 'Revise as configurações para classificação de giro dos produtos pois existe algum buraco entre uma faixa e outra que não está sendo tratada!' )
+			// hlp( 'ATENCAO',;
+			// 	 'O produto '+ AllTrim( _aProdFil[nX][4] ) +' não possui classificação de giro!',;
+			// 	 'Revise as configurações para classificação de giro dos produtos pois existe algum buraco entre uma faixa e outra que não está sendo tratada!' )
 		else
-			if aScan( aColPro, {|x| x[3] == _aProdFil[nX][3] } ) == 0
-				aAdd( aColPro, { aGiros[nGiro][03] /*legenda*/,;
-								_aProdFil[nX][2],;
-								_aProdFil[nX][3],;
+			if aScan( aColPro, {|x| x[1] == _aProdFil[nX][3] } ) == 0
+				aAdd( aColPro, { _aProdFil[nX][3],;
 								_aProdFil[nX][4],;
 								_aProdFil[nX][5],;
 								_aProdFil[nX][6],;
@@ -2753,36 +2635,39 @@ Static Function fLoadInf()
 								_aProdFil[nX][21],;
 								_aProdFil[nX][22],;
 								_aProdFil[nX][23],;
-								.F. } )
+								nIndGir,;
+								_aProdFil[nX][2] } )
 			else
-				aColPro[aScan( aColPro, {|x| x[3] == _aProdFil[nX][3] } )][1] := aGiros[nGiro][03]
-				aColPro[aScan( aColPro, {|x| x[3] == _aProdFil[nX][3] } )][6] += _aProdFil[nX][6]
-				aColPro[aScan( aColPro, {|x| x[3] == _aProdFil[nX][3] } )][7] += _aProdFil[nX][7]
+				aColPro[aScan( aColPro, {|x| x[1] == _aProdFil[nX][3] } )][22] := nIndGir
+				aColPro[aScan( aColPro, {|x| x[1] == _aProdFil[nX][3] } )][4] += _aProdFil[nX][6]
+				aColPro[aScan( aColPro, {|x| x[1] == _aProdFil[nX][3] } )][5] += _aProdFil[nX][7]
 			endif
 			
 		endif
 
 	next nX
 
-    if !Empty( cCboOrd )
-	    nOpcOrd := Val( cCboOrd )
+    if !Empty( _aFilters[4] )
+	    nOpcOrd := Val( _aFilters[4] )
 	    // Ordena o vetor com os dados dos produtos de acordo com o critério definido no painel
 	    cExpOrd := 'x[nOpcOrd] ' + iif( cCboExi == 'A..Z', '<', '>' ) + ' y[nOpcOrd]'
 	    aSort( aColPro,,,{|x,y| &( cExpOrd ) } )
     EndIf
     
 	// Restaura a ordem padrão de busca de fornecedor
-	FORTMP->( DBSetOrder( 1 ) )
+	// FORTMP->( DBSetOrder( 1 ) )
 	// Devolve o posicionamento do fornecedor
-	FORTMP->( DbGoTo( nRecFor ) )
+	// FORTMP->( DbGoTo( nRecFor ) )
 
-	oBrwPro:aCols := aColPro
-	oBrwPro:ForceRefresh()
+	oBrwPro:SetArray(aColPro)
+	oBrwPro:UpdateBrowse()
 
-	oDlgCom:Refresh()
+	oBrwFor:Refresh(.T. /* lGoTop */)
+	oBrwFor:UpdateBrowse()
+
 	fLoadAna()
 	
-	RestArea( aArea )
+	// RestArea( aArea )
 	
 Return ( Nil )
 
@@ -3242,7 +3127,6 @@ Static Function fLoadFor()
 
 	oBrwFor:Refresh(.T.)
 	oBrwFor:UpdateBrowse()
-	oDlgCom:Refresh()
 	
 Return ( Nil )
 
@@ -3260,24 +3144,24 @@ Static Function fMarkPro()
 	local lUsaFrete := X3Uso( GetSX3Cache( 'C7_VALFRE' , 'X3_USADO' ) )
 	local aLinCar   := {} as array
 	
-	if Len( oBrwPro:aCols ) > 0 .and. !Empty( oBrwPro:aCols[oBrwPro:nAt][aScan( oBrwPro:aHeader, {|x| AllTrim( x[2] ) == "B1_COD" } )] )
-		oBrwPro:aCols[oBrwPro:nAt][aScan( oBrwPro:aHeader, {|x| AllTrim( x[2] ) == 'MARK' } )] := iif( oBrwPro:aCols[oBrwPro:nAt][aScan( oBrwPro:aHeader, {|x| AllTrim( x[2] ) == 'MARK' } )] != CIMGMRK, CIMGMRK, CIMGNOMRK )
-		if oBrwPro:aCols[oBrwPro:nAt][aScan( oBrwPro:aHeader, {|x| AllTrim( x[2] ) == 'MARK' } )] == CIMGMRK
+	if Len( aColPro ) > 0 .and. !Empty( aColPro[oBrwPro:nAt][nPosPrd] )
+		aColPro[oBrwPro:nAt][nPosChk] := ! aColPro[oBrwPro:nAt][nPosChk]
+		if aColPro[oBrwPro:nAt][nPosChk]
 			
-			aAdd( aLinCar, oBrwPro:aCols[oBrwPro:nAt][aScan( oBrwPro:aHeader, {|x| AllTrim( x[2] ) == 'B1_COD' } )] )
-			aAdd( aLinCar, oBrwPro:aCols[oBrwPro:nAt][nPosDes] )
-			aAdd( aLinCar, oBrwPro:aCols[oBrwPro:nAt][nPosUnM] )
-			aAdd( aLinCar, oBrwPro:aCols[oBrwPro:nAt][nPosNec] )
-			aAdd( aLinCar, oBrwPro:aCols[oBrwPro:nAt][nPosNeg] )
-			aAdd( aLinCar, oBrwPro:aCols[oBrwPro:nAt][nPosNec]*oBrwPro:aCols[oBrwPro:nAt][nPosNeg] )
+			aAdd( aLinCar, aColPro[oBrwPro:nAt][nPosPrd] ) 
+			aAdd( aLinCar, aColPro[oBrwPro:nAt][nPosDes] )
+			aAdd( aLinCar, aColPro[oBrwPro:nAt][nPosUnM] )
+			aAdd( aLinCar, aColPro[oBrwPro:nAt][nPosNec] )
+			aAdd( aLinCar, aColPro[oBrwPro:nAt][nPosNeg] )
+			aAdd( aLinCar, aColPro[oBrwPro:nAt][nPosNec]*aColPro[oBrwPro:nAt][nPosNeg] )
 			aAdd( aLinCar, Date() )
-			aAdd( aLinCar, Date() + oBrwPro:aCols[oBrwPro:nAt][nPosLdT] )
-			aAdd( aLinCar, RetField( 'SB1', 1, xFilial( 'SB1' ) + oBrwPro:aCols[oBrwPro:nAt][nPosPrd], 'B1_LOCPAD' ) )
+			aAdd( aLinCar, Date() + aColPro[oBrwPro:nAt][nPosLdT] )
+			aAdd( aLinCar, RetField( 'SB1', 1, xFilial( 'SB1' ) + aColPro[oBrwPro:nAt][nPosPrd], 'B1_LOCPAD' ) )
 			aAdd( aLinCar, Space( TAMSX3( 'C7_OBS' )[01] ) )
 			aAdd( aLinCar, '' /* cCC */ )
-			aAdd( aLinCar, RetField( 'SB1', 1, xFilial( 'SB1' ) + oBrwPro:aCols[oBrwPro:nAt][nPosPrd], 'B1_IPI' ) )
-			aAdd( aLinCar, oBrwPro:aCols[oBrwPro:nAt][nPosFor] )
-			aAdd( aLinCar, oBrwPro:aCols[oBrwPro:nAt][nPosLoj] )
+			aAdd( aLinCar, RetField( 'SB1', 1, xFilial( 'SB1' ) + aColPro[oBrwPro:nAt][nPosPrd], 'B1_IPI' ) )
+			aAdd( aLinCar, aColPro[oBrwPro:nAt][nPosFor] )
+			aAdd( aLinCar, aColPro[oBrwPro:nAt][nPosLoj] )
 
 			if lUsaFrete
 				aAdd( aLinCar, 0 )
@@ -3288,12 +3172,12 @@ Static Function fMarkPro()
 			aLinCar := {}
 
 			lInclui := .T.
-			cForLoj := oBrwPro:aCols[oBrwPro:nAt][nPosFor] + oBrwPro:aCols[oBrwPro:nAt][nPosLoj]
+			cForLoj := aColPro[oBrwPro:nAt][nPosFor] + aColPro[oBrwPro:nAt][nPosLoj]
 		Else
-			cForLoj := oBrwPro:aCols[oBrwPro:nAt][nPosFor] + oBrwPro:aCols[oBrwPro:nAt][nPosLoj]
-			aDel( aCarCom, aScan( aCarCom, {|x| x[1] == oBrwPro:aCols[oBrwPro:nAt][aScan( oBrwPro:aHeader, {|y| AllTrim( y[2] ) == 'B1_COD' } )] .and.;
-												x[13] == oBrwPro:aCols[oBrwPro:nAt][aScan( oBrwPro:aHeader, {|y| AllTrim( y[2] ) == 'B1_PROC' } )] .and.;
-												x[14] == oBrwPro:aCols[oBrwPro:nAt][aScan( oBrwPro:aHeader, {|y| AllTrim( y[2] ) == 'B1_LOJPROC' } )] } ) ) 
+			cForLoj := aColPro[oBrwPro:nAt][nPosFor] + aColPro[oBrwPro:nAt][nPosLoj]
+			aDel( aCarCom, aScan( aCarCom, {|x| x[1] == aColPro[oBrwPro:nAt][nPosPrd] .and.;
+												x[13] == aColPro[oBrwPro:nAt][nPosFor] .and.;
+												x[14] == aColPro[oBrwPro:nAt][nPosLoj] } ) ) 
 			aSize( aCarCom, Len( aCarCom )-1 )
 			lInclui := .F.
 		EndIf
@@ -3316,7 +3200,6 @@ Static Function fMarkPro()
 	EndIf
 	
 	oBrwFor:UpdateBrowse()
-	oDlgCom:Refresh()
 	oBrwPro:oBrowse:SetFocus()
 	
 Return ( Nil )
@@ -3356,30 +3239,33 @@ User Function PCOMVLD()
 	
 	Private oBtnSel     := Nil
 	Private lMsErroAuto := .F.
-	
+
 	if oBrwPro:oBrowse != Nil
-		nColAtu := oBrwPro:oBrowse:nColPos
+		nColAtu := oBrwPro:ColPos()-2
 		DbSelectArea( 'SB1' )
-		if SB1->( FieldPos( oBrwPro:aHeader[nColAtu][02] ) ) > 0
+		if SB1->( FieldPos( oBrwPro:GetColumn(oBrwPro:ColPos()):GetID() ) ) > 0
 			SB1->( DbSetOrder( 1 ) )
 			
-			If DbSeek( FWxFilial( 'SB1' ) + oBrwPro:aCols[oBrwPro:nAt][nPosPrd] )
+			If DbSeek( FWxFilial( 'SB1' ) + aColPro[oBrwPro:nAt][nPosPrd] )
 				
 				// Compara a informação em memória com a informação gravada no cadastro do produto pra ver se é diferente
-				if ( &( 'SB1->'+ AllTrim( oBrwPro:aHeader[nColAtu][02] ) ) != &( 'M->' + AllTrim( oBrwPro:aHeader[nColAtu][02] ) ) ) .or.;  
-				   AllTrim( oBrwPro:aHeader[nColAtu][02] ) == "B1_PROC"
+				if ( &( 'SB1->'+ oBrwPro:GetColumn(oBrwPro:ColPos()):GetID() ) != aColPro[oBrwPro:At()][nColAtu] ) .or.;  
+				   oBrwPro:GetColumn(oBrwPro:ColPos()):GetID() == "B1_PROC"
 				   
-					if AllTrim( oBrwPro:aHeader[nColAtu][02] ) == "B1_PROC" .and.; 
+					if oBrwPro:GetColumn(oBrwPro:ColPos()):GetID() == "B1_PROC" .and.; 
 						! MsgYesNo( 'Gostaria de alterar o fornecedor padrão do produto '+ AllTrim( SB1->B1_DESC ) +'?'+;
 									' Se optar por alterar, na próxima demanda de compra, o fornecedor padrão terá preferência sobre os demais fornecedores...', 'A T E N Ç Ã O !' )
 						Return lReturn
 					endif
 					aAdd( aVetPrd, { "B1_FILIAL", xFilial( 'SB1' ), Nil } )
-					aAdd( aVetPrd, { "B1_COD"   , oBrwPro:aCols[oBrwPro:nAt][nPosPrd], Nil } )
-					aAdd( aVetPrd, { AllTrim( oBrwPro:aHeader[nColAtu][02] ), &( 'M->' + AllTrim( oBrwPro:aHeader[nColAtu][02] ) ), Nil } )
+					aAdd( aVetPrd, { "B1_COD"   , aColPro[oBrwPro:nAt][nPosPrd], Nil } )
+					aAdd( aVetPrd, { oBrwPro:GetColumn(oBrwPro:ColPos()):GetID(), aColPro[oBrwPro:At()][nColAtu], Nil } )
 					
-					If AllTrim( oBrwPro:aHeader[nColAtu][02] ) == "B1_PROC"
-						aAdd( aVetPrd, { "B1_LOJPROC", iif( M->B1_LOJPROC == Nil, SA2->A2_LOJA, M->B1_LOJPROC ), Nil } )
+					If oBrwPro:GetColumn(oBrwPro:ColPos()):GetID() == "B1_PROC"
+						if Empty(aColPro[oBrwPro:At()][nPosLoj])
+							aColPro[oBrwPro:At()][nPosLoj] := SA2->A2_LOJA
+						endif
+						aAdd( aVetPrd, { "B1_LOJPROC", aColPro[oBrwPro:At()][nPosLoj], Nil } )
 					EndIf
 					
 					lMsErroAuto := .F.
@@ -3396,35 +3282,35 @@ User Function PCOMVLD()
 			
 		EndIf
 		
-		if oBrwPro:oBrowse:nColPos == nPosNec						// Alteração no campo de necessidade de compra
-			if aScan( aCarCom, {|x| AllTrim( x[01] ) == AllTrim( oBrwPro:aCols[ oBrwPro:nAt ][ nPosPrd ] ) } ) > 0
+		if nColAtu == nPosNec						// Alteração no campo de necessidade de compra
+			if aScan( aCarCom, {|x| AllTrim( x[01] ) == AllTrim( aColPro[ oBrwPro:nAt ][ nPosPrd ] ) } ) > 0
 				if MsgYesNo( 'Você está alterando a necessidade de compra de um produto que já está no carrinho, deseja mesmo alterar?','Alteração de produto do carrinho')
-					aCarCom[ aScan( aCarCom, {|x| AllTrim( x[01] ) == AllTrim( oBrwPro:aCols[ oBrwPro:nAt ][ nPosPrd ] ) } ) ][ 04 ] := M->NECCOMP
-					aCarCom[ aScan( aCarCom, {|x| AllTrim( x[01] ) == AllTrim( oBrwPro:aCols[ oBrwPro:nAt ][ nPosPrd ] ) } ) ][ 06 ] := M->NECCOMP * oBrwPro:aCols[oBrwPro:nAt][nPosNeg]
+					aCarCom[ aScan( aCarCom, {|x| AllTrim( x[01] ) == AllTrim( aColPro[ oBrwPro:nAt ][ nPosPrd ] ) } ) ][ 04 ] := aColPro[oBrwPro:At()][nPosNec]
+					aCarCom[ aScan( aCarCom, {|x| AllTrim( x[01] ) == AllTrim( aColPro[ oBrwPro:nAt ][ nPosPrd ] ) } ) ][ 06 ] := aColPro[oBrwPro:At()][nPosNec] * aColPro[oBrwPro:nAt][nPosNeg]
 				Else
 					lReturn := .F.
 				EndIf
 			EndIf
-		ElseIf oBrwPro:oBrowse:nColPos == nPosNeg					// Alteração no campo do valor negociado
-			if aScan( aCarCom, {|x| AllTrim( x[01] ) == AllTrim( oBrwPro:aCols[ oBrwPro:nAt ][ nPosPrd ] ) } ) > 0
+		ElseIf nColAtu == nPosNeg					// Alteração no campo do valor negociado
+			if aScan( aCarCom, {|x| AllTrim( x[01] ) == AllTrim( aColPro[ oBrwPro:nAt ][ nPosPrd ] ) } ) > 0
 				if MsgYesNo( 'Você está alterando o valor negociado de um produto que já está no carrinho, deseja mesmo alterar?','Alteração de produto do carrinho')
-					aCarCom[ aScan( aCarCom, {|x| AllTrim( x[01] ) == AllTrim( oBrwPro:aCols[ oBrwPro:nAt ][ nPosPrd ] ) } ) ][ 05 ] := M->PRCNEGOC
-					aCarCom[ aScan( aCarCom, {|x| AllTrim( x[01] ) == AllTrim( oBrwPro:aCols[ oBrwPro:nAt ][ nPosPrd ] ) } ) ][ 06 ] := oBrwPro:aCols[oBrwPro:nAt][nPosNec] * M->PRCNEGOC
+					aCarCom[ aScan( aCarCom, {|x| AllTrim( x[01] ) == AllTrim( aColPro[ oBrwPro:nAt ][ nPosPrd ] ) } ) ][ 05 ] := aColPro[oBrwPro:nAt][nPosNeg]
+					aCarCom[ aScan( aCarCom, {|x| AllTrim( x[01] ) == AllTrim( aColPro[ oBrwPro:nAt ][ nPosPrd ] ) } ) ][ 06 ] := aColPro[oBrwPro:nAt][nPosNec] * aColPro[oBrwPro:nAt][nPosNeg]
 				Else
 					lReturn := .F.
 				EndIf
 			EndIf
-		elseif oBrwPro:oBrowse:nColPos == nPosLdT 					// Alteração no campo do lead-time do produto
-			if M->LEADTIME >= 0
+		elseif nColAtu == nPosLdT 					// Alteração no campo do lead-time do produto
+			if aColPro[oBrwPro:At()][nPosLdT] >= 0
 				
-				nLeadTime := M->LEADTIME
+				nLeadTime := aColPro[oBrwPro:At()][nPosLdT]
 				if nLeadTime > 0
 					cLeadTime := 'P'
 				endif
 
 				DBSelectArea( 'SB1' )
 				SB1->( DBSetOrder( 1 ) )		// B1_FILIAL + B1_COD
-				if SB1->( DBSeek( FWxFilial( 'SB1' ) + oBrwPro:aCols[ oBrwPro:nAt ][ nPosPrd ] ) )
+				if SB1->( DBSeek( FWxFilial( 'SB1' ) + aColPro[ oBrwPro:nAt ][ nPosPrd ] ) )
 					RecLock( 'SB1', .F. )
 					SB1->B1_PE := nLeadTime
 					SB1->( MsUnlock() )
@@ -3435,7 +3321,7 @@ User Function PCOMVLD()
 						// Posiciona no cadastro do fornecedor padrão para o produto
 						DBSelectArea( 'SA2' )
 						SA2->( DbSetOrder( 1 ) ) 	// A2_FILIAL + A2_COD + A2_LOJA
-						if SA2->( DBSeek( FWxFilial( 'SA2' ) + oBrwPro:aCols[ oBrwPro:nAt ][ nPosFor ] + oBrwPro:aCols[ oBrwPro:nAt ][ nPosLoj ] ) )
+						if SA2->( DBSeek( FWxFilial( 'SA2' ) + aColPro[ oBrwPro:nAt ][ nPosFor ] + aColPro[ oBrwPro:nAt ][ nPosLoj ] ) )
 							// Verifica se o lead-time do fornecedor é maior do que zero
 							if SA2->A2_X_LTIME > 0
 								nLeadTime := SA2->A2_X_LTIME
@@ -3446,7 +3332,7 @@ User Function PCOMVLD()
 
 						// Se o lead-time ainda estiver sem valor, utiliza o cálculo do prazo médio do fornecedor padrão do produto
 						if nLeadTime == 0
-							nLeadTime := calcLt( oBrwPro:aCols[ oBrwPro:nAt ][ nPosPrd ], oBrwPro:aCols[ oBrwPro:nAt ][ nPosFor ], oBrwPro:aCols[ oBrwPro:nAt ][ nPosLoj ] )
+							nLeadTime := calcLt( aColPro[ oBrwPro:nAt ][ nPosPrd ], aColPro[ oBrwPro:nAt ][ nPosFor ], aColPro[ oBrwPro:nAt ][ nPosLoj ] )
 							cLeadTime := 'C'
 						endif
 
@@ -3456,20 +3342,20 @@ User Function PCOMVLD()
 
 				// Atualiza os dados da linha do produto conforme alterações realizadas no campo do lead-time
 				// Cálculo da duração do estoque com os pedidos de compra aprovados
-				nPrjEst := Round( ( oBrwPro:aCols[ oBrwPro:nAt ][ nPosEmE ] - ;
-									oBrwPro:aCols[ oBrwPro:nAt ][ nPosVen ] + ;
-									oBrwPro:aCols[ oBrwPro:nAt ][ nPosQtd ] )/ ;
-									oBrwPro:aCols[ oBrwPro:nAt ][ nPosCon ], 0 )
+				nPrjEst := Round( ( aColPro[ oBrwPro:nAt ][ nPosEmE ] - ;
+									aColPro[ oBrwPro:nAt ][ nPosVen ] + ;
+									aColPro[ oBrwPro:nAt ][ nPosQtd ] )/ ;
+									aColPro[ oBrwPro:nAt ][ nPosCon ], 0 )
 				if nPrjEst > 999 
 					nPrjEst := 999
 				EndIf
 				
 				// Cálculo da duração prevista quando as quantidades bloqueadas forem liberadas
-				nDurPrv := Round( ( oBrwPro:aCols[ oBrwPro:nAt ][ nPosEmE ] - ;
-									oBrwPro:aCols[ oBrwPro:nAt ][ nPosVen ] + ;
-									oBrwPro:aCols[ oBrwPro:nAt ][ nPosQtd ] + ;
-									oBrwPro:aCols[ oBrwPro:nAt ][ nPosBlq ] )/ ;
-									oBrwPro:aCols[ oBrwPro:nAt ][ nPosCon ], 0 ) - nLeadTime
+				nDurPrv := Round( ( aColPro[ oBrwPro:nAt ][ nPosEmE ] - ;
+									aColPro[ oBrwPro:nAt ][ nPosVen ] + ;
+									aColPro[ oBrwPro:nAt ][ nPosQtd ] + ;
+									aColPro[ oBrwPro:nAt ][ nPosBlq ] )/ ;
+									aColPro[ oBrwPro:nAt ][ nPosCon ], 0 ) - nLeadTime
 				if nDurPrv > 999 
 					nDurPrv := 999
 				EndIf
@@ -3477,18 +3363,18 @@ User Function PCOMVLD()
 				aInfPrd := { nSpinBx /*nDias de programação de estoque*/,;
 							nLeadTime /*nLdTime*/,;
 							nPrjEst,;
-							oBrwPro:aCols[ oBrwPro:nAt ][ nPosCon ] /*nConMed*/,;
-							oBrwPro:aCols[ oBrwPro:nAt ][ nPosLtM ] /*nLotMin*/,;
-							oBrwPro:aCols[ oBrwPro:nAt ][ nPosQtE ] /*nQtdEmb*/,;
-							oBrwPro:aCols[ oBrwPro:nAt ][ nPosLtE ] /* nLotEco */ }
+							aColPro[ oBrwPro:nAt ][ nPosCon ] /*nConMed*/,;
+							aColPro[ oBrwPro:nAt ][ nPosLtM ] /*nLotMin*/,;
+							aColPro[ oBrwPro:nAt ][ nPosQtE ] /*nQtdEmb*/,;
+							aColPro[ oBrwPro:nAt ][ nPosLtE ] /* nLotEco */ }
 				
 				// Função que calcula a necessidade de compra
 				nQtdCom := fCalNec( aInfPrd )
-				oBrwPro:aCols[ oBrwPro:nAt ][ nPosNec ] := nQtdCom
-				oBrwPro:aCols[ oBrwPro:nAt ][ nPosDur ] := nPrjEst
-				oBrwPro:aCols[ oBrwPro:nAt ][ nPosDuP ] := nDurPrv
-				oBrwPro:aCols[ oBrwPro:nAt ][ nPosLdT ] := nLeadTime
-				oBrwPro:aCols[ oBrwPro:nAt ][ nPosTLT ] := cLeadTime
+				aColPro[ oBrwPro:nAt ][ nPosNec ] := nQtdCom
+				aColPro[ oBrwPro:nAt ][ nPosDur ] := nPrjEst
+				aColPro[ oBrwPro:nAt ][ nPosDuP ] := nDurPrv
+				aColPro[ oBrwPro:nAt ][ nPosLdT ] := nLeadTime
+				aColPro[ oBrwPro:nAt ][ nPosTLT ] := cLeadTime
 
 			else
 				lReturn := .F.
@@ -3496,12 +3382,12 @@ User Function PCOMVLD()
 
 		EndIf
 		
-		If oBrwPro:oBrowse:nColPos == nPosBlq .and. oBrwPro:aCols[oBrwPro:nAt][nPosBlq] > 0
+		If nColAtu == nPosBlq .and. aColPro[oBrwPro:nAt][nPosBlq] > 0
 			
 			// Identifica o(s) pedidos pendentes de aprovação para o produto
 			cQuery := "SELECT C7.C7_FILIAL, C7.C7_NUM, C7.C7_ITEM FROM "+ RetSqlName( "SC7" ) + " C7 " + CEOL
 			cQuery += "WHERE C7.C7_FILIAL "+ U_JSFILIAL( 'SC7', _aFil ) +" "+ CEOL
-			cQuery += "  AND C7.C7_PRODUTO = '"+ oBrwPro:aCols[ oBrwPro:nAt ][ nPosPrd ] +"' " + CEOL
+			cQuery += "  AND C7.C7_PRODUTO = '"+ aColPro[ oBrwPro:nAt ][ nPosPrd ] +"' " + CEOL
 			cQuery += "  AND C7.C7_RESIDUO <> 'S' " + CEOL
 			cQuery += "  AND C7.C7_ENCER   <> 'E' " + CEOL
 			cQuery += "  AND C7.C7_CONAPRO = 'B' " + CEOL
@@ -3683,13 +3569,13 @@ User Function PCOMVLD()
 					aadd( aCab, { "C7_FILENT"  , cFilAnt })
 					
 					aLin := {}
-					If M->QTDBLOQ > 0
+					If aColPro[oBrwPro:At()][nPosBlq] > 0
 						
 						aAdd( aLin, { "C7_ITEM"   , SubStr( aChvSC7[1], TAMSX3("C7_NUM")[1]+1, TAMSX3("C7_ITEM")[1] ), Nil } )
 						aAdd( aLin, { "C7_PRODUTO", SC7->C7_PRODUTO, Nil } )
-						aAdd( aLin, { "C7_QUANT"  , M->QTDBLOQ, Nil } )
+						aAdd( aLin, { "C7_QUANT"  , aColPro[oBrwPro:At()][nPosBlq], Nil } )
 						aAdd( aLin, { "C7_PRECO"  , SC7->C7_PRECO, Nil } )
-						aAdd( aLin, { "C7_TOTAL"  , SC7->C7_PRECO * M->QTDBLOQ, Nil } )
+						aAdd( aLin, { "C7_TOTAL"  , SC7->C7_PRECO * aColPro[oBrwPro:At()][nPosBlq], Nil } )
 						aAdd( aLin, { "C7_CONAPRO", SC7->C7_CONAPRO, Nil } )
 						aAdd( aLin, { "C7_REC_WT" , SC7->(Recno()), Nil } )
 						
@@ -3721,7 +3607,7 @@ User Function PCOMVLD()
 				lReturn := .F.
 			EndIf
 			
-		ElseIf oBrwPro:oBrowse:nColPos == nPosBlq .and. oBrwPro:aCols[oBrwPro:nAt][nPosBlq] == 0
+		ElseIf nColAtu == nPosBlq .and. aColPro[oBrwPro:nAt][nPosBlq] == 0
 			lReturn := .F.
 		EndIf
 		
@@ -4473,8 +4359,8 @@ Static Function fSortGrd()
 	Local nOpcOrd := 0
 	Local cExpOrd := ""
 	
-	If oBrwPro != Nil .and. Len( oBrwPro:aCols ) > 0
-		aColTmp := oBrwPro:aCols
+	If oBrwPro != Nil .and. Len( aColPro ) > 0
+		aColTmp := aColPro
 		
 		if !Empty( cCboOrd )
 			
@@ -4486,9 +4372,8 @@ Static Function fSortGrd()
 	    EndIf
 		
 		// Atualiza os componentes visuais
-		oBrwPro:aCols := aClone( aColTmp )
+		aColPro := aClone( aColTmp )
 		oBrwPro:ForceRefresh()
-		oDlgCom:Refresh()
 		
 	EndIf
 	
@@ -7195,72 +7080,46 @@ Função para abertura de caixa de pesquisa
 @version 1.0
 @author Jean Carlos P. Saggin
 @since 19/06/2024
-@param cInit, character, filtro já aplicado, se existir
+@param aFiltros, array, filtros atuais
 @return character, cText
 /*/
-static function prodFilter( cInit, aTypes )
+static function prodFilter( aFiltros )
 	
-	local cLook   := "" as character
 	local oLookDlg      as object
+	local oContainer    as object
 	local oGetLook      as object
-	local oBtnOk   		as object
-	local oGroup        as object
-	local aColumns      := {} as array
-	local lMark         := .F.
+	local oBtnTypes     as object
+	local oGetFor       as object
+	local oCboOrd       as object
+	local _cTypes       := "" as character
 
-	Private aTipos := {}
-	Private oTipos 		as object
+	_aFilters := aClone( aFiltros )
+	_cTypes   := _aFilters[2]
 
-	default cInit := ""
+	oLookDlg := FWDialogModal():New()
+	oLookDlg:SetEscClose( .F. )
+	oLookDlg:SetTitle( 'Filtro de Seleção de Produtos' )
+	oLookDlg:SetSubTitle( 'Defina os filtros para análise de compra dos produtos...' )
+	oLookDlg:SetSize( 300, 200 )
+	oLookDlg:CreateDialog()
+	oLookDlg:AddCloseButton( {|| _aFilters := aClone(aFiltros), oLookDlg:DeActivate()}, "Cancelar" )
+	oLookDlg:AddOkButton( {|| oLookDlg:DeActivate() }, "Ok" )
+	oContainer := TPanel():New( ,,, oLookDlg:getPanelMain() )
+	oContainer:Align := CONTROL_ALIGN_ALLCLIENT
 
-	DBSelectArea( 'SX5' )
-	SX5->( DBSetOrder(1) )
-		if DBSeek( FWxFilial( 'SX5' ) + '02'  )
-		while ! SX5->( EOF() ) .and. SX5->X5_FILIAL == FWxFilial( 'SX5' ) .AND. SX5->X5_TABELA == '02'
-			aAdd( aTipos, { aScan( aTypes, {|x| AllTrim(x) == AllTrim( SX5->X5_CHAVE ) } ) > 0,;
-							AllTrim( SX5->X5_CHAVE ),;
-							AllTrim( SX5->X5_DESCRI ) } )
-			SX5->( DBSkip() )
-		end
-	endif
+	oGetLook  := TGet():New( 10,04, {|u| if(PCount()==0,_aFilters[1],_aFilters[1]:=u)},oContainer,90,012,"@!",,0,,,.F.,,.T.,,.F.,,.F.,.F.,,.F.,.F.,,'_aFilters[1]',,,,.T.,.F.,,'Expressão de filtro por nome', 1 )
+	oGetTypes := TGet():New( 35,04, {|u| if(PCount()==0,_cTypes,_cTypes:=u)},oContainer,90,012,"@x",,0,,,.F.,,.T.,,.F.,,.F.,.F.,,.F.,.F.,,'_cTypes',,,,.T.,.F.,,'Tipos de Produtos', 1 )
+	oGetTypes:bWhen := {|| .F. }
+	oBtnTypes := tBitmap():New( 43, 110, 12, 12,,"painel_compras_lupa.png", .T., oContainer,{|| _cTypes := U_JSPAITYP( _cTypes ),;
+																						_aFilters[2] := _cTypes }, NIL, .F., .F., NIL, NIL, .F., NIL, .T., NIL, .F.)
+	oGetFor   := TGet():New( 60,04, {|u| if(PCount()==0,_aFilters[3],_aFilters[3]:=u)},oContainer,70,012,"@x",,0,,,.F.,,.T.,,.F.,,.F.,.F.,,.F.,.F.,,'_aFilters[3]',,,,.T.,.F.,,'Fornecedor Padrão', 1 )
+	oGetFor:cF3 := "SA2"
+	oCboOrd   := TComboBox():New(85,04,{|u|if(PCount()>0,_aFilters[4]:=u,_aFilters[4])},;
+									aCboOrd,80,14,oContainer,,{|| Nil };
+									,,,,.T.,,,,,,,,,'_aFilters[4]', 'Ordenar por...', 1)
+	oLookDlg:Activate()
 
-	aAdd( aColumns, FWBrwColumn():New() )
-	aColumns[len(aColumns)]:SetTitle( 'Tipo' )
-	aColumns[len(aColumns)]:SetSize( 2 )
-	aColumns[len(aColumns)]:SetType( 'C' )
-	aColumns[len(aColumns)]:SetPicture( '@!' )
-	aColumns[len(aColumns)]:SetData( {|| aTipos[oTipos:nAt][2] } )
-	
-	aAdd( aColumns, FWBrwColumn():New() )
-	aColumns[len(aColumns)]:SetTitle( 'Descrição' )
-	aColumns[len(aColumns)]:SetSize( 30 )
-	aColumns[len(aColumns)]:SetType( 'C' )
-	aColumns[len(aColumns)]:SetPicture( '@x' )
-	aColumns[len(aColumns)]:SetData( {|| aTipos[oTipos:nAt][3] } )
-
-	cLook := PADR( cInit, 200, ' ' )
-	oLookDlg := TDialog():New( 0, 0, 400,300,'Filtro de produtos...',,,,,CLR_BLACK,CLR_WHITE,,,.T.)
-	oLookDlg:lEscClose := .F.
-	oGetLook := TGet():New( 10,04, {|u| if(PCount()==0,cLook,cLook:=u)},oLookDlg,120,011,"@x",,0,,,.F.,,.T.,,.F.,,.F.,.F.,,.F.,.F.,,'cLook',,,, )
-	oBtnOk   := TButton():New( 10, 126, "Ok",oLookDlg,{|| _aTypes := {},;
-														  aEval( aTipos, {|x| iif( x[1], aAdd( _aTypes, x[2] ), Nil ) } ),;
-														  oLookDlg:End() }, 16, 12,,,.F.,.T.,.F.,,.F.,,,.F. )
-	
-	oGroup := TGroup():New( 24,04,196,146,,oLookDlg,,,.T.)
-	oTipos := FWBrowse():New( oGroup )
-	oTipos:SetDataArray()
-	oTipos:SetArray( aTipos )
-	oTipos:DisableConfig()
-	oTipos:DisableReport()
-	oTipos:SetLineHeight(20)
-	oTipos:AddMarkColumns( {|oTipos| if( aTipos[oTipos:nAt][1], 'LBOK','LBNO' ) },;
-							{|oTipos| aTipos[oTipos:nAt][1] := !aTipos[oTipos:nAt][1] },;
-							{|oTipos| lMark := !aTipos[1][1], aEval( aTipos, {|x| x[1] := lMark } ), oTipos:UpdateBrowse() } )
-	oTipos:SetColumns( aColumns )
-	oTipos:Activate()
-
-	oLookDlg:Activate(,,,.T., {|| .T. },,{|| Nil })
-return cLook
+return _aFilters
 
 /*/{Protheus.doc} doFilter
 Função para criação de filtro com a expressão digitada pelo usuário
@@ -7455,7 +7314,7 @@ Função para retornar posição de um campo no header do arquivo
 static function gt( cField )
 return aScan( aFileHdr, {|x| AllTrim( x[1] ) == AllTrim( cField ) } )
 
-/*/{Protheus.doc} q																												qe
+/*/{Protheus.doc} someChange																												
 Função chamada quando o sistema perceber qualquer alteração em um dos campos da tela
 @type function
 @version 1.0
@@ -7504,14 +7363,15 @@ static function someChange( lReset )
 
 	// Obtem os dados da ultima nota
 	aLast   := getLastDoc( cGetCod )
-	nGetUPr := aLast[1]
-	nGetUQt := aLast[2]
-	dGetUDt := aLast[3]
-	cGetUPz := aLast[4]
-	cGetNF  := aLast[5]
-	cGetUFi := aLast[6]
-	cGetUFo := aLast[7]
-
+	if Len( aLast ) > 0
+		nGetUPr := aLast[1]
+		nGetUQt := aLast[2]
+		dGetUDt := aLast[3]
+		cGetUPz := aLast[4]
+		cGetNF  := aLast[5]
+		cGetUFi := aLast[6]
+		cGetUFo := aLast[7]
+	endif
 	oDlgDoc:Refresh()
 return nil
 
@@ -7658,24 +7518,20 @@ Função para obter as filiais da empresa que o usuário estiver conectado
 /*/
 static function getFilData( aSelected )
 	
-	local aAreaSM0 := SM0->( GetArea() )
 	local aFilData := {} as array
-	local aFilAux  := FWAllFilial( ,,cEmpAnt )
-	local nFilial  := 0 as numeric
-	local aData := {} as array
-	local cFilName := "" as character
-	local cCGC     := "" as character
-	
-	for nFilial := 1 to len( aFilAux )
-		aData := FWSM0Util():GetSM0Data( cEmpAnt, aFilAux[nFilial], { 'M0_FILIAL','M0_CGC' } )
-		cFilName := aData[aScan(aData, {|x| AllTrim(x[1]) == 'M0_FILIAL' })][2]
-		aAdd( aFilData, { aScan( aSelected, {|x| AllTrim( x ) == AllTrim( aFilAux[nFilial] ) } ) > 0 /* lMark */,;
-						  aFilAux[nFilial] /* cCodFil */,;
-						  cFilName,;
-						  cCGC } )
-	next nFilial
+	local cQuery   := "" as character
 
-	restArea( aAreaSM0 )
+	cQuery := "SELECT M0_CODFIL, M0_FILIAL, M0_CGC FROM SYS_COMPANY WHERE M0_CODIGO = '"+ cEmpAnt +"' AND D_E_L_E_T_ = ' ' "
+	DBUseArea( .T., "TOPCONN", TcGenQry(,,cQuery), 'SM0TMP', .F., .T.)	
+	while ! SM0TMP->(EOF())
+		aAdd( aFilData, { aScan( aSelected, {|x| AllTrim( x ) == AllTrim( SM0TMP->M0_CODFIL ) } ) > 0 /* lMark */,;
+							SM0TMP->M0_CODFIL,;
+							AllTrim(SM0TMP->M0_FILIAL),;
+							SM0TMP->M0_CGC } )
+		SM0TMP->( DBSkip() )
+	end
+	SM0TMP->( DBCloseArea() )
+		
 return aFilData
 
 /*/{Protheus.doc} userFil
@@ -7751,3 +7607,299 @@ static function getSelected( aBrwFil )
 		endif
 	next nFilial
 return aSelected
+
+/*/{Protheus.doc} getColPro
+Função para retornar colunas do browse de produtos
+@type function
+@version 1.0
+@author Jean Carlos Pandolfo Saggin
+@since 11/12/2024
+@param aFields, array, vetor de campos a serem incluídos no grid
+@param aAlter, array, vetor de campos em que o usuário vai poder alterar os dados
+@return array, aColumns
+/*/
+static function getColPro( aFields, aAlter )
+
+	local aColumns := {} as array
+	local nX       := 0 as numeric
+	local aAux     := {} as array
+	local cType    := "" as character
+
+	for nX := 1 to len( aFields )
+		DBSelectArea( 'SB1' )
+		if SB1->( FieldPos( aFields[nX] ) ) > 0
+			cType := StrTran(GetSX3Cache( aFields[nX], 'X3_TIPO' ),'M','C')
+			if !Empty(GetSX3Cache( aFields[nX], "X3_CBOX" ))
+				aAux := StrTokArr( GetSX3Cache( aFields[nX], "X3_CBOX" ),';')
+			else
+				aAux := {}
+			endif
+			aAdd(aColumns, {;
+							AllTrim(GetSX3Cache( aFields[nX], 'X3_TITULO' )),;                     	// [n][01] Título da coluna
+							&("{|oBrw| aColPro[oBrw:At()]["+ cValToChar(nX) +"] }"),; 				// [n][02] Code-Block de carga dos dados
+							StrTran(GetSX3Cache( aFields[nX], 'X3_TIPO' ),'M','C'),;                // [n][03] Tipo de dados
+							AllTrim(GetSX3Cache( aFields[nX], 'X3_PICTURE' )),;                     // [n][04] Máscara
+							iif( cType == "C", 1, iif( cType == "N", 2, 0 )),;                      // [n][05] Alinhamento (0=Centralizado, 1=Esquerda ou 2=Direita)
+							GetSX3Cache( aFields[nX], 'X3_TAMANHO' ),;                             	// [n][06] Tamanho
+							GetSX3Cache( aFields[nX], 'X3_DECIMAL' ),;                              // [n][07] Decimal
+							aScan( aAlter, {|x| AllTrim(x) == aFields[nX] } ) > 0,;                 // [n][08] Indica se permite a edição
+							{|| AlwaysTrue() },;                          							// [n][09] Code-Block de validação da coluna após a edição
+							.F.,;                            										// [n][10] Indica se exibe imagem
+							Nil,;                            										// [n][11] Code-Block de execução do duplo clique
+							"aColPro[oBrwPro:At()]["+cValToChar(nX)+"]",;                    		// [n][12] Variável a ser utilizada na edição (ReadVar)
+							/* {|| AlwaysTrue()} */,;              									// [n][13] Code-Block de execução do clique no header
+							.F.,;                            										// [n][14] Indica se a coluna está deletada
+							.F.,;                            										// [n][15] Indica se a coluna será exibida nos detalhes do Browse
+							aAux,;                             										// [n][16] Opções de carga dos dados (Ex: 1=Sim, 2=Não)
+							aFields[nX] })                          								// [n][17] Id da coluna
+		elseif aFields[nX] == 'QTDBLOQ' 
+			aAdd(aColumns, {;
+							'Qtd.Bloq.',;                     										// [n][01] Título da coluna
+							&("{|oBrw| aColPro[oBrw:At()]["+ cValToChar(nX) +"] }"),; 				// [n][02] Code-Block de carga dos dados
+							"N",;                													// [n][03] Tipo de dados
+							"@E 9,999,999",;                     									// [n][04] Máscara
+							2,;                      												// [n][05] Alinhamento (0=Centralizado, 1=Esquerda ou 2=Direita)
+							9,;                             										// [n][06] Tamanho
+							0,;                              										// [n][07] Decimal
+							aScan( aAlter, {|x| AllTrim(x) == aFields[nX] } ) > 0,;                 // [n][08] Indica se permite a edição
+							{|| AlwaysTrue() },;                          							// [n][09] Code-Block de validação da coluna após a edição
+							.F.,;                            										// [n][10] Indica se exibe imagem
+							Nil,;                            										// [n][11] Code-Block de execução do duplo clique
+							"aColPro[oBrwPro:At()]["+cValToChar(nX)+"]",;                    		// [n][12] Variável a ser utilizada na edição (ReadVar)
+							/* {|| AlwaysTrue()} */,;              									// [n][13] Code-Block de execução do clique no header
+							.F.,;                            										// [n][14] Indica se a coluna está deletada
+							.F.,;                            										// [n][15] Indica se a coluna será exibida nos detalhes do Browse
+							{},;                             										// [n][16] Opções de carga dos dados (Ex: 1=Sim, 2=Não)
+							aFields[nX] })                          								// [n][17] Id da coluna
+		elseif aFields[nX] == 'NECCOMP'
+			aAdd(aColumns, {;
+							'Comprar',;                     										// [n][01] Título da coluna
+							&("{|oBrw| aColPro[oBrw:At()]["+ cValToChar(nX) +"] }"),; 				// [n][02] Code-Block de carga dos dados
+							"N",;                													// [n][03] Tipo de dados
+							"@E 9,999,999",;                     									// [n][04] Máscara
+							2,;                      												// [n][05] Alinhamento (0=Centralizado, 1=Esquerda ou 2=Direita)
+							9,;                             										// [n][06] Tamanho
+							0,;                              										// [n][07] Decimal
+							aScan( aAlter, {|x| AllTrim(x) == aFields[nX] } ) > 0,;                 // [n][08] Indica se permite a edição
+							{|| AlwaysTrue() },;                          							// [n][09] Code-Block de validação da coluna após a edição
+							.F.,;                            										// [n][10] Indica se exibe imagem
+							Nil,;                            										// [n][11] Code-Block de execução do duplo clique
+							"aColPro[oBrwPro:At()]["+cValToChar(nX)+"]",;                    		// [n][12] Variável a ser utilizada na edição (ReadVar)
+							/* {|| AlwaysTrue()} */,;              									// [n][13] Code-Block de execução do clique no header
+							.F.,;                            										// [n][14] Indica se a coluna está deletada
+							.F.,;                            										// [n][15] Indica se a coluna será exibida nos detalhes do Browse
+							{},;                             										// [n][16] Opções de carga dos dados (Ex: 1=Sim, 2=Não)
+							aFields[nX] })                          								// [n][17] Id da coluna
+		elseif aFields[nX] == 'PRCNEGOC'
+			aAdd(aColumns, {;
+							'Prç.Neg.',;                     										// [n][01] Título da coluna
+							&("{|oBrw| aColPro[oBrw:At()]["+ cValToChar(nX) +"] }"),; 				// [n][02] Code-Block de carga dos dados
+							"N",;                													// [n][03] Tipo de dados
+							"@E 9,999,999.99",;                     								// [n][04] Máscara
+							2,;                      												// [n][05] Alinhamento (0=Centralizado, 1=Esquerda ou 2=Direita)
+							11,;                             										// [n][06] Tamanho
+							2,;                              										// [n][07] Decimal
+							aScan( aAlter, {|x| AllTrim(x) == aFields[nX] } ) > 0,;                 // [n][08] Indica se permite a edição
+							{|| AlwaysTrue() },;                          							// [n][09] Code-Block de validação da coluna após a edição
+							.F.,;                            										// [n][10] Indica se exibe imagem
+							Nil,;                            										// [n][11] Code-Block de execução do duplo clique
+							"aColPro[oBrwPro:At()]["+cValToChar(nX)+"]",;                    		// [n][12] Variável a ser utilizada na edição (ReadVar)
+							/* {|| AlwaysTrue()} */,;              									// [n][13] Code-Block de execução do clique no header
+							.F.,;                            										// [n][14] Indica se a coluna está deletada
+							.F.,;                            										// [n][15] Indica se a coluna será exibida nos detalhes do Browse
+							{},;                             										// [n][16] Opções de carga dos dados (Ex: 1=Sim, 2=Não)
+							aFields[nX] })                          								// [n][17] Id da coluna
+		elseif aFields[nX] == "ULTPRECO"
+			aAdd(aColumns, {;
+							'Ult.Prç.',;                     										// [n][01] Título da coluna
+							&("{|oBrw| aColPro[oBrw:At()]["+ cValToChar(nX) +"] }"),; 				// [n][02] Code-Block de carga dos dados
+							"N",;                													// [n][03] Tipo de dados
+							"@E 9,999,999.99",;                     								// [n][04] Máscara
+							2,;                      												// [n][05] Alinhamento (0=Centralizado, 1=Esquerda ou 2=Direita)
+							11,;                             										// [n][06] Tamanho
+							2,;                              										// [n][07] Decimal
+							aScan( aAlter, {|x| AllTrim(x) == aFields[nX] } ) > 0,;                 // [n][08] Indica se permite a edição
+							{|| AlwaysTrue() },;                          							// [n][09] Code-Block de validação da coluna após a edição
+							.F.,;                            										// [n][10] Indica se exibe imagem
+							Nil,;                            										// [n][11] Code-Block de execução do duplo clique
+							"aColPro[oBrwPro:At()]["+cValToChar(nX)+"]",;                    		// [n][12] Variável a ser utilizada na edição (ReadVar)
+							/* {|| AlwaysTrue()} */,;              									// [n][13] Code-Block de execução do clique no header
+							.F.,;                            										// [n][14] Indica se a coluna está deletada
+							.F.,;                            										// [n][15] Indica se a coluna será exibida nos detalhes do Browse
+							{},;                             										// [n][16] Opções de carga dos dados (Ex: 1=Sim, 2=Não)
+							aFields[nX] })                          								// [n][17] Id da coluna
+		elseif aFields[nX] == 'CONSMED'
+			aAdd(aColumns, {;
+							'Cons.Med.',;                     										// [n][01] Título da coluna
+							&("{|oBrw| aColPro[oBrw:At()]["+ cValToChar(nX) +"] }"),; 				// [n][02] Code-Block de carga dos dados
+							"N",;                													// [n][03] Tipo de dados
+							"@E 999.9999",;                     									// [n][04] Máscara
+							2,;                      												// [n][05] Alinhamento (0=Centralizado, 1=Esquerda ou 2=Direita)
+							9,;                             										// [n][06] Tamanho
+							4,;                              										// [n][07] Decimal
+							aScan( aAlter, {|x| AllTrim(x) == aFields[nX] } ) > 0,;                 // [n][08] Indica se permite a edição
+							{|| AlwaysTrue() },;                          							// [n][09] Code-Block de validação da coluna após a edição
+							.F.,;                            										// [n][10] Indica se exibe imagem
+							Nil,;                            										// [n][11] Code-Block de execução do duplo clique
+							"aColPro[oBrwPro:At()]["+cValToChar(nX)+"]",;                    		// [n][12] Variável a ser utilizada na edição (ReadVar)
+							/* {|| AlwaysTrue()} */,;              									// [n][13] Code-Block de execução do clique no header
+							.F.,;                            										// [n][14] Indica se a coluna está deletada
+							.F.,;                            										// [n][15] Indica se a coluna será exibida nos detalhes do Browse
+							{},;                             										// [n][16] Opções de carga dos dados (Ex: 1=Sim, 2=Não)
+							aFields[nX] })                          								// [n][17] Id da coluna
+
+		elseif aFields[nX] == 'DURACAO'
+			aAdd(aColumns, {;
+							'Duração',;                     										// [n][01] Título da coluna
+							&("{|oBrw| aColPro[oBrw:At()]["+ cValToChar(nX) +"] }"),; 				// [n][02] Code-Block de carga dos dados
+							"N",;                													// [n][03] Tipo de dados
+							"@E 999",;                     											// [n][04] Máscara
+							2,;                      												// [n][05] Alinhamento (0=Centralizado, 1=Esquerda ou 2=Direita)
+							3,;                             										// [n][06] Tamanho
+							0,;                              										// [n][07] Decimal
+							aScan( aAlter, {|x| AllTrim(x) == aFields[nX] } ) > 0,;                 // [n][08] Indica se permite a edição
+							{|| AlwaysTrue() },;                          							// [n][09] Code-Block de validação da coluna após a edição
+							.F.,;                            										// [n][10] Indica se exibe imagem
+							Nil,;                            										// [n][11] Code-Block de execução do duplo clique
+							"aColPro[oBrwPro:At()]["+cValToChar(nX)+"]",;                    		// [n][12] Variável a ser utilizada na edição (ReadVar)
+							/* {|| AlwaysTrue()} */,;              									// [n][13] Code-Block de execução do clique no header
+							.F.,;                            										// [n][14] Indica se a coluna está deletada
+							.F.,;                            										// [n][15] Indica se a coluna será exibida nos detalhes do Browse
+							{},;                             										// [n][16] Opções de carga dos dados (Ex: 1=Sim, 2=Não)
+							aFields[nX] })                          								// [n][17] Id da coluna
+		elseif aFields[nX] == 'DURAPRV'
+			aAdd(aColumns, {;
+							'Dur.s/L.T.',;                     										// [n][01] Título da coluna
+							&("{|oBrw| aColPro[oBrw:At()]["+ cValToChar(nX) +"] }"),; 				// [n][02] Code-Block de carga dos dados
+							"N",;                													// [n][03] Tipo de dados
+							"@E 999",;                     											// [n][04] Máscara
+							2,;                      												// [n][05] Alinhamento (0=Centralizado, 1=Esquerda ou 2=Direita)
+							3,;                             										// [n][06] Tamanho
+							0,;                              										// [n][07] Decimal
+							aScan( aAlter, {|x| AllTrim(x) == aFields[nX] } ) > 0,;                 // [n][08] Indica se permite a edição
+							{|| AlwaysTrue() },;                          							// [n][09] Code-Block de validação da coluna após a edição
+							.F.,;                            										// [n][10] Indica se exibe imagem
+							Nil,;                            										// [n][11] Code-Block de execução do duplo clique
+							"aColPro[oBrwPro:At()]["+cValToChar(nX)+"]",;                    		// [n][12] Variável a ser utilizada na edição (ReadVar)
+							/* {|| AlwaysTrue()} */,;              									// [n][13] Code-Block de execução do clique no header
+							.F.,;                            										// [n][14] Indica se a coluna está deletada
+							.F.,;                            										// [n][15] Indica se a coluna será exibida nos detalhes do Browse
+							{},;                             										// [n][16] Opções de carga dos dados (Ex: 1=Sim, 2=Não)
+							aFields[nX] })                          								// [n][17] Id da coluna
+		elseif aFields[nX] == 'ESTOQUE'
+			aAdd(aColumns, {;
+							'Sld.Atual',;                     										// [n][01] Título da coluna
+							&("{|oBrw| aColPro[oBrw:At()]["+ cValToChar(nX) +"] }"),; 				// [n][02] Code-Block de carga dos dados
+							"N",;                													// [n][03] Tipo de dados
+							AllTrim(GetSX3Cache("B2_QATU", "X3_PICTURE")),;                     	// [n][04] Máscara
+							2,;                      												// [n][05] Alinhamento (0=Centralizado, 1=Esquerda ou 2=Direita)
+							GetSX3Cache("B2_QATU", "X3_TAMANHO"),;                             		// [n][06] Tamanho
+							GetSX3Cache("B2_QATU", "X3_DECIMAL"),;                         			// [n][07] Decimal
+							aScan( aAlter, {|x| AllTrim(x) == aFields[nX] } ) > 0,;                 // [n][08] Indica se permite a edição
+							{|| AlwaysTrue() },;                          							// [n][09] Code-Block de validação da coluna após a edição
+							.F.,;                            										// [n][10] Indica se exibe imagem
+							Nil,;                            										// [n][11] Code-Block de execução do duplo clique
+							"aColPro[oBrwPro:At()]["+cValToChar(nX)+"]",;                    		// [n][12] Variável a ser utilizada na edição (ReadVar)
+							/* {|| AlwaysTrue()} */,;              									// [n][13] Code-Block de execução do clique no header
+							.F.,;                            										// [n][14] Indica se a coluna está deletada
+							.F.,;                            										// [n][15] Indica se a coluna será exibida nos detalhes do Browse
+							{},;                             										// [n][16] Opções de carga dos dados (Ex: 1=Sim, 2=Não)
+							aFields[nX] })                          								// [n][17] Id da coluna
+		elseif aFields[nX] == 'EMPENHO'
+			aAdd(aColumns, {;
+							'Empenho',;                     										// [n][01] Título da coluna
+							&("{|oBrw| aColPro[oBrw:At()]["+ cValToChar(nX) +"] }"),; 				// [n][02] Code-Block de carga dos dados
+							"N",;                													// [n][03] Tipo de dados
+							AllTrim(GetSX3Cache("B2_RESERVA", "X3_PICTURE")),;                     	// [n][04] Máscara
+							2,;                      												// [n][05] Alinhamento (0=Centralizado, 1=Esquerda ou 2=Direita)
+							GetSX3Cache("B2_RESERVA", "X3_TAMANHO"),;                             	// [n][06] Tamanho
+							GetSX3Cache("B2_RESERVA", "X3_DECIMAL"),;                         		// [n][07] Decimal
+							aScan( aAlter, {|x| AllTrim(x) == aFields[nX] } ) > 0,;                 // [n][08] Indica se permite a edição
+							{|| AlwaysTrue() },;                          							// [n][09] Code-Block de validação da coluna após a edição
+							.F.,;                            										// [n][10] Indica se exibe imagem
+							Nil,;                            										// [n][11] Code-Block de execução do duplo clique
+							"aColPro[oBrwPro:At()]["+cValToChar(nX)+"]",;                    		// [n][12] Variável a ser utilizada na edição (ReadVar)
+							/* {|| AlwaysTrue()} */,;              									// [n][13] Code-Block de execução do clique no header
+							.F.,;                            										// [n][14] Indica se a coluna está deletada
+							.F.,;                            										// [n][15] Indica se a coluna será exibida nos detalhes do Browse
+							{},;                             										// [n][16] Opções de carga dos dados (Ex: 1=Sim, 2=Não)
+							aFields[nX] })                          								// [n][17] Id da coluna
+		elseif aFields[nX] == 'QTDCOMP'
+			aAdd(aColumns, {;
+							'Qt.Compr',;                     										// [n][01] Título da coluna
+							&("{|oBrw| aColPro[oBrw:At()]["+ cValToChar(nX) +"] }"),; 				// [n][02] Code-Block de carga dos dados
+							"N",;                													// [n][03] Tipo de dados
+							AllTrim(GetSX3Cache("C7_QUANT", "X3_PICTURE")),;                     	// [n][04] Máscara
+							2,;                      												// [n][05] Alinhamento (0=Centralizado, 1=Esquerda ou 2=Direita)
+							GetSX3Cache("C7_QUANT", "X3_TAMANHO"),;                             	// [n][06] Tamanho
+							GetSX3Cache("C7_QUANT", "X3_DECIMAL"),;                         		// [n][07] Decimal
+							aScan( aAlter, {|x| AllTrim(x) == aFields[nX] } ) > 0,;                 // [n][08] Indica se permite a edição
+							{|| AlwaysTrue() },;                          							// [n][09] Code-Block de validação da coluna após a edição
+							.F.,;                            										// [n][10] Indica se exibe imagem
+							Nil,;                            										// [n][11] Code-Block de execução do duplo clique
+							"aColPro[oBrwPro:At()]["+cValToChar(nX)+"]",;                    		// [n][12] Variável a ser utilizada na edição (ReadVar)
+							/* {|| AlwaysTrue()} */,;              									// [n][13] Code-Block de execução do clique no header
+							.F.,;                            										// [n][14] Indica se a coluna está deletada
+							.F.,;                            										// [n][15] Indica se a coluna será exibida nos detalhes do Browse
+							{},;                             										// [n][16] Opções de carga dos dados (Ex: 1=Sim, 2=Não)
+							aFields[nX] })                          								// [n][17] Id da coluna
+		Elseif aFields[nX] == 'LEADTIME'
+			aAdd(aColumns, {;
+							'Ld.Time',;                     										// [n][01] Título da coluna
+							&("{|oBrw| aColPro[oBrw:At()]["+ cValToChar(nX) +"] }"),; 				// [n][02] Code-Block de carga dos dados
+							"N",;                													// [n][03] Tipo de dados
+							AllTrim(GetSX3Cache("B1_PE", "X3_PICTURE")),;                     		// [n][04] Máscara
+							2,;                      												// [n][05] Alinhamento (0=Centralizado, 1=Esquerda ou 2=Direita)
+							GetSX3Cache("B1_PE", "X3_TAMANHO"),;                             		// [n][06] Tamanho
+							GetSX3Cache("B1_PE", "X3_DECIMAL"),;                         			// [n][07] Decimal
+							aScan( aAlter, {|x| AllTrim(x) == aFields[nX] } ) > 0,;                 // [n][08] Indica se permite a edição
+							{|| AlwaysTrue() },;                          							// [n][09] Code-Block de validação da coluna após a edição
+							.F.,;                            										// [n][10] Indica se exibe imagem
+							Nil,;                            										// [n][11] Code-Block de execução do duplo clique
+							"aColPro[oBrwPro:At()]["+cValToChar(nX)+"]",;                    		// [n][12] Variável a ser utilizada na edição (ReadVar)
+							/* {|| AlwaysTrue()} */,;              									// [n][13] Code-Block de execução do clique no header
+							.F.,;                            										// [n][14] Indica se a coluna está deletada
+							.F.,;                            										// [n][15] Indica se a coluna será exibida nos detalhes do Browse
+							{},;                             										// [n][16] Opções de carga dos dados (Ex: 1=Sim, 2=Não)
+							aFields[nX] })                          								// [n][17] Id da coluna
+		elseif aFields[nX] == 'TPLDTIME'
+			aAdd(aColumns, {;
+							'Tp.Ld.T',;                     										// [n][01] Título da coluna
+							&("{|oBrw| aColPro[oBrw:At()]["+ cValToChar(nX) +"] }"),; 				// [n][02] Code-Block de carga dos dados
+							"C",;                													// [n][03] Tipo de dados
+							"@x",;                     												// [n][04] Máscara
+							0,;                      												// [n][05] Alinhamento (0=Centralizado, 1=Esquerda ou 2=Direita)
+							1,;                             										// [n][06] Tamanho
+							0,;                         											// [n][07] Decimal
+							aScan( aAlter, {|x| AllTrim(x) == aFields[nX] } ) > 0,;                 // [n][08] Indica se permite a edição
+							{|| AlwaysTrue() },;                          							// [n][09] Code-Block de validação da coluna após a edição
+							.F.,;                            										// [n][10] Indica se exibe imagem
+							Nil,;                            										// [n][11] Code-Block de execução do duplo clique
+							"aColPro[oBrwPro:At()]["+cValToChar(nX)+"]",;                    		// [n][12] Variável a ser utilizada na edição (ReadVar)
+							/* {|| AlwaysTrue()} */,;              									// [n][13] Code-Block de execução do clique no header
+							.F.,;                            										// [n][14] Indica se a coluna está deletada
+							.F.,;                            										// [n][15] Indica se a coluna será exibida nos detalhes do Browse
+							{"C=Calculado","F=Fornecedor","P=Produto"},;                            // [n][16] Opções de carga dos dados (Ex: 1=Sim, 2=Não)
+							aFields[nX] })                          								// [n][17] Id da coluna
+		elseif aFields[nX] == 'PREVENT'
+			aAdd(aColumns, {;
+							'Prev.Entr.',;                     										// [n][01] Título da coluna
+							&("{|oBrw| aColPro[oBrw:At()]["+ cValToChar(nX) +"] }"),; 				// [n][02] Code-Block de carga dos dados
+							"D",;                													// [n][03] Tipo de dados
+							Nil,;                     												// [n][04] Máscara
+							0,;                      												// [n][05] Alinhamento (0=Centralizado, 1=Esquerda ou 2=Direita)
+							8,;                             										// [n][06] Tamanho
+							0,;                         											// [n][07] Decimal
+							aScan( aAlter, {|x| AllTrim(x) == aFields[nX] } ) > 0,;                 // [n][08] Indica se permite a edição
+							{|| AlwaysTrue() },;                          							// [n][09] Code-Block de validação da coluna após a edição
+							.F.,;                            										// [n][10] Indica se exibe imagem
+							Nil,;                            										// [n][11] Code-Block de execução do duplo clique
+							"aColPro[oBrwPro:At()]["+cValToChar(nX)+"]",;                    		// [n][12] Variável a ser utilizada na edição (ReadVar)
+							/* {|| AlwaysTrue()} */,;              									// [n][13] Code-Block de execução do clique no header
+							.F.,;                            										// [n][14] Indica se a coluna está deletada
+							.F.,;                            										// [n][15] Indica se a coluna será exibida nos detalhes do Browse
+							{},; 										                            // [n][16] Opções de carga dos dados (Ex: 1=Sim, 2=Não)
+							aFields[nX] })                          								// [n][17] Id da coluna
+		endif
+	next nX
+return aColumns

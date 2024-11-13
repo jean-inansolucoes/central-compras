@@ -581,7 +581,7 @@ Define a resolução para exibição dos períodos.
 @author [VP Tecnologia](https://tdn.totvs.com/display/tec) - [TOTVS S.A.](https://www.totvs.com/)
 @see https://tdn.totvs.com/display/tec/setresolution
 /*/
-method setresolution(nresolu��o) class mscalendgrid
+method setresolution(nresolu��o) class mscalendgrid
 return
 /*/{Protheus.doc} mscalendgrid:settimeunit
 Define o tipo de grade, 0 = Horas e 1 = Dias.

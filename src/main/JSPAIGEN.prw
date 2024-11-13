@@ -107,10 +107,15 @@ User Function JSFILCOM( cLeft, cRight, cAliasLeft, cAliasRight )
     local cExpression := "" as character
     local cFieldLeft  := iif( SubStr( cLeft,1,1 ) == 'S', SubStr( cLeft,2,2 ), cLeft ) + '_FILIAL'
     local cFieldRight := iif( SubStr( cRight,1,1 ) == 'S', SubStr( cRight,2,2 ), cRight ) + '_FILIAL'
+    local cALeft      := "" as character
+    local cARight     := "" as character
     
-    default cAliasLeft  := iif( SubStr( cLeft,1,1 ) == 'S', SubStr( cLeft,2,2 ), cLeft ) +"."
-    default cAliasRight := iif( SubStr( cRight,1,1 ) == 'S', SubStr( cRight,2,2 ), cRight ) +"."
+    default cAliasLeft  := iif( SubStr( cLeft,1,1 ) == 'S', SubStr( cLeft,2,2 ), cLeft )
+    default cAliasRight := iif( SubStr( cRight,1,1 ) == 'S', SubStr( cRight,2,2 ), cRight )
     
+    cALeft := cAliasLeft+'.'
+    cARight := cAliasRight+'.'
+
     // Verifica se a tratativa de filial é diferente para as duas tabelas
     if ! FWxFilial( cLeft ) == FWxFilial( cRight )
 
@@ -118,25 +123,103 @@ User Function JSFILCOM( cLeft, cRight, cAliasLeft, cAliasRight )
         if Len( AllTrim( FWxFilial( cLeft ) ) ) == 0
 
             // Se usa filial compartilhada, apenas compara com FWxFilial, pois a expressão ficará assim: A1_FILIAL = '  '
-            cExpression := cAliasLeft + cFieldLeft +" = '"+ FWxFilial( cLeft ) +"' "
+            cExpression := cALeft + cFieldLeft +" = '"+ FWxFilial( cLeft ) +"' "
         
         // Verifica se a tabela da direita usa filial compartilhada
         elseif Len( AllTrim( FWxFilial( cRight ) ) ) == 0
         
             // Se usa filial compartilhada, chama função que retorna um filtro IN para a SQL usando as filiais selecionadas pelo usuário para filtrar os registros do alias da esquerda
-            cExpression := cAliasLeft + cFieldLeft + U_JSFILIAL( cLeft, _aFil ) + ' '
+            cExpression := cALeft + cFieldLeft + U_JSFILIAL( cLeft, _aFil ) + ' '
         
         // Verifica se o tamanho do conteúdo da filial da tabela da esquerda é menor do que o da direita
         elseif Len( AllTrim( FWxFilial( cLeft ) ) ) < Len( AllTrim( FWxFilial( cRight ) ) )
 
             // Se a informação da filial da tabel a da esquerda for menor do que a informação da filial da tabela da direita, compara as duas usando substring para adequar o tamanho das duas informações
-            cExpression := cFunction +'('+ cAliasLeft + cFieldLeft +',1,'+ cValToChar( Len( AllTrim( FWxFilial( cLeft ) ) ) ) +') = '+ cFunction +'('+ cAliasRight + cFieldRight +',1,'+ cValToChar( Len( AllTrim( FWxFilial( cLeft ) ) ) ) +') '
+            cExpression := cFunction +'('+ cALeft + cFieldLeft +',1,'+ cValToChar( Len( AllTrim( FWxFilial( cLeft ) ) ) ) +') = '+ cFunction +'('+ cARight + cFieldRight +',1,'+ cValToChar( Len( AllTrim( FWxFilial( cLeft ) ) ) ) +') '
         else
-            cExpression := cFunction +'('+ cAliasLeft + cFieldLeft +',1,'+ cValToChar( Len( AllTrim( FWxFilial( cRight ) ) ) ) +') = '+ cFunction +'('+ cAliasRight + cFieldRight +',1,'+ cValToChar( Len( AllTrim( FWxFilial( cRight ) ) ) ) +') '
+            cExpression := cFunction +'('+ cALeft + cFieldLeft +',1,'+ cValToChar( Len( AllTrim( FWxFilial( cRight ) ) ) ) +') = '+ cFunction +'('+ cARight + cFieldRight +',1,'+ cValToChar( Len( AllTrim( FWxFilial( cRight ) ) ) ) +') '
         endif
 
     else
-        cExpression := cAliasLeft + cFieldLeft + ' = ' + cAliasRight + cFieldRight
+        cExpression := cALeft + cFieldLeft + ' = ' + cARight + cFieldRight
     endif
 
 return cExpression
+
+/*/{Protheus.doc} JSPAITYP
+Função da consulta padrão PAITYP para retornar tipos de produtos desejados.
+@type function
+@version 1.0
+@author Jean Carlos Pandolfo Saggin
+@since 11/8/2024
+@param cTipos, character, tipos de produtos que estão filtrados
+@return character, _cTypes
+/*/
+user function JSPAITYP( cTipos )
+    
+    local oDlgType as object
+    local oMain    as object
+    local oTipos   as object
+    local aTipos   := {} as array
+    local aColumns := {} as array
+    local lMark    := .F. as logical
+    local aTypes   := {} as array
+    local cRet  := "" as character
+
+    aTypes := StrTokArr( AllTrim(cTipos), "/" )
+
+    DBSelectArea( 'SX5' )
+	SX5->( DBSetOrder(1) )
+		if DBSeek( FWxFilial( 'SX5' ) + '02'  )
+		while ! SX5->( EOF() ) .and. SX5->X5_FILIAL == FWxFilial( 'SX5' ) .AND. SX5->X5_TABELA == '02'
+			aAdd( aTipos, { aScan( aTypes, {|x| AllTrim(x) == AllTrim( SX5->X5_CHAVE ) } ) > 0,;
+							AllTrim( SX5->X5_CHAVE ),;
+							AllTrim( SX5->X5_DESCRI ) } )
+			SX5->( DBSkip() )
+		end
+	endif
+
+    aAdd( aColumns, FWBrwColumn():New() )
+	aColumns[len(aColumns)]:SetTitle( 'Tipo' )
+	aColumns[len(aColumns)]:SetSize( 2 )
+	aColumns[len(aColumns)]:SetType( 'C' )
+	aColumns[len(aColumns)]:SetPicture( '@!' )
+	aColumns[len(aColumns)]:SetData( {|| aTipos[oTipos:nAt][2] } )
+	
+	aAdd( aColumns, FWBrwColumn():New() )
+	aColumns[len(aColumns)]:SetTitle( 'Descrição' )
+	aColumns[len(aColumns)]:SetSize( 30 )
+	aColumns[len(aColumns)]:SetType( 'C' )
+	aColumns[len(aColumns)]:SetPicture( '@x' )
+	aColumns[len(aColumns)]:SetData( {|| aTipos[oTipos:nAt][3] } )
+
+    oDlgType := FWDialogModal():New()
+    oDlgType:SetEscClose( .T. )
+    oDlgType:SetTitle( "Tipos de Produtos" )
+    oDlgType:SetSize( 310, 200 )
+    oDlgType:SetSubTitle( "Selecione um ou mais tipos de produtos para análise..." )
+    oDlgType:CreateDialog()
+	oDlgType:AddCloseButton( {|| oDlgType:DeActivate()}, "Cancelar" )
+	oDlgType:AddOkButton( {|| cRet := "",; 
+                             aEval( aTipos, {|x| iif( x[1], cRet += iif( Empty(cRet),"","/" )+ x[2], Nil ) } ),;
+                              oDlgType:DeActivate() }, "Ok" )
+
+    oMain := oDlgType:GetPanelMain()
+
+    oTipos := FWBrowse():New( oMain )
+	oTipos:SetDataArray()
+	oTipos:SetArray( aTipos )
+	oTipos:DisableConfig()
+	oTipos:DisableReport()
+	oTipos:SetLineHeight(20)
+	oTipos:AddMarkColumns( {|oTipos| if( aTipos[oTipos:nAt][1], 'LBOK','LBNO' ) },;
+							{|oTipos| aTipos[oTipos:nAt][1] := !aTipos[oTipos:nAt][1] },;
+							{|oTipos| lMark := !aTipos[1][1], aEval( aTipos, {|x| x[1] := lMark } ), oTipos:UpdateBrowse() } )
+	oTipos:SetColumns( aColumns )
+	oTipos:Activate()
+
+    oDlgType:Activate()
+    
+    cRet := PADR( cRet, 200, ' ' )
+
+return cRet
