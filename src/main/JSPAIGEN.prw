@@ -37,6 +37,9 @@ user function JSDETVER()
     aAdd( aDetVer, { '03','0006','06/10/2024', 'Permitir definir índice de lucro desejável por produto' } )
     aAdd( aDetVer, { '04','0001','16/10/2024', 'Controle de execução do JOB de recálculo dos índices individuais dos produtos' } )
     aAdd( aDetVer, { '04','0002','17/10/2024', 'Painel de Compras Multi-Filial' } )
+    aAdd( aDetVer, { '05','0001','12/11/2024', 'Adaptação para release 12.1.2410 usando smartclient webapp' } )
+    aAdd( aDetVer, { '05','0002','13/11/2024', 'Novo formato de filtros, remodelagem da engine de cálculos e substituição de componentes obsoletos' } )
+    aAdd( aDetVer, { '05','0003','13/11/2024', 'Workflow automático para fornecedor' } )
 return aDetVer
 
 /*/{Protheus.doc} JSFILIAL
@@ -223,3 +226,4 @@ user function JSPAITYP( cTipos )
     cRet := PADR( cRet, 200, ' ' )
 
 return cRet
+

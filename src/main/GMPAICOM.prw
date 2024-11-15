@@ -57,16 +57,12 @@ User Function GMPAICOM()
 	Local aStrFor  := {} 
 	Local oGir001, oGir002, oGir003, oGir004, oGir005/* , oGir006 */ := Nil
 	Local aHeaPro  := {}
-	local aFields  := {"B1_COD","B1_DESC","B1_UM","NECCOMP","QTDBLOQ","PRCNEGOC","ULTPRECO","CONSMED","DURACAO","DURAPRV","ESTOQUE","EMPENHO","QTDCOMP","LEADTIME","TPLDTIME","PREVENT","B1_LM","B1_QE","B1_LE","B1_PROC","B1_LOJPROC"} 
-	Local aAlter   := {"NECCOMP","QTDBLOQ","PRCNEGOC","B1_LM", "B1_QE", "B1_LE", "B1_PROC", "B1_UM", "LEADTIME", "B1_DESC" }
+	local aFields  := {"B1_COD","B1_DESC","B1_UM","NECCOMP","QTDBLOQ","PRCNEGOC","ULTPRECO","CONSMED","DURACAO","DURAPRV","ESTOQUE","EMPENHO","QTDCOMP","LEADTIME","TPLDTIME","PREVENT","B1_LM","B1_QE","B1_LE","B1_EMIN","B1_PROC","B1_LOJPROC"} 
+	Local aAlter   := {"NECCOMP","QTDBLOQ","PRCNEGOC","B1_LM", "B1_QE", "B1_LE", "B1_PROC", "B1_UM", "LEADTIME", "B1_DESC", "B1_EMIN" }
 	Local nX       := 0
-	// Local oLblOrd  := Nil
-	// Local oCboOrd  := Nil
-	// Local oCboExi  := Nil
 	Local oPanAna  := Nil
 	local oAliFor  as object
 	local oLayer   as object
-	// local oLayer1  as object
 	Local oGroup1  as object
 	local oWinFor  as object
 	local oLblPer  as object
@@ -79,6 +75,7 @@ User Function GMPAICOM()
 	local oBtnFil  as object
 	local cLastRun := "" as character
 	local oLine    as object
+	local cFileWF  := "" as character
 	
 	Private aCboOrd   := {}
 	Private _cFilPrd  := "" as character
@@ -167,6 +164,32 @@ User Function GMPAICOM()
 			'Verifique e configure o parâmetro MV_X_PNC04 através do módulo configurador do sistema.')
 		return Nil
 	endif
+
+	// Checa configuração de envio de e-mail para fornecedor
+	if AllTrim( SuperGetMv( 'MV_ENVPED' ) ) $ "1|2"
+		cFileWF := "/samples/wf/mata120_mail001.html"
+		if !File( cFileWF )
+			
+			// Checa estrutura de diretórios antes de criar o arquivo
+			if ! ExistDir( '/samples' )
+				makeDir( '/samples' )
+			endif
+			if ! ExistDir( '/samples/wf' )
+				makeDir( '/samples/wf' )
+			endif
+
+			// Tenta criar o arquivo base do workflow e já retorna se ele existe
+			if ! writeWF( cFileWF )
+
+				hlp( 'WF FORNECEDOR',;
+					 'O arquivo base para disparo de e-Mail ao fornecedor não se encontra na pasta',;
+					 'O arquivo '+ cFileWF +' é necessário para que o sistema consiga realizar o processamento sem falhas. '+;
+					 'Providencie o arquivo, disponibilize-o no diretório e tente novamente, ou desabilite o envio de e-mail automático '+;
+					 'através do parâmetro interno MV_ENVPED alterando seu conteúdo para 0 (zero)' )
+				Return Nil
+			endif
+		endif
+	endif
 	
 	// Define hotkeys da rotina
 	SetKey( K_ALT_X, {|| fMarkPro() } )
@@ -250,15 +273,16 @@ User Function GMPAICOM()
 	// lGir006 := aConfig[07]			// Pré-definições itens sob demanda
 	cCboAna := aConfig[08]			// Pré-definições tipo de análise de sazonalidade
 	nGetQtd := aConfig[09]			// Pré-definições da qtde de períodos analisados
-	_aTypes := typesDef( aConfig[21] )			// pré-definições dos tipos de produtos a serem analisados
+	
+	// Filtros de tipos de produtos "padrões" definidos nas configurações
+	_aFilters[2] := PADR(aConfig[21],200,' ')		// pré-definições dos tipos de produtos a serem analisados
 
 	// Botões da EnchoiceBar
 	// aAdd( aButtons, { "BTNWARN"  , {|| fShowEv() }           , "Riscos de Ruptura" } )
 	aAdd( aButtons, { "BMPMANUT" , {|| doFormul( cFormula ) }, "Formula de Cálculo" } )
 	// aAdd( aButtons, { "BTNNOTIFY", {|| fShowEv( aColPro[ oBrwPro:nAt][nPosPrd] ) }, "Eventos do Produto" } )
 	aAdd( aButtons, { "BTNEMPEN" , {|| iif( oBrwPro:nAt > 0, fShowEm( aColPro[ oBrwPro:nAt][nPosPrd] ), Nil ) }, "Empenhos do Produto" } )
-	// aAdd( aButtons, { "BTNPEDFOR", {|| fPedFor( 1 ) }        , "Pedidos do Produto com o Fornecedor Padrão" } )
-	aAdd( aButtons, { "BTNPEDIDO", {|| iif( oBrwPro:nAt > 0, fPedFor( 2 ), Nil ) }, "Pedidos do Produto" } )
+	aAdd( aButtons, { "BTNPEDIDO", {|| iif( oBrwPro:nAt > 0, fPedFor(), Nil ) }, "Pedidos do Produto" } )
 	aAdd( aButtons, { "BTNIMPORT", {|| impData() }           , "Importar Indices dos Produtos" } )
 	aAdd( aButtons, { "BTNENTR"  , {|| iif( oBrwPro:nAt > 0, entryDocs( aColPro[ oBrwPro:nAt ][nPosPrd] ), Nil ) }, "Compras do Produto" } )
 	aAdd( aButtons, { "BTNPAICFG", {|| internalParms() }     , "Parâmetros Internos" } )
@@ -2013,11 +2037,15 @@ Static Function fPedFor( nOpc )
 	Local cTitulo   := "Pedidos em aberto"
 	Local oBtnLeg   := Nil
 	local oBtnImp   as object
+	local oBtnMail  as object
+	local nPosBtn   := 0 as numeric
 	
 	Private aColsEx := {}
 	Private oGrid   := Nil
 	Private oDlgPed := Nil
 	
+	default nOpc := 2		// Por item
+
 	cTitulo += iif( nOpc == 1, ' com o fornecedor '+;
 	           AllTrim( RetField( 'SA2', 1, xFilial( 'SA2' ) + aColPro[ oBrwPro:nAt ][ nPosFor ] + aColPro[ oBrwPro:nAt ][ nPosLoj ], 'A2_NOME' )),;
 	           ' referente ao produto' )
@@ -2056,14 +2084,54 @@ Static Function fPedFor( nOpc )
     @ 002, 043 MSGET oGetPrd VAR cGetPrd SIZE 059, 012 OF oDlgPed WHEN .F. COLORS 0, 16777215 PIXEL
     @ 002, 104 MSGET oGetDes VAR cGetDes SIZE 214, 012 OF oDlgPed WHEN .F. COLORS 0, 16777215 PIXEL
     
-    @ 136, 385 BUTTON oBtnLeg PROMPT "&Legenda"  SIZE 037, 012 OF oDlgPed ACTION fLegenda() PIXEL
-	@ 136, 424 BUTTON oBtnImp PROMPT "&Imprimir" SIZE 037, 012 OF oDlgPed ACTION iif( Len(oGrid:aCols) > 0, GMPCPRINT( oGrid:aCols[oGrid:nAt][ColPos(oGrid,'NUMERO')] ), Nil) PIXEL
-    @ 136, 463 BUTTON oBtnFec PROMPT "&Fechar"   SIZE 037, 012 OF oDlgPed ACTION oDlgPed:End() PIXEL
+	nPosBtn := iif( AllTrim(SuperGetMv( "MV_ENVPED",, '0')) $ '1|2', 336, 375 )
+    @ 136, nPosBtn BUTTON oBtnLeg  PROMPT "&Legenda"  SIZE 037, 012 OF oDlgPed ACTION fLegenda() PIXEL
+	nPosBtn+= 39
+	@ 136, nPosBtn BUTTON oBtnMail PROMPT "&Enviar E-mail" SIZE 045, 012 OF oDlgPed ACTION sndMail( oGrid:aCols[oGrid:nAt][ColPos(oGrid,'NUMERO')] ) PIXEL
+	nPosBtn += 47
+	@ 136, nPosBtn BUTTON oBtnImp  PROMPT "&Imprimir" SIZE 037, 012 OF oDlgPed ACTION iif( Len(oGrid:aCols) > 0, GMPCPRINT( oGrid:aCols[oGrid:nAt][ColPos(oGrid,'NUMERO')] ), Nil) PIXEL
+	nPosBtn += 39
+    @ 136, nPosBtn BUTTON oBtnFec  PROMPT "&Fechar"   SIZE 037, 012 OF oDlgPed ACTION oDlgPed:End() PIXEL
     
     ACTIVATE MSDIALOG oDlgPed CENTERED ON INIT ;
 	Processa( {|| fPedPen( .F./*lNoInt*/, nOpc, aColPro[ oBrwPro:nAt ][ nPosPrd ] /*cProd*/ ) }, 'Aguarde!','Buscando pedidos não atendidos!' )
 	
 Return ( Nil )
+
+/*/{Protheus.doc} sndMail
+Função que envia e-mail para o fornecedor
+@type function
+@version 1.0
+@author Jean Carlos Pandolfo Saggin
+@since 11/14/2024
+@param cPedido, character, ID do pedido
+/*/
+static function sndMail( cPedido )
+
+	Private l120Auto  := .F. as logical
+	Private aRotina   := {}  as array
+	Private INCLUI    := .F. as logical
+	Private ALTERA    := .F. as logical
+	Private nTipoPed  := 1 // 1-Pedido de compra 2-Autorizacao Entrega
+	Private cCadastro := "Pedidos de Compra"
+	
+	aAdd(aRotina,{"Pesquisar","PesqBrw"   , 0, 1, 0, .F. }) //"Pesquisar"
+	aAdd(aRotina,{"Visualizar","A120Pedido", 0, 2, 0, Nil }) //"Visualizar"
+	aAdd(aRotina,{"Incluir","A120Pedido", 0, 3, 0, Nil }) //"Incluir"
+	aAdd(aRotina,{"ALterar","A120Pedido", 0, 4, 6, Nil }) //"Alterar"
+	aAdd(aRotina,{"Excluir","A120Pedido", 0, 5, 7, Nil }) //"Excluir"
+	aAdd(aRotina,{"Copia","A120Copia" , 0, 4, 0, Nil }) //"Copia"
+	aAdd(aRotina,{"Reenvia e-mail","A120Mail"  , 0, 2, 0, Nil }) //"Reenvia e-mail"
+	aAdd(aRotina,{"Imprimir","A120Impri" , 0, 2, 0, Nil }) //"Imprimir"
+	aAdd(aRotina,{"Legenda","A120Legend", 0, 1, 0, .F. }) //"Legenda"
+	aAdd(aRotina,{"Conhecimento","MsDocument", 0, 4, 0, Nil }) //"Conhecimento"}
+
+	DBSelectArea( 'SC7' )
+	SC7->( DBSetOrder( 1 ) )
+	if DBSeek( FWxFilial( 'SC7' ) + cPedido )
+		A120Mail("SC7", SC7->( Recno() ), 2 )
+	endif
+return Nil
 
 /*/{Protheus.doc} colPos
 Função para capturar a posição de um campo em objetos do tipo getDados
@@ -2390,6 +2458,7 @@ Static Function fLoadInf()
 		endif
 
 	    cQuery += "       B1.B1_PE, " + CEOL
+		cQuery += "       B1.B1_EMIN, " + CEOL
 	    cQuery += "       COALESCE( (SELECT SUM(C7.C7_QUANT - C7.C7_QUJE) EMPED FROM "+ RetSqlName( 'SC7' ) +" C7 " + CEOL
         cQuery += "               WHERE "+ U_JSFILCOM( 'SC7', 'SB1' ) + CEOL
         cQuery += "                 AND C7.C7_PRODUTO = B1.B1_COD " + CEOL
@@ -2582,6 +2651,7 @@ Static Function fLoadInf()
 								PRDTMP->B1_LM /*Lote Mínimo*/,;
 								PRDTMP->B1_QE /*Quantidade da Embalagem*/,;
 								PRDTMP->B1_LE /*Lote Econômico*/,;
+								PRDTMP->B1_EMIN /* Estoque Minimo (Estoque Segurança) */,;
 								cFornece /*Fornecedor*/,;
 								cLoja /*Loja do Fornecedor*/,;
 								PRDTMP->FILIAL /* Filial */ } )
@@ -2635,10 +2705,11 @@ Static Function fLoadInf()
 								_aProdFil[nX][21],;
 								_aProdFil[nX][22],;
 								_aProdFil[nX][23],;
+								_aProdFil[nX][24],;
 								nIndGir,;
 								_aProdFil[nX][2] } )
 			else
-				aColPro[aScan( aColPro, {|x| x[1] == _aProdFil[nX][3] } )][22] := nIndGir
+				aColPro[aScan( aColPro, {|x| x[1] == _aProdFil[nX][3] } )][23] := nIndGir
 				aColPro[aScan( aColPro, {|x| x[1] == _aProdFil[nX][3] } )][4] += _aProdFil[nX][6]
 				aColPro[aScan( aColPro, {|x| x[1] == _aProdFil[nX][3] } )][5] += _aProdFil[nX][7]
 			endif
@@ -3897,7 +3968,7 @@ User Function GMINDPRO( aParam )
 	
 	// Consulta todos os produtos para exibilos no grid
 	cQuery := "SELECT B1.B1_COD, B1.B1_DESC, B1.B1_UM, B1.B1_LM, B1.B1_QE, B1.B1_LE, B1.B1_PROC, " + CEOL
-    cQuery += "       B1.B1_LOJPROC, B1.R_E_C_N_O_ RECSB1, " + CEOL
+    cQuery += "       B1.B1_LOJPROC, B1.R_E_C_N_O_ RECSB1, B1.B1_EMIN, " + CEOL
     
     cQuery += "       NVL( ( SELECT ROUND(( D1.D1_TOTAL - D1.D1_DESC ) / D1.D1_QUANT,2) VALNEG FROM "+ RetSqlName( 'SD1' ) +" D1 " + CEOL
     cQuery += "        WHERE D1.R_E_C_N_O_ = ( " + CEOL
@@ -4631,6 +4702,7 @@ Static Function fGetVar( nOpc )
 	aAdd( aVar, { 'Lote Min.'  , 'nLotMin'         } )
 	aAdd( aVar, { 'Qtde Emb.'  , 'nQtdEmb'         } )
 	aAdd( aVar, { 'Qtde Comp.' , 'PRDTMP->QTDCOMP' } )
+	aAdd( aVar, { 'Estoq. Min.', 'PRDTMP->B1_EMIN' } )
 	
 	aSort( aVar,,, { |x,y| x[01] < y[01] } )
 	aEval( aVar,{ |x| aAdd( aCbo, x[1] ) } )
@@ -4994,8 +5066,15 @@ Static Function fGrvPed()
 	
 	if lMsErroAuto
 		MostraErro()
-	Elseif MsgYesNo( 'Pedido de compra número <b>'+ SC7->C7_NUM +'</b> gerado com sucesso! Deseja realizar a impressão do pedido?','S U C E S S O ! Pedido Nro. '+ SC7->C7_NUM +'' )
-		GMPCPrint( SC7->C7_NUM )
+	Else 
+		if MsgYesNo( 'Pedido de compra número <b>'+ SC7->C7_NUM +'</b> gerado com sucesso! Deseja realizar a impressão do pedido?','S U C E S S O ! Pedido Nro. '+ SC7->C7_NUM +'' )
+			GMPCPrint( SC7->C7_NUM )
+		endif
+
+		if AllTrim(SuperGetMv( "MV_ENVPED",, '0')) $ '1|2' .and.; 
+		MsgYesNo( 'Gostaria de realizar o envio do pedido de compra diretamente para o e-mail do fornecedor?', 'Enviar Pedido por e-Mail?' )
+			Processa({|| sndMail( SC7->C7_NUM ), 'Preparando envio de e-mail para o fornecedor...', 'Aguarde' }) 
+		endif
 	EndIf
 	
 Return ( !lMsErroAuto )
@@ -7107,10 +7186,10 @@ static function prodFilter( aFiltros )
 	oContainer := TPanel():New( ,,, oLookDlg:getPanelMain() )
 	oContainer:Align := CONTROL_ALIGN_ALLCLIENT
 
-	oGetLook  := TGet():New( 10,04, {|u| if(PCount()==0,_aFilters[1],_aFilters[1]:=u)},oContainer,90,012,"@!",,0,,,.F.,,.T.,,.F.,,.F.,.F.,,.F.,.F.,,'_aFilters[1]',,,,.T.,.F.,,'Expressão de filtro por nome', 1 )
-	oGetTypes := TGet():New( 35,04, {|u| if(PCount()==0,_cTypes,_cTypes:=u)},oContainer,90,012,"@x",,0,,,.F.,,.T.,,.F.,,.F.,.F.,,.F.,.F.,,'_cTypes',,,,.T.,.F.,,'Tipos de Produtos', 1 )
+	oGetLook  := TGet():New( 10,04, {|u| if(PCount()==0,_aFilters[1],_aFilters[1]:=u)},oContainer,110,012,"@!",,0,,,.F.,,.T.,,.F.,,.F.,.F.,,.F.,.F.,,'_aFilters[1]',,,,.T.,.F.,,'Expressão de filtro por nome', 1 )
+	oGetTypes := TGet():New( 35,04, {|u| if(PCount()==0,_cTypes,_cTypes:=u)},oContainer,100,012,"@x",,0,,,.F.,,.T.,,.F.,,.F.,.F.,,.F.,.F.,,'_cTypes',,,,.T.,.F.,,'Tipos de Produtos', 1 )
 	oGetTypes:bWhen := {|| .F. }
-	oBtnTypes := tBitmap():New( 43, 110, 12, 12,,"painel_compras_lupa.png", .T., oContainer,{|| _cTypes := U_JSPAITYP( _cTypes ),;
+	oBtnTypes := tBitmap():New( 43, 106, 12, 12,,"painel_compras_lupa.png", .T., oContainer,{|| _cTypes := U_JSPAITYP( _cTypes ),;
 																						_aFilters[2] := _cTypes }, NIL, .F., .F., NIL, NIL, .F., NIL, .T., NIL, .F.)
 	oGetFor   := TGet():New( 60,04, {|u| if(PCount()==0,_aFilters[3],_aFilters[3]:=u)},oContainer,70,012,"@x",,0,,,.F.,,.T.,,.F.,,.F.,.F.,,.F.,.F.,,'_aFilters[3]',,,,.T.,.F.,,'Fornecedor Padrão', 1 )
 	oGetFor:cF3 := "SA2"
@@ -7903,3 +7982,134 @@ static function getColPro( aFields, aAlter )
 		endif
 	next nX
 return aColumns
+
+/*/{Protheus.doc} writeWF
+Cria automaticamente o arquivo base para dispato de workflow do processo padrão do sistema para envio do pedido ao fornecedor
+@type function
+@version 1.0
+@author Jean Carlos Pandolfo Saggin
+@since 11/15/2024
+@param cFileWF, character, caminho absoluto onde o arquivo .html deve ser gravado
+@return logical, lSuccess
+/*/
+static function writeWF( cFileWF )
+
+	local lSuccess := .F. as logical
+	local oFile           as object
+	local cFile    := ""  as character
+	local cEOL     := chr(13)+chr(10)
+
+	cFile := "<html>" + cEOL
+	cFile += "	<head>" + cEOL
+	cFile += '		<meta charset="windows-1252">' + cEOL
+	cFile += '		<meta charset="UTF-8">'+ cEOL
+	cFile += '		<style>' + cEOL
+	cFile += '			body{' + cEOL
+	cFile += '				width: 			700px;' + cEOL
+	cFile += "				font:			normal normal normal 14px 'open sans', sans-serif;"+ cEOL
+	cFile += '			}'+ cEOL
+			
+	cFile += '			h1 {'
+	cFile += "				font: 			normal normal normal 22px 'open sans', sans-serif;" + cEOL
+	cFIle += '				color: 			rgb(0, 136, 203);' + cEOL
+	cFile += '				padding-top: 	3px;'
+	cFile += '				padding-bottom:	3px;' + cEOL
+	cFile += '			}' + cEOL
+			
+	cFile += '			h2 {' + cEOL
+	cFile += "				font: 			normal normal normal 14px 'open sans', sans-serif;" + cEOL
+	cFile += "			}" + cEOL
+			
+	cFile += '			table{' + cEOL
+	cFile += "				font:			normal normal normal 14px 'open sans', sans-serif;"+ cEOL
+	cFile += "				text-align: 	left" + cEOL
+	cFile += "				border-width: 	0px;"+ cEOL
+				
+	cFile += '			}'+ cEOL
+
+	cFile += "			thead{"+ cEOL
+	cFile += "				font:			normal normal normal 14px 'open sans', sans-serif;"+ cEOL
+	cFile += "				background:		Gray;"+ cEOL
+	cFile += "				color:			White;"+ cEOL
+	cFile += "				text-align: 	left;"+ cEOL
+	cFile += "				border-width: 	0px;"+ cEOL
+	cFile += "			}"+ cEOL
+			
+	cFile += "			.grid{"+ cEOL
+	cFile += "				border-top: 	solid rgb(0, 136, 203) 2px; "+ cEOL
+	cFile += "				padding-top:	10px;"+ cEOL
+	cFile += "				padding-bottom:	5px;"+ cEOL
+	cFile += "				margin-top:		10px;"+ cEOL
+	cFile += "			}"+ cEOL
+	cFile += "		</style>"+ cEOL
+	cFile += "	</head>"+ cEOL
+	
+	cFile += "	<body>"+ cEOL
+	cFile += '	<div styele="width:700px;font:normal normal normal 14px '+"'open sans'"+', sans-serif;">'+ cEOL
+	cFile += '		<h1 style="font:normal normal normal 22px '+"'open sans'"+', sans-serif; color:rgb(0, 136, 203);padding-top: 	3px;padding-bottom:	3px;">'+ cEOL
+	cFile += '			Pedido de Compra '+ cEOL
+	cFile += '		</h1>'+ cEOL
+	cFile += '		<h2 style="font:normal normal normal 14px '+"'open sans'"+', sans-serif;">%cContato%</h2>' + cEOL
+	cFile += '		<h2 style="font:normal normal normal 14px '+"'open sans'"+', sans-serif;">O Pedido de Compra n&uacute;mero %cPedCom% acaba de ser %cOpera%.</h2>'+ cEOL
+	cFile += '		<h2 style="font:normal normal normal 14px '+"'open sans'"+', sans-serif;">Solicitamos que os itens discriminados abaixo sejam %cMsgMail%.<h2>'+ cEOL
+	
+	cFile += '		<!-- Cabeçalho do Pedido --> '+ cEOL
+	cFile += '		<div class="grid" style="border-top:solid rgb(0, 136, 203) 2px; padding-top:10px;padding-bottom:5px;margin-top:10px;">'+ cEOL
+	cFile += '			<table style="width:450px;font:normal normal normal 14px '+"'open sans'"+', sans-serif;text-align:leftborder-width:0px;">'+ cEOL
+	cFile += '				<tr>'+ cEOL
+	cFile += '					<td>Pedido de Compra</td> '+ cEOL
+	cFile += '					<td>%cPedCom%</td>'+ cEOL
+	cFile += '				</tr>'+ cEOL
+	cFile += '				<tr>'+ cEOL
+	cFile += '					<td>Fornecedor/Loja</td> '+ cEOL
+	cFile += '					<td>%cFornLoja%</td>'+ cEOL
+	cFile += '				</tr>'+ cEOL
+	cFile += '				<tr>'+ cEOL
+	cFile += '					<td>Cliente</td> '+ cEOL
+	cFile += '					<td>%cCliente%</td>'+ cEOL
+	cFile += '				</tr>'+ cEOL
+	cFile += "			</table>"+ cEOL
+	cFile += '		</div>'+ cEOL
+		
+	cFile += '		<!-- Itens do Pedido -->'+ cEOL
+	cFile += '		<div class="grid" style="border-top:solid rgb(0, 136, 203) 2px; padding-top:10px;padding-bottom:5px;margin-top:10px;">'+ cEOL
+	cFile += '			<table style="width:450px;font:normal normal normal 14px '+"'open sans'"+', sans-serif;text-align:leftborder-width:0px;">'+ cEOL
+	cFile += '				<thead style="font:normal normal normal 14px '+"'open sans'"+', sans-serif;background:Gray;color:White;text-align:left;border-width:0px;">'+ cEOL
+	cFile += '					<tr>'+ cEOL
+	cFile += '						<td style="width:150px;">Item</td>'+ cEOL
+	cFile += '						<td style="width:150px;">Produto</td>'+ cEOL
+	cFile += '						<td style="width:400px;">Descri&ccedil;&atilde;o</td>'+ cEOL
+	cFile += '						<td style="width:150px;">UM</td>'+ cEOL
+	cFile += '						<td style="width:150px;">Quantidade</td>'+ cEOL
+	cFile += '						<td style="width:150px;">Vl. Unit</td>'+ cEOL
+	cFile += '						<td style="width:150px;">Total</td>'+ cEOL
+	cFile += '						<td style="width:150px;">Dt. Entrega</td>'+ cEOL
+	cFile += '					</tr>'+ cEOL
+	cFile += '				</thead>'+ cEOL
+	cFile += '				<tbody>'+ cEOL
+	cFile += '					<tr>'+ cEOL
+	cFile += '						<td style="width:150px;">%It.cItem%</td>'+ cEOL
+	cFile += '						<td style="width:150px;">%It.cCod%</td>'+ cEOL
+	cFile += '						<td style="width:400px;">%It.cDesc%</td>'+ cEOL
+	cFile += '						<td style="width:150px;">%It.cUM%</td>'+ cEOL
+	cFile += '						<td style="width:150px;">%It.nQuant%</td>'+ cEOL
+	cFile += '						<td style="width:150px;">%It.nVlUnit%</td>'+ cEOL
+	cFile += '						<td style="width:150px;">%It.nTotal%</td>'+ cEOL
+	cFile += '						<td style="width:150px;">%It.dDtEntrega%</td>'+ cEOL
+	cFile += '					</tr>'+ cEOL
+	cFile += '				</tbody>'+ cEOL
+	cFile += '			</table>'+ cEOL
+	cFile += "		</div>"+ cEOL
+	cFile += '	</div>'+ cEOL
+	cFile += '	</body>'+ cEOL
+	cFile += "</html>"+ cEOL
+
+	// Grava o arquivo no diretório esperado
+	oFile := FWFileWriter():New( cFileWF, .F. )
+	if oFile:Create()
+		oFile:Write( cFile )
+		oFile:Close()
+	endif
+
+	lSuccess := File( cFileWF )
+return lSuccess
