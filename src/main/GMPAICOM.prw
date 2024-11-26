@@ -355,7 +355,8 @@ User Function GMPAICOM()
 	oBrwPro:GetColumn(nPosFor+2):xF3 := "SA2"
 	oBrwPro:SetEditCell( .T., {|| U_PCOMVLD() } )
 	oBrwPro:SetLineHeight( 20 )
-	oBrwPro:SetFilterDefault( "aScan( aMrkFor, {|x| x == aColPro[oBrwPro:At()][nPosFor]+aColPro[oBrwPro:At()][nPosLoj] } ) > 0" )
+	oBrwPro:SetPreEditCell( {|oBrw,oCol,cPre| U_PCOMPRE(oBrw, oCol, cPre) } )
+	oBrwPro:SetChange( {|| Processa( {|| iif( ValType( oDash ) == 'O', fLoadAna(), Nil ) }, 'Aguarde!', 'Analisando sazonalidade do produto...' ) } )
 	oBrwPro:Activate()
 	
 	@ 12, 10 SAY oLblPrj PROMPT "Projeção de estoque para..." SIZE 080, 011 OF oWinPar FONT oFntTxt COLORS 8421504, 16777215 PIXEL
@@ -1018,8 +1019,8 @@ Static Function fMark( cAlias, lAll, oBrowse )
 	end
 	restArea( aArea )
 	for nX := 1 to len( aFullPro )		
-		if aScan( aMrkFor, {|x| x == aFullPro[nX][nPosFor] + aFullPro[nX][nPosLoj] } ) > 0
-			aAdd( aColPro, aClone( aFullPro[aScan( aMrkFor, {|x| x == aFullPro[nX][nPosFor] + aFullPro[nX][nPosLoj] } )] ) )
+		if aScan( aMrkFor, {|x| x == aFullPro[nX][nPosFor] + aFullPro[nX][nPosLoj] } ) > 0 
+			aAdd( aColPro, aClone( aFullPro[nX] ) )
 		endif 
 	next nX
 	oBrwPro:SetArray( aColPro  )
@@ -2260,6 +2261,8 @@ Static Function fLoadAna( lNoInt )
 	local aCliLoja := {} as array
 	Local cINCli   := "" as character
 	local nAux     := 0 as numeric
+	local nVendido := 0 as numeric
+	local nProduz  := 0 as numeric
 	
 	Default lNoInt := .F.
 	
@@ -2347,13 +2350,30 @@ Static Function fLoadAna( lNoInt )
 				cQuery += "  AND D2.D2_CLIENTE NOT IN ( "+ cINCli +" ) " + CEOL
 			endif
 			cQuery += "  AND D2.D_E_L_E_T_ = ' ' " + CEOL
+
+			DBUseArea( .T., "TOPCONN", TcGenQry(,,cQuery), "TMPVEN" /* cAlias */, .F. /* lShared */, .T. /* lReadOnly */ )
+			nVendido := 0
+			If !TMPVEN->( EOF() )
+				nVendido := TMPVEN->QTDVEN
+			EndIf
+			TMPVEN->( DbCloseArea() )
+
+			cQuery := "SELECT COALESCE(SUM(D3.D3_QUANT),0) AS QTDPROD FROM "+ RetSqlName( 'SD3' ) +" D3 " + CEOL
+			cQuery += "WHERE D3.D3_FILIAL "+ U_JSFILIAL( "SD3", _aFil ) +" " + CEOL
+			cQuery += "  AND D3.D3_COD    = '"+ aColPro[ oBrwPro:nAt ][ nPosPrd ] +"' " + CEOL
+			cQuery += "  AND D3.D3_EMISSAO BETWEEN '"+ DtoS( aPer[nX][01] ) +"' AND '"+ DtoS( aPer[nX][02] ) +"' " + CEOL
+			cQuery += "  AND D3.D3_TM     >= '500' " + CEOL
+			cQuery += "  AND D3.D3_ESTORNO = ' ' " + CEOL
+			cQuery += "  AND D3.D_E_L_E_T_ = ' ' "
 		
 			DBUseArea( .T., "TOPCONN", TcGenQry(,,cQuery), "TMPVEN" /* cAlias */, .F. /* lShared */, .T. /* lReadOnly */ )
+			nProduz := 0
 			If !TMPVEN->( EOF() )
-				oDash:AddSerie( aPer[nX][03], TMPVEN->QTDVEN )
+				nProduz := TMPVEN->QTDPROD
 			EndIf
 			TMPVEN->( DbCloseArea() )
 			
+			oDash:AddSerie( aPer[nX][03], nVendido + nProduz )
 		Next nX
 		
 	EndIf
@@ -2657,9 +2677,8 @@ static function betterSupplier( cProduto, cFornPad, cLojaPad )
 		cQuery := "SELECT "
 		cQuery += "   D1.D1_FORNECE, "
 		cQuery += "   D1.D1_LOJA, "
-		cQuery += "   ROUND(( D1_TOTAL - D1_DESC ) / D1_QUANT, 2) VALOR, "
-		cQuery += "   D1.D1_DTDIGIT, "
-		cQuery += "   COALESCE(C7.C7_EMISSAO,'        ') C7_EMISSAO "
+		cQuery += "   ROUND(( SUM(D1_TOTAL) - SUM(D1_DESC) ) / SUM(D1_QUANT), 2) VALORMEDIO, "
+		cQuery += "   AVG(TO_DATE(D1.D1_DTDIGIT,'YYYYMMDD') - TO_DATE(COALESCE(C7.C7_EMISSAO,D1.D1_DTDIGIT),'YYYYMMDD')) PRAZOMEDIO "
 		cQuery += "FROM "+ RetSqlName( 'SD1' ) +" D1 "
 		
 		cQuery += "LEFT JOIN "+ RetSqlName( 'SC7' ) +" C7 "
@@ -2668,29 +2687,17 @@ static function betterSupplier( cProduto, cFornPad, cLojaPad )
 		cQuery += "AND C7.C7_ITEM    = D1.D1_ITEMPC "
 		cQuery += "AND C7.D_E_L_E_T_ = ' ' "
 
-		cQuery += "WHERE D1.D1_FILIAL "+ U_JSFILIAL( 'SC7', _aFil ) +" "
+		cQuery += "WHERE D1.D1_FILIAL "+ U_JSFILIAL( 'SD1', _aFil ) +" "
 		cQuery += "  AND D1.D1_COD     = '"+ cProduto +"' "				// Apenas o produto selecionado
 		cQuery += "  AND D1.D1_TIPO    = 'N' "							// Apenas notas do tipo normal
 		cQuery += "  AND D1.D_E_L_E_T_ = ' ' "
-		cQuery += "  AND D1.R_E_C_N_O_ IN ( "
-		
-		cQuery += "SELECT RECSD1 FROM ( "
-		cQuery += "SELECT D1_FORNECE, D1_LOJA, MAX(R_E_C_N_O_) RECSD1 FROM "+ RetSqlName( 'SD1' ) +" "
-		cQuery += "WHERE D1_FILIAL "+ U_JSFILIAL('SD1', _aFil ) + " "
-		cQuery += "  AND D1_COD    = '"+ cProduto +"' "
-		cQuery += "  AND D1_TIPO   = 'N' "
-		cQuery += "  AND D_E_L_E_T_ = ' ' "
-		cQuery += "GROUP BY D1_FORNECE, D1_LOJA ) AS TEMP "
-
-		cQuery += " ) "
+		cQuery += "GROUP BY D1.D1_FORNECE, D1.D1_LOJA "
 
 		DBUseArea( .T., 'TOPCONN', TcGenQry(,,cQuery), 'REGFOR', .F., .T. )
-		TcSetField( 'REGFOR', 'D1_DTDIGIT', 'D' )
-		TcSetField( 'REGFOR', 'C7_EMISSAO', 'D' )
 
 		if !REGFOR->( EOF() )
 			while ! REGFOR->( EOF() ) 
-				aAdd( aRegs, { REGFOR->D1_FORNECE, REGFOR->D1_LOJA, REGFOR->VALOR, REGFOR->D1_DTDIGIT - iif( Empty( REGFOR->C7_EMISSAO ), REGFOR->D1_DTDIGIT-1, REGFOR->C7_EMISSAO) } )
+				aAdd( aRegs, { REGFOR->D1_FORNECE, REGFOR->D1_LOJA, REGFOR->VALORMEDIO, REGFOR->PRAZOMEDIO } )
 				REGFOR->( DBSkip() )
 			end
 		endif
@@ -2991,6 +2998,9 @@ Static Function fMarkPro()
 			aSize( aCarCom, Len( aCarCom )-1 )
 			lInclui := .F.
 		EndIf
+
+		// Clona a linha assim que houver uma marcação/desmarcação
+		aFullPro[ aScan( aFullPro, {|x| x[nPosPrd] == aColPro[oBrwPro:At()][nPosPrd] } ) ] := aClone( aColPro[oBrwPro:At()] )
 		
 		DBSelectArea( 'FORTMP' )
 		FORTMP->( DBSetOrder( 2 ) )
@@ -3093,7 +3103,9 @@ User Function PCOMVLD()
 							FORTMP->( MsUnlock() )
 							oBrwFor:UpdateBrowse()
 						endif
-
+						if lReturn
+							aFullPro[ aScan( aFullPro, {|x| x[nPosPrd] == aColPro[oBrwPro:nAt][nPosPrd] } ) ] := aClone( aColPro[oBrwPro:nAt] )
+						endif
 						Return lReturn
 					endif
 					aAdd( aVetPrd, { "B1_FILIAL", xFilial( 'SB1' ), Nil } )
@@ -3111,6 +3123,8 @@ User Function PCOMVLD()
 					If lMsErroAuto
 						lReturn := !lMsErroAuto
 						MostraErro()
+					else
+						aFullPro[ aScan( aFullPro, {|x| x[nPosPrd] == aColPro[oBrwPro:nAt][nPosPrd] } ) ] := aClone( aColPro[oBrwPro:nAt] )
 					EndIf
 					
 				EndIf
@@ -3649,6 +3663,8 @@ User Function GMINDPRO( aParam )
 	local cFornece  := "" as character
 	local cLoja     := "" as character
 	Local aAux      := {} as array
+	local nVenda    := 0 as numeric
+	local nConsumo  := 0 as numeric
 
 	Private _aFil    := {} as array
 	Private cZB6     := "" as character
@@ -3749,7 +3765,7 @@ User Function GMINDPRO( aParam )
 	EndIf
 	
 	if lManual	
-		_aFilters := prodFilter( _aFilters )
+		_aFilters := prodFilter( _aFilters, lManual )
 	endif
 
 	// Obtem os dados dos produtos do MRP
@@ -3865,13 +3881,27 @@ User Function GMINDPRO( aParam )
 			cQuery += "  AND D2.D_E_L_E_T_ = ' ' " + CEOL
 			
 			DBUseArea( .T., 'TOPCONN', TcGenQry(,,cQuery), "MEDCON", .F., .T. )
-	
-			if !MEDCON->( EOF() ) .and. MEDCON->QTD_TOTAL != 0
-				nConMed := Round(MEDCON->QTD_TOTAL / iif( nDUteis == 0, 1, nDUteis ),4)
+			nVenda := MEDCON->QTD_TOTAL
+			MEDCON->( DbCloseArea() )
+			
+			cQuery := "SELECT COALESCE(SUM(D3.D3_QUANT),0) AS QTD_TOTAL FROM "+ RetSqlName( 'SD3' ) +" D3 " + CEOL
+			cQuery += "WHERE D3.D3_FILIAL "+ U_JSFILIAL( "SD3", _aFil ) +" " + CEOL
+			cQuery += "  AND D3.D3_COD    = '"+ PRDTMP->B1_COD +"' " + CEOL
+			cQuery += "  AND D3.D3_EMISSAO >= '"+ DtoS( iif( aPerAna[01] > dDatInc, aPerAna[01], dDatInc ) ) +"' " + CEOL
+			cQuery += "  AND D3.D3_TM     >= '500' " + CEOL
+			cQuery += "  AND D3.D3_ESTORNO = ' ' " + CEOL
+			cQuery += "  AND D3.D_E_L_E_T_ = ' ' " 
+
+			DBUseArea( .T., 'TOPCONN', TcGenQry(,,cQuery), "MEDCON", .F., .T. )
+			nConsumo := MEDCON->QTD_TOTAL
+			MEDCON->( DbCloseArea() )
+
+
+			if (nVenda + nConsumo) != 0
+				nConMed := Round((nVenda+nConsumo) / iif( nDUteis == 0, 1, nDUteis ),4)
 			Else
 				nConMed := 0.0001
 			EndIf
-			MEDCON->( DbCloseArea() )
     		
     		lEvento := .F.
     		cMsg    := ""
@@ -6818,7 +6848,7 @@ Função para abertura de caixa de pesquisa
 @param aFiltros, array, filtros atuais
 @return character, cText
 /*/
-static function prodFilter( aFiltros )
+static function prodFilter( aFiltros, lManual )
 	
 	local oLookDlg      as object
 	local oContainer    as object
@@ -6827,9 +6857,11 @@ static function prodFilter( aFiltros )
 	local oGetFor       as object
 	local _cTypes       := "" as character
 
+	default lManual := .F.
+
 	_aFilters := aClone( aFiltros )
 	_cTypes   := _aFilters[2]
-
+	
 	oLookDlg := FWDialogModal():New()
 	oLookDlg:SetEscClose( .F. )
 	oLookDlg:SetTitle( 'Filtro de Seleção de Produtos' )
@@ -6837,7 +6869,7 @@ static function prodFilter( aFiltros )
 	oLookDlg:SetSize( 300, 200 )
 	oLookDlg:CreateDialog()
 	oLookDlg:AddCloseButton( {|| _aFilters := aClone(aFiltros), oLookDlg:DeActivate()}, "Cancelar" )
-	oLookDlg:AddOkButton( {|| oLookDlg:DeActivate() }, "Ok" )
+	oLookDlg:AddOkButton( {|| iif( lManual .or. valFilPro( _aFilters ), oLookDlg:DeActivate(), Nil ) }, "Ok" )
 	oContainer := TPanel():New( ,,, oLookDlg:getPanelMain() )
 	oContainer:Align := CONTROL_ALIGN_ALLCLIENT
 
@@ -6852,6 +6884,25 @@ static function prodFilter( aFiltros )
 	oLookDlg:Activate()
 
 return _aFilters
+
+/*/{Protheus.doc} valFilPro
+Valida o conteúdo informado no filtro de pesquisa de produtos
+@type function
+@version 1.0
+@author Jean Carlos Pandolfo Saggin
+@since 11/25/2024
+@param aFiltros, array, filtros escolhidos pelo usuário
+@return logical, lValidated
+/*/
+static function valFilPro( aFiltros )
+	local lValidated := .T. as logical
+	lValidated := len( AllTrim( aFiltros[1] ) ) >= 3 .or. !Empty( aFiltros[3] )
+	if ! lValidated
+		Hlp( 'FILTRO INVALIDO',;
+			 'Filtro de pesquisa de produtos inválido!',;
+			 'Informe uma expressão de filtro para o nome do produto ou utilize o campo de fornecedor padrão para poder prosseguir' )
+	endif
+return lValidated
 
 /*/{Protheus.doc} doFilter
 Função para criação de filtro com a expressão digitada pelo usuário
@@ -7831,4 +7882,163 @@ static function sortCol( oBrw )
 	nLastCol := nCol
 	aSort( aColPro,,, {|x,y| &('x[nCol] '+ iif( lCrescente, '>','<' ) +' y[nCol]') } )
 	oBrw:UpdateBrowse()
+return Nil
+
+/*/{Protheus.doc} PCOMPRE
+Função de pré-validação para edição de colunas do browse
+@type function
+@version 1.0
+@author Jean Carlos Pandolfo Saggin
+@since 11/24/2024
+@param oBrw, object, objeto do browse
+@param oCol, object, objeto da coluna clicada
+@param cPre, character, character onde o click foi realizado
+@return logical, lCanEdit
+/*/
+user function PCOMPRE(oBrw, oCol, cPre)
+	
+	local lCanEdit := .T. as logical
+	local oQtdFil         as objet
+	local nAux     := 0 as numeric
+	local bOk      := {|| _aProdFil[ aScan( _aProdFil, {|x| x[25]+x[3] == aProFil[oProFil:At()][25]+aProFil[oProFil:At()][3] } ) ] := aProFil[oProFil:At()],;
+						  nAux := 0, aEval( _aProdFil, {|x| iif( x[3] == cProduto, nAux+= x[6], nil ) } ),;
+						  aColPro[aScan(aColPro, {|x| x[nPosPrd] == cProduto })][nPosNec] := nAux,;
+						  updCarCom( cProduto, nAux ),;
+						  oBrwPro:UpdateBrowse(),;
+						  oQtdFil:End() }
+
+	local bCancel  :={|| oQtdFil:End() }
+	local aButtons := {}  as array
+	local bValid   :={|| .T. }
+	local bInit    :={|| EnchoiceBar( oQtdFil, bOk, bCancel,,aButtons )}
+	local aColumns := {} as array
+	local bVldCell := {|| .T. }
+	local cProduto := aColPro[oBrwPro:At()][nPosPrd]
+
+	Private aProFil  := {} as array
+	Private oProFil  as object
+
+	if (oBrw:ColPos()-2) == nPosNec
+
+		// Cria subvetor editável apenas com o produto selecionado
+		aEval( _aProdFil, {|x| iif( x[3] == cProduto, aAdd( aProFil, aClone(x) ), Nil ) } )
+		
+		// aAdd( _aProdFil,{ nIndGir,;
+		// aScan( aCarCom, {|x| x[1] == PRDTMP->B1_COD .and. x[13] == cFornece .and. x[14] == cLoja } ) > 0,;
+		// PRDTMP->B1_COD,;
+		// PRDTMP->B1_DESC,;
+		// PRDTMP->B1_UM,;
+		// nQtdCom /*Necessidade de compra*/,;
+		// PRDTMP->QTDBLOQ /*Ped. Compra Bloq.*/,;
+		// nPrice /*Preço negociado*/,;
+		// nPrice /*Ultimo Preço*/,; 
+		// PRDTMP->( FieldGet( FieldPos( cZB3 +'_CONMED' ) ) ) /*Consumo Medio*/,;
+		// nPrjEst /*Duracao Estimada*/,;
+		// nDurPrv /*Duracao Prev.*/,;
+		// PRDTMP->ESTOQUE /*Em Estoque*/,;
+		// PRDTMP->EMPENHO /*Empenho*/,; 
+		// PRDTMP->QTDCOMP /*Quantidade já Comprada*/,;
+		// nLeadTime /*Lead Time Médio do Produto*/,;
+		// cLeadTime /*Tipo Lead-Time*/,;
+		// StoD( PRDTMP->PRVENT ) /*Prev. Entrega*/,;
+		// PRDTMP->B1_LM /*Lote Mínimo*/,;
+		// PRDTMP->B1_QE /*Quantidade da Embalagem*/,;
+		// PRDTMP->B1_LE /*Lote Econômico*/,;
+		// PRDTMP->B1_EMIN /* Estoque Minimo (Estoque Segurança) */,;
+		// cFornece /*Fornecedor*/,;
+		// cLoja /*Loja do Fornecedor*/,;
+		// PRDTMP->FILIAL /* Filial */ } )
+
+		aAdd( aColumns, FWBrwColumn():New() )
+		aColumns[len(aColumns)]:SetTitle( 'Filial' )
+		aColumns[len(aColumns)]:SetData( &( "{|oBrw| aProFil[oBrw:At()][25] }" ) )
+		aColumns[len(aColumns)]:SetType( 'C' )
+		aColumns[len(aColumns)]:SetAlign( 1 )		// Alinha a Esquerda
+		aColumns[len(aColumns)]:SetSize( TAMSX3( 'C7_FILIAL' )[1] )
+		aColumns[len(aColumns)]:SetPicture( "@!" )
+
+		aAdd( aColumns, FWBrwColumn():New() )
+		aColumns[len(aColumns)]:SetTitle( 'Qtde' )
+		aColumns[len(aColumns)]:SetData( &( "{|oBrw| aProFil[oBrw:At()][6] }" ) )
+		aColumns[len(aColumns)]:SetType( 'N' )
+		aColumns[len(aColumns)]:SetAlign( 2 )		// Alinha a Direita
+		aColumns[len(aColumns)]:SetSize( TAMSX3( 'C7_QUANT' )[1] )
+		aColumns[len(aColumns)]:SetDecimal( TAMSX3( 'C7_QUANT' )[2] )
+		aColumns[len(aColumns)]:SetPicture( PesqPict( 'SC7', 'C7_QUANT' ) )
+
+		aAdd( aColumns, FWBrwColumn():New() )
+		aColumns[len(aColumns)]:SetTitle( 'Cons.Medio' )
+		aColumns[len(aColumns)]:SetData( &( "{|oBrw| aProFil[oBrw:At()][10] }" ) )
+		aColumns[len(aColumns)]:SetType( 'N' )
+		aColumns[len(aColumns)]:SetAlign( 2 )		// Alinha a Direita
+		aColumns[len(aColumns)]:SetSize( TAMSX3( cZB3 +'_CONMED' )[1] )
+		aColumns[len(aColumns)]:SetDecimal( TAMSX3( cZB3 +'_CONMED' )[2] )
+		aColumns[len(aColumns)]:SetPicture( PesqPict( cZB3, cZB3 +'_CONMED' ) )
+
+		aAdd( aColumns, FWBrwColumn():New() )
+		aColumns[len(aColumns)]:SetTitle( 'Em Estoque' )
+		aColumns[len(aColumns)]:SetData( &( "{|oBrw| aProFil[oBrw:At()][13] }" ) )
+		aColumns[len(aColumns)]:SetType( 'N' )
+		aColumns[len(aColumns)]:SetAlign( 2 )		// Alinha a Direita
+		aColumns[len(aColumns)]:SetSize( 11 )
+		aColumns[len(aColumns)]:SetDecimal( 2 )
+		aColumns[len(aColumns)]:SetPicture( "@E 999,999.99" )
+
+		aAdd( aColumns, FWBrwColumn():New() )
+		aColumns[len(aColumns)]:SetTitle( 'Empenhado' )
+		aColumns[len(aColumns)]:SetData( &( "{|oBrw| aProFil[oBrw:At()][14] }" ) )
+		aColumns[len(aColumns)]:SetType( 'N' )
+		aColumns[len(aColumns)]:SetAlign( 2 )		// Alinha a Direita
+		aColumns[len(aColumns)]:SetSize( 11 )
+		aColumns[len(aColumns)]:SetDecimal( 2 )
+		aColumns[len(aColumns)]:SetPicture( "@E 999,999.99" )
+
+		aAdd( aColumns, FWBrwColumn():New() )
+		aColumns[len(aColumns)]:SetTitle( 'Comprado' )
+		aColumns[len(aColumns)]:SetData( &( "{|oBrw| aProFil[oBrw:At()][15] }" ) )
+		aColumns[len(aColumns)]:SetType( 'N' )
+		aColumns[len(aColumns)]:SetAlign( 2 )		// Alinha a Direita
+		aColumns[len(aColumns)]:SetSize( 11 )
+		aColumns[len(aColumns)]:SetDecimal( 2 )
+		aColumns[len(aColumns)]:SetPicture( "@E 999,999.99" )
+
+		oQtdFil := TDialog():New(0,0,500,800,'Quantidades x Filial',,,,,CLR_BLACK,CLR_WHITE,,,.T.)
+		
+		oProFil := FWBrowse():New( oQtdFil )
+		oProFil:SetDataArray()
+		oProFil:SetArray( aProFil )
+		oProFil:DisableConfig()
+		oProFil:DisableReport()
+		oProFil:SetColumns( aColumns )
+		oProFil:SetLineHeight( 20 )
+		oProFil:SetEditCell( .T., bVldCell )
+		oProFil:GetColumn(2):SetReadVar( "aProFil[oProFil:At()][6]" )
+		oProFil:GetColumn(2):lEdit := .T.
+		oProFil:Activate()	
+
+		oQtdFil:Activate(,,,.T., bValid,,bInit)
+		lCanEdit := .F.
+	elseif (oBrw:ColPos()-2) == nPosBlq .and. a
+		lCanEdit := .F.
+	endif
+
+return lCanEdit
+
+/*/{Protheus.doc} updCarCom
+Função para atualizar quantidade no carrinho de compra
+@type function
+@version 1.0
+@author Jean Carlos Pandolfo Saggin
+@since 11/25/2024
+@param cProduto, character, Codigo do produto
+@param nAux, numeric, Quantidade
+/*/
+static function updCarCom( cProduto, nAux )
+	
+	// Valida se o produto já está no carrinho
+	if aScan( aCarCom, {|x| x[01] == cProduto } ) > 0
+		aCarCom[ aScan( aCarCom, {|x| x[01] == cProduto } ) ][ 04 ] := nAux
+		aCarCom[ aScan( aCarCom, {|x| x[01] == cProduto } ) ][ 06 ] := nAux * aColPro[oBrwPro:nAt][nPosNeg]
+	endif
+
 return Nil

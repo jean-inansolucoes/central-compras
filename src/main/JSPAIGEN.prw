@@ -70,7 +70,7 @@ user function JSFILIAL( cAlias, aFil )
 
         // Repassa todas as filiais selecionadas pelo usuário e monta um subvetor com as filiais já compatibilizadas com o tamanho utilizado pela tabela
         for nFil := 1 to len(aFil)
-            cAux := SubStr( FWxFilial( cAlias ), 01, nSize )
+            cAux := SubStr( aFil[nFil], 01, nSize )
             if aScan( aUsed, {|x| AllTrim(x) == AllTrim(cAux) } ) == 0
                 aAdd( aUsed, PADR(cAux, TAMSX3( cField )[1], ' ' ) )
             endif
@@ -252,6 +252,7 @@ user function JSQRYINF( aConf, aFilters )
     local cTypes  := "" as character
     local aAux    := {} as array
     local y       := 0  as numeric
+    local dDtCalc := CtoD( SubStr( SuperGetMv( 'MV_X_PNC12',,DtoC(date()) ), 01, 10 ) )
 
     default aConf := {}
     default aFilters := {}
@@ -291,44 +292,41 @@ user function JSQRYINF( aConf, aFilters )
 
     cQuery += "       B1.B1_PE, " + CEOL
     cQuery += "       B1.B1_EMIN, " + CEOL
-    cQuery += "       COALESCE( (SELECT SUM(C7.C7_QUANT - C7.C7_QUJE) EMPED FROM "+ RetSqlName( 'SC7' ) +" C7 " + CEOL
+    cQuery += "       MAX(COALESCE( (SELECT SUM(C7.C7_QUANT - C7.C7_QUJE) EMPED FROM "+ RetSqlName( 'SC7' ) +" C7 " + CEOL
     cQuery += "               WHERE "+ U_JSFILCOM( 'SC7', 'SB1' ) + CEOL
     cQuery += "                 AND C7.C7_PRODUTO = B1.B1_COD " + CEOL
     cQuery += "                 AND C7.C7_RESIDUO <> 'S' " + CEOL
     cQuery += "                 AND C7.C7_ENCER   <> 'E' " + CEOL
     cQuery += "                 AND C7.C7_CONAPRO = 'B' " + CEOL						// identifica quantidade em pedido de compra com bloqueio
-    cQuery += "                 AND C7.D_E_L_E_T_ = ' '), 0) QTDBLOQ, " + CEOL	    
+    cQuery += "                 AND C7.D_E_L_E_T_ = ' '), 0)) QTDBLOQ, " + CEOL	    
     
-    cQuery += "       COALESCE( (SELECT SUM(C7.C7_QUANT - C7.C7_QUJE) EMPED FROM "+ RetSqlName( 'SC7' ) +" C7 " + CEOL
+    cQuery += "       MAX(COALESCE( (SELECT SUM(C7.C7_QUANT - C7.C7_QUJE) EMPED FROM "+ RetSqlName( 'SC7' ) +" C7 " + CEOL
     cQuery += "               WHERE "+ U_JSFILCOM( 'SC7', 'SB1' ) + CEOL
     cQuery += "                 AND C7.C7_PRODUTO = B1.B1_COD " + CEOL
     cQuery += "                 AND C7.C7_RESIDUO <> 'S' " + CEOL
     cQuery += "                 AND C7.C7_ENCER   <> 'E' " + CEOL
     cQuery += "                 AND C7.C7_CONAPRO <> 'B' " + CEOL						// desconsidera se o pedido ainda estiver pendente de aprovação
-    cQuery += "                 AND C7.D_E_L_E_T_ = ' '), 0) QTDCOMP, " + CEOL
+    cQuery += "                 AND C7.D_E_L_E_T_ = ' '), 0)) QTDCOMP, " + CEOL
 
-    cQuery += "       COALESCE( (SELECT MAX( C7.C7_DATPRF ) FROM "+ RetSqlName( 'SC7' ) +" C7 " + CEOL
+    cQuery += "       MAX(COALESCE( (SELECT MAX( C7.C7_DATPRF ) FROM "+ RetSqlName( 'SC7' ) +" C7 " + CEOL
     cQuery += "               WHERE "+ U_JSFILCOM( 'SC7', 'SB1' ) + CEOL
     cQuery += "                 AND C7.C7_PRODUTO = B1.B1_COD " + CEOL
     cQuery += "                 AND C7.C7_RESIDUO <> 'S' " + CEOL
     cQuery += "                 AND C7.C7_ENCER   <> 'E' " + CEOL
     cQuery += "                 AND C7.C7_CONAPRO <> 'B' " + CEOL						// desconsidera se o pedido ainda estiver pendente de aprovação
-    cQuery += "                 AND C7.D_E_L_E_T_ = ' '), '        ') PRVENT, " + CEOL
+    cQuery += "                 AND C7.D_E_L_E_T_ = ' '), '        ')) PRVENT, " + CEOL
     
-    cQuery += "       COALESCE( ( SELECT "+ cZB3 +"_CONMED FROM "+ RetSqlName( cZB3 ) +" " + CEOL
-    cQuery += "              WHERE R_E_C_N_O_ = ( " + CEOL
-    cQuery += "                SELECT MAX("+ cZB3 +".R_E_C_N_O_) FROM "+ RetSqlName( cZB3 ) +" "+ cZB3 +" " + CEOL
-    cQuery += "                WHERE "+ U_JSFILCOM( cZB3, 'SB1' ) + CEOL 
+    cQuery += "       MAX(COALESCE( ( SELECT AVG("+ cZB3 +"_CONMED) "+ cZB3 +"_CONMED FROM "+ RetSqlName( cZB3 ) +" "+ cZB3 +" " + CEOL
+    cQuery += "              WHERE "+ U_JSFILCOM( cZB3, 'SB1' ) + CEOL 
     cQuery += "                  AND "+ cZB3 +"."+ cZB3 +"_PROD   = B1.B1_COD " + CEOL
-    cQuery += "                  AND "+ cZB3 +".D_E_L_E_T_ = ' ' ) ), 0.0001 ) "+ cZB3 +"_CONMED, " + CEOL
+    cQuery += "                  AND "+ cZB3 +"."+ cZB3 +"_DATA   = '"+ DtoS( dDtCalc ) +"' " + CEOL
+    cQuery += "                  AND "+ cZB3 +".D_E_L_E_T_ = ' ' ), 0.0001 )) "+ cZB3 +"_CONMED, " + CEOL
     
-    cQuery += "       COALESCE( ( SELECT AVG("+ cZB3 +"_INDINC) "+ cZB3 +"_INDINC FROM "+ RetSqlName( cZB3 ) +" " + CEOL
-    cQuery += "              WHERE R_E_C_N_O_ IN ( " + CEOL
-    cQuery += "                SELECT MAX("+ cZB3 +".R_E_C_N_O_) FROM "+ RetSqlName( cZB3 ) +" "+ cZB3 +" " + CEOL
-    cQuery += "                WHERE "+ U_JSFILCOM( cZB3, 'SB1' ) +" "+ CEOL 
+    cQuery += "       MAX(COALESCE( ( SELECT AVG("+ cZB3 +"_INDINC) "+ cZB3 +"_INDINC FROM "+ RetSqlName( cZB3 ) +" "+ cZB3 +" " + CEOL
+    cQuery += "              WHERE "+ U_JSFILCOM( cZB3, 'SB1' ) +" "+ CEOL 
     cQuery += "                  AND "+ cZB3 +"."+ cZB3 +"_PROD   = B1.B1_COD " + CEOL
-    cQuery += "                  AND "+ cZB3 +".D_E_L_E_T_ = ' '"
-    cQuery += "                GROUP BY "+ cZB3 +"."+ cZB3 +"_FILIAL ) ), 0 ) "+ cZB3 +"_INDINC " + CEOL
+    cQuery += "                  AND "+ cZB3 +"."+ cZB3 +"_DATA   = '"+ DtoS( dDtCalc ) +"' " + CEOL
+    cQuery += "                  AND "+ cZB3 +".D_E_L_E_T_ = ' '), 0 )) "+ cZB3 +"_INDINC " + CEOL
 
     cQuery += "FROM "+ RetSqlName( 'SB1' ) +" B1 " + CEOL
     
@@ -362,9 +360,10 @@ user function JSQRYINF( aConf, aFilters )
     
     cQuery += "  AND B1.D_E_L_E_T_ = ' ' " + CEOL
     cQuery += "GROUP BY COALESCE(B2.B2_FILIAL, '"+ cFilAnt +"'), B1.B1_COD, B1.B1_DESC, B1.B1_UM, B1.B1_LM, B1.B1_QE, B1.B1_PE, B1.B1_LE, B1.B1_PROC, " + CEOL
-    cQuery += "         B1.B1_LOJPROC, B1.R_E_C_N_O_, A2PAD.A2_X_LTIME "+ CEOL
+    cQuery += "         B1.B1_LOJPROC, B1.R_E_C_N_O_, A2PAD.A2_X_LTIME, B1.B1_EMIN "+ CEOL
     cQuery += "ORDER BY FILIAL, B1.B1_COD, B1.B1_DESC "	+ CEOL
 
+    ConOut( cQuery )
 return cQuery
 
 /*/{Protheus.doc} hlp
