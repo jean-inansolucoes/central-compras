@@ -44,6 +44,10 @@ user function JSDETVER()
     aAdd( aDetVer, { '05','0002','13/11/2024', 'Novo formato de filtros, remodelagem da engine de cálculos e substituição de componentes obsoletos' } )
     aAdd( aDetVer, { '05','0003','13/11/2024', 'Workflow automático para fornecedor' } )
     aAdd( aDetVer, { '06','0001','21/11/2024', 'Adição de rotina para recálculo manual dos índices dos produtos, adequações de consultas do recálculo por JOB' } )
+    aAdd( aDetVer, { '07','0001','02/01/2025', 'Novas melhorias no motor de cálculo de necessidade de compra, workflow de ruptura, nova feature de formação de preços' } )
+    aAdd( aDetVer, { '07','0002','03/01/2025', 'Ajustar máscara do campo consumo médio e ajustado query de consulta de pedidos em carteira' } )
+    aAdd( aDetVer, { '07','0003','13/01/2025', 'Ajuste refresh da tela de formação de preços, acesso a formação de preços pelo documento de entrada, '+;
+                                                'alinhamento de labels na tela de formação de preços.' } )
 return aDetVer
 
 /*/{Protheus.doc} JSFILIAL
@@ -108,50 +112,50 @@ Função para retornar algoritmo de comparação entre os campos filiais de dois alí
 @param cAliasRight, character, alias atribuído à tabela na query (não obrigatório)
 @return character, cExpression
 /*/
-User Function JSFILCOM( cLeft, cRight, cAliasLeft, cAliasRight )
+// User Function JSFILCOM( cLeft, cRight, cAliasLeft, cAliasRight )
 
-    local cFunction   := iif( TCGetDB() $ "MSSQL|POSTGRES", "SUBSTRING", "SUBSTR" )
-    local cExpression := "" as character
-    local cFieldLeft  := iif( SubStr( cLeft,1,1 ) == 'S', SubStr( cLeft,2,2 ), cLeft ) + '_FILIAL'
-    local cFieldRight := iif( SubStr( cRight,1,1 ) == 'S', SubStr( cRight,2,2 ), cRight ) + '_FILIAL'
-    local cALeft      := "" as character
-    local cARight     := "" as character
+//     local cFunction   := iif( TCGetDB() $ "MSSQL|POSTGRES", "SUBSTRING", "SUBSTR" )
+//     local cExpression := "" as character
+//     local cFieldLeft  := iif( SubStr( cLeft,1,1 ) == 'S', SubStr( cLeft,2,2 ), cLeft ) + '_FILIAL'
+//     local cFieldRight := iif( SubStr( cRight,1,1 ) == 'S', SubStr( cRight,2,2 ), cRight ) + '_FILIAL'
+//     local cALeft      := "" as character
+//     local cARight     := "" as character
     
-    default cAliasLeft  := iif( SubStr( cLeft,1,1 ) == 'S', SubStr( cLeft,2,2 ), cLeft )
-    default cAliasRight := iif( SubStr( cRight,1,1 ) == 'S', SubStr( cRight,2,2 ), cRight )
+//     default cAliasLeft  := iif( SubStr( cLeft,1,1 ) == 'S', SubStr( cLeft,2,2 ), cLeft )
+//     default cAliasRight := iif( SubStr( cRight,1,1 ) == 'S', SubStr( cRight,2,2 ), cRight )
     
-    cALeft := cAliasLeft+'.'
-    cARight := cAliasRight+'.'
+//     cALeft := cAliasLeft+'.'
+//     cARight := cAliasRight+'.'
 
-    // Verifica se a tratativa de filial é diferente para as duas tabelas
-    if ! FWxFilial( cLeft ) == FWxFilial( cRight )
+//     // Verifica se a tratativa de filial é diferente para as duas tabelas
+//     if ! Len(AllTrim(FWxFilial( cLeft ))) == Len(AllTrim(FWxFilial( cRight )))
 
-        // Se for diferente, verifica se a tabela da esquerda usa filial compartilhada
-        if Len( AllTrim( FWxFilial( cLeft ) ) ) == 0
+//         // Se for diferente, verifica se a tabela da esquerda usa filial compartilhada
+//         if Len( AllTrim( FWxFilial( cLeft ) ) ) == 0
 
-            // Se usa filial compartilhada, apenas compara com FWxFilial, pois a expressão ficará assim: A1_FILIAL = '  '
-            cExpression := cALeft + cFieldLeft +" = '"+ FWxFilial( cLeft ) +"' "
+//             // Se usa filial compartilhada, apenas compara com FWxFilial, pois a expressão ficará assim: A1_FILIAL = '  '
+//             cExpression := cALeft + cFieldLeft +" = '"+ FWxFilial( cLeft ) +"' "
         
-        // Verifica se a tabela da direita usa filial compartilhada
-        elseif Len( AllTrim( FWxFilial( cRight ) ) ) == 0
+//         // Verifica se a tabela da direita usa filial compartilhada
+//         elseif Len( AllTrim( FWxFilial( cRight ) ) ) == 0
         
-            // Se usa filial compartilhada, chama função que retorna um filtro IN para a SQL usando as filiais selecionadas pelo usuário para filtrar os registros do alias da esquerda
-            cExpression := cALeft + cFieldLeft + U_JSFILIAL( cLeft, _aFil ) + ' '
+//             // Se usa filial compartilhada, chama função que retorna um filtro IN para a SQL usando as filiais selecionadas pelo usuário para filtrar os registros do alias da esquerda
+//             cExpression := cALeft + cFieldLeft + U_JSFILIAL( cLeft, _aFil ) + ' '
         
-        // Verifica se o tamanho do conteúdo da filial da tabela da esquerda é menor do que o da direita
-        elseif Len( AllTrim( FWxFilial( cLeft ) ) ) < Len( AllTrim( FWxFilial( cRight ) ) )
+//         // Verifica se o tamanho do conteúdo da filial da tabela da esquerda é menor do que o da direita
+//         elseif Len( AllTrim( FWxFilial( cLeft ) ) ) < Len( AllTrim( FWxFilial( cRight ) ) )
 
-            // Se a informação da filial da tabel a da esquerda for menor do que a informação da filial da tabela da direita, compara as duas usando substring para adequar o tamanho das duas informações
-            cExpression := cFunction +'('+ cALeft + cFieldLeft +',1,'+ cValToChar( Len( AllTrim( FWxFilial( cLeft ) ) ) ) +') = '+ cFunction +'('+ cARight + cFieldRight +',1,'+ cValToChar( Len( AllTrim( FWxFilial( cLeft ) ) ) ) +') '
-        else
-            cExpression := cFunction +'('+ cALeft + cFieldLeft +',1,'+ cValToChar( Len( AllTrim( FWxFilial( cRight ) ) ) ) +') = '+ cFunction +'('+ cARight + cFieldRight +',1,'+ cValToChar( Len( AllTrim( FWxFilial( cRight ) ) ) ) +') '
-        endif
+//             // Se a informação da filial da tabel a da esquerda for menor do que a informação da filial da tabela da direita, compara as duas usando substring para adequar o tamanho das duas informações
+//             cExpression := cFunction +'('+ cALeft + cFieldLeft +',1,'+ cValToChar( Len( AllTrim( FWxFilial( cLeft ) ) ) ) +') = '+ cFunction +'('+ cARight + cFieldRight +',1,'+ cValToChar( Len( AllTrim( FWxFilial( cLeft ) ) ) ) +') '
+//         else
+//             cExpression := cFunction +'('+ cALeft + cFieldLeft +',1,'+ cValToChar( Len( AllTrim( FWxFilial( cRight ) ) ) ) +') = '+ cFunction +'('+ cARight + cFieldRight +',1,'+ cValToChar( Len( AllTrim( FWxFilial( cRight ) ) ) ) +') '
+//         endif
 
-    else
-        cExpression := cALeft + cFieldLeft + ' = ' + cARight + cFieldRight
-    endif
+//     else
+//         cExpression := cALeft + cFieldLeft + ' = ' + cARight + cFieldRight
+//     endif
 
-return cExpression
+// return cExpression
 
 /*/{Protheus.doc} JSPAITYP
 Função da consulta padrão PAITYP para retornar tipos de produtos desejados.
@@ -243,16 +247,20 @@ Função para montagem de query de análise do MRP para Painel de Compras
 /*/
 user function JSQRYINF( aConf, aFilters )
     
-    Local cTmp    := Upper( AllTrim( aFilters[1] ) )
-	Local aTmp    := StrTokArr( cTmp, ' ' )
-    local cQuery  := "" as character
-    local cZB3    := AllTrim( SuperGetMv( 'MV_X_PNC02' ,,"" ) ) // Alias da tabela de índices de produtos
-    local nX      := 0  as numeric
-    local cLocais := "" as character
-    local cTypes  := "" as character
-    local aAux    := {} as array
-    local y       := 0  as numeric
-    local dDtCalc := CtoD( SubStr( SuperGetMv( 'MV_X_PNC12',,DtoC(date()) ), 01, 10 ) )
+    Local cTmp     := Upper( AllTrim( aFilters[1] ) )
+	Local aTmp     := StrTokArr( cTmp, ' ' )
+    local cQuery   := "" as character
+    local cZB3     := AllTrim( SuperGetMv( 'MV_X_PNC02' ,,"" ) ) // Alias da tabela de índices de produtos
+    local nX       := 0  as numeric
+    local cLocais  := "" as character
+    local cTypes   := "" as character
+    local aAux     := {} as array
+    local y        := 0  as numeric
+    local dDtCalc  := CtoD( SubStr( SuperGetMv( 'MV_X_PNC12',,DtoC(date()) ), 01, 10 ) )
+    local lLike    := At( '*', aFilters[5] ) > 0
+    local cFilHist := cFilAnt
+    local nFil     := 0 as numeric
+    local cDB      := TCGetDB()
 
     default aConf := {}
     default aFilters := {}
@@ -262,7 +270,7 @@ user function JSQRYINF( aConf, aFilters )
         return cQuery
     endif
 
-    aAux := StrTokArr(aFilters[2],'/')
+    aAux := StrTokArr(AllTrim(aFilters[2]),'/')
 	// Cria expressão para a query SQL
 	aEval( aAux, {|x| y++, cTypes += "'"+ x +"'" + iif( y < len( aAux ),',','' ) } )
 
@@ -279,89 +287,151 @@ user function JSQRYINF( aConf, aFilters )
              'Defina os armazéns para leitura de saldo em estoque e tente novamente!' )
         Return cQuery 
 	EndIf
-
-    cQuery := "SELECT COALESCE(B2.B2_FILIAL, '"+ cFilAnt +"') FILIAL, B1.B1_COD, B1.B1_DESC, B1.B1_UM, B1.B1_LM, B1.B1_QE, B1.B1_LE, B1.B1_PROC, " + CEOL
-    cQuery += "       B1.B1_LOJPROC, B1.R_E_C_N_O_ RECSB1, COALESCE(SUM(B2.B2_QATU),0) ESTOQUE, COALESCE(SUM(B2.B2_RESERVA+B2.B2_QEMP),0) EMPENHO, " + CEOL
     
-    // Identifica o lead-time do fornecedor
-    if SA2->( FieldPos( 'A2_X_LTIME' ) ) > 0
-        cQuery += " A2PAD.A2_X_LTIME, "+ CEOL
+    cQuery := "SELECT TEMP.* FROM ( "+ CEOL
+    for nFil := 1 to len( _aFil )
+        cFilAnt := _aFil[nFil]
+        
+        cQuery += "SELECT '"+ cFilAnt +"' FILIAL, B1.B1_COD, B1.B1_DESC, B1.B1_UM, B1.B1_LM, B1.B1_QE, B1.B1_LE, "
+        if ! Empty( aFilters[3] )
+            cQuery += "COALESCE(" +iif( aConf[22] == '1', "B1.B1_PROC", "A5.A5_FORNECE") +",'"+ Space( TAMSX3('A5_FORNECE')[1] ) +"') AS A5_FORNECE, " + CEOL
+            cQuery += "COALESCE("+ iif( aConf[22] == '1', "B1.B1_LOJPROC", "A5.A5_LOJA") +",'"+ Space( TAMSX3('A5_LOJA')[1] ) +"') AS A5_LOJA, " + CEOL
+        else
+            cQuery += "'"+ Space( TAMSX3('A5_FORNECE')[1] ) +"' A5_FORNECE, "+ CEOL
+            cQuery += "'"+ Space( TAMSX3('A5_LOJA')[1] ) +"' AS A5_LOJA, " + CEOL
+        endif
+        cQuery += "B1.R_E_C_N_O_ RECSB1, " + CEOL
+
+        cQuery += "COALESCE((SELECT SUM(B2.B2_QATU) FROM "+ RetSqlName( 'SB2' ) +" B2 " + CEOL
+        cQuery += "WHERE B2.B2_FILIAL = '"+ FWxFilial( 'SB2' ) +"' " + CEOL
+        cQuery += "  AND B2.B2_COD    = B1.B1_COD "+ CEOL
+        cQuery += "  AND B2.B2_LOCAL  IN ( '"+ cLocais +"' ) " + CEOL
+        cQuery += "  AND B2.D_E_L_E_T_ = ' ' ),0) ESTOQUE, " + CEOL
+
+        cQuery += "COALESCE((SELECT SUM(B2.B2_RESERVA+B2.B2_QEMP) FROM "+ RetSqlName( 'SB2' ) +" B2 " + CEOL
+        cQuery += "WHERE B2.B2_FILIAL = '"+ FWxFilial( 'SB2' ) +"' " + CEOL
+        cQuery += "  AND B2.B2_COD    = B1.B1_COD "+ CEOL
+        cQuery += "  AND B2.B2_LOCAL  IN ( '"+ cLocais +"' ) " + CEOL
+        cQuery += "  AND B2.D_E_L_E_T_ = ' ' ),0) EMPENHO, " + CEOL
+        
+        // Identifica o lead-time do fornecedor
+        if SA2->( FieldPos( 'A2_X_LTIME' ) ) > 0 .AND. ! Empty( aFilters[3] )
+            cQuery += " A2.A2_X_LTIME, "+ CEOL
+        else
+            cQuery += " 0 A2_X_LTIME, "+ CEOL
+        endif
+
+        cQuery += "B1.B1_PE, " + CEOL
+        cQuery += "B1.B1_EMIN, " + CEOL
+
+        cQuery += "COALESCE((SELECT SUM(C7BLOQ.C7_QUANT - C7BLOQ.C7_QUJE) FROM "+ RetSqlName( "SC7" ) +" C7BLOQ " + CEOL
+        cQuery += "WHERE C7BLOQ.C7_FILIAL = '"+ FWxFilial( 'SC7' ) +"' " + CEOL
+        cQuery += "  AND C7BLOQ.C7_PRODUTO = B1.B1_COD " + CEOL
+        cQuery += "  AND C7BLOQ.C7_RESIDUO <> 'S' " + CEOL
+        cQuery += "  AND C7BLOQ.C7_ENCER   <> 'E' " + CEOL
+        cQuery += "  AND C7BLOQ.C7_CONAPRO = 'B' " + CEOL						// identifica quantidade em pedido de compra com bloqueio
+        cQuery += "  AND C7BLOQ.D_E_L_E_T_ = ' ' ),0) QTDBLOQ, "+ CEOL
+
+        cQuery += "COALESCE((SELECT SUM(C7COMP.C7_QUANT - C7COMP.C7_QUJE) FROM "+ RetSqlName( "SC7" ) +" C7COMP " + CEOL
+        cQuery += "WHERE C7COMP.C7_FILIAL = '"+ FWxFilial( 'SC7' ) +"' " + CEOL
+        cQuery += "  AND C7COMP.C7_PRODUTO = B1.B1_COD " + CEOL
+        cQuery += "  AND C7COMP.C7_RESIDUO <> 'S' " + CEOL
+        cQuery += "  AND C7COMP.C7_ENCER   <> 'E' " + CEOL
+        cQuery += "  AND C7COMP.C7_CONAPRO <> 'B' " + CEOL						// Pedidos em carteira sem bloqueio
+        cQuery += "  AND C7COMP.D_E_L_E_T_ = ' ' ),0) QTDCOMP, " + CEOL
+
+        cQuery += "COALESCE((SELECT MAX( C7COMP.C7_DATPRF ) FROM "+ RetSqlName( "SC7" ) +" C7COMP " + CEOL
+        cQuery += "WHERE C7COMP.C7_FILIAL = '"+ FWxFilial( 'SC7' ) +"' " + CEOL
+        cQuery += "  AND C7COMP.C7_PRODUTO = B1.B1_COD " + CEOL
+        cQuery += "  AND C7COMP.C7_RESIDUO <> 'S' " + CEOL
+        cQuery += "  AND C7COMP.C7_ENCER   <> 'E' " + CEOL
+        cQuery += "  AND C7COMP.C7_CONAPRO <> 'B' " + CEOL						// Pedidos em carteira sem bloqueio
+        cQuery += "  AND C7COMP.D_E_L_E_T_ = ' ' ), '"+ Space(8) +"' ) PRVENT, " + CEOL
+
+        cQuery += "COALESCE("+ cZB3 +"_CONMED,0.0001) "+ cZB3 +"_CONMED, " + CEOL
+        cQuery += "COALESCE("+ cZB3 +"_INDINC,0) "+ cZB3 +"_INDINC " + CEOL
+
+        cQuery += "FROM "+ RetSqlName( 'SB1' ) +" B1 " + CEOL
+        
+        if ! Empty( aFilters[3] ) .and. ! aConf[22] == '1'     // 2=Prod.x Fornecedor ou 3=Hist.Compras
+            
+            // Se o fornecedor for informado, o join é exato, do contrário, apresenta os produtos sem fornecedor
+            cQuery += iif( Empty(aFilters[3]) .and. aConf[22] == '1', "LEFT", "INNER" )
+            cQuery += " JOIN "+ RetSqlName( 'SA5' ) +" A5 " + CEOL
+            cQuery += " ON A5.A5_FILIAL = '"+ FWxFilial( 'SA5' ) +"' "+ CEOL
+            cQuery += "AND A5.A5_PRODUTO = B1.B1_COD " + CEOL
+            if ! Empty( aFilters[3] )      // Quando fornecedor é informado, faz join com a tabela de fornecedores para filtrar apenas os produtos do fornecedor informado
+                cQuery += "AND A5.A5_FORNECE = '"+ aFilters[3] +"' " + CEOL
+            endif
+            cQuery += "AND A5.D_E_L_E_T_ = ' ' " + CEOL
+
+        endif
+
+        cQuery += "LEFT JOIN "+ RetSqlName( cZB3 ) +" "+ cZB3 +" " + CEOL
+        cQuery += " ON "+ cZB3 +"."+ cZB3 +"_FILIAL = '"+ FWxFilial( cZB3 ) +"' " + CEOL
+        cQuery += "AND "+ cZB3 +"."+ cZB3 +"_PROD   = B1.B1_COD " + CEOL
+        cQuery += "AND "+ cZB3 +"."+ cZB3 +"_DATA   = '"+ DtoS( dDtCalc ) +"' " + CEOL
+        cQuery += "AND "+ cZB3 +".D_E_L_E_T_ = ' ' " + CEOL
+        
+        if ! Empty( aFilters[3] )       // Faz join com tabela de fornecedores apenas quando codigo do fornecedor for informado
+            // Se o fornecedor for informado, o join é exato, do contrário, apresenta os produtos sem fornecedor
+            cQuery += iif( Empty( aFilters[3] ) .and. aConf[22] == '1', "LEFT", "INNER" )
+            cQuery += " JOIN "+ RetSqlName( 'SA2' ) +" A2 "+ CEOL
+            cQuery += " ON A2.A2_FILIAL = '"+ FWxFilial( 'SA2' ) +"' "+ CEOL
+            if aConf[22] == '1'     // Fabricante
+                cQuery += "AND A2.A2_COD     = B1.B1_PROC "+ CEOL
+                cQuery += "AND A2.A2_LOJA    = B1.B1_LOJPROC "+ CEOL
+            else
+                cQuery += "AND A2.A2_COD     = A5.A5_FORNECE "+ CEOL
+                cQuery += "AND A2.A2_LOJA    = A5.A5_LOJA "+ CEOL
+            endif
+            if ! Empty( aFilters[3] )      // Quando fornecedor é informado, faz join com a tabela de fornecedores para filtrar apenas o fornecedor informado
+                cQuery += "AND A2.A2_COD = '"+ aFilters[3] +"' " + CEOL
+            endif
+            cQuery += "AND A2.A2_MSBLQL  <> '1' "+ CEOL
+            cQuery += "AND A2.D_E_L_E_T_ = ' ' "+ CEOL
+        endif
+
+        cQuery += "WHERE B1.B1_FILIAL  = '"+ FWxFilial( 'SB1' ) +"' "+ CEOL 
+        if ! Empty( aFilters[5] )
+            cQuery += "  AND B1.B1_COD "+ iif( lLike, 'LIKE', '=' ) +" '"+ StrTran( iif( lLike, AllTrim(aFilters[5]), aFilters[5]),'*','%') +"' "+ CEOL                 // Filtra pelo código do produto
+        endif
+        cQuery += "  AND B1.B1_MSBLQL  <> '1' " + CEOL				// Faz leitura apenas dos itens ativos
+        cQuery += "  AND B1.B1_TIPO IN ( "+ cTypes +" ) " + CEOL	// Desconsidera produtos acabado e serviços da análise do MRP
+        cQuery += "  AND B1.B1_MRP     = 'S' " + CEOL				// Apenas os produtos que devem entrar no MRP
+        
+        if Len( aTmp ) > 0
+            For nX := 1 to Len( aTmp )
+                cQuery += "  AND B1.B1_DESC LIKE '%"+ aTmp[nX] +"%' " + CEOL
+            Next nX 
+        EndIf
+
+        // Verifica se o filtro de fornecedor padrão foi informado na pesquisa de produtos
+        if ! Empty( aFilters[4] )
+            cQuery += "  AND B1."+ cFdGroup +" LIKE '"+ aFilters[4] +"%' " + CEOL
+        endif
+
+        // Tratativa de segurança para evitar filtro vazio quando usuário apertar botão de cancelar
+        if aFilters[6]
+            cQuery += "  AND 0=1 " + CEOL
+        endif
+        
+        cQuery += "  AND B1.D_E_L_E_T_ = ' ' " + CEOL
+
+        if nFil < len( _aFil )
+            cQuery += "UNION ALL "+ CEOL
+        endif
+    next nFil
+
+    if cDB $ "ORACLE"
+        cQuery += ") TEMP " + CEOL
     else
-        cQuery += " 0 A2_X_LTIME, "+ CEOL
+        cQuery += ") AS TEMP " + CEOL
     endif
+    cQuery += "ORDER BY TEMP.FILIAL, TEMP.B1_COD, TEMP.B1_DESC "	+ CEOL
 
-    cQuery += "       B1.B1_PE, " + CEOL
-    cQuery += "       B1.B1_EMIN, " + CEOL
-    cQuery += "       MAX(COALESCE( (SELECT SUM(C7.C7_QUANT - C7.C7_QUJE) EMPED FROM "+ RetSqlName( 'SC7' ) +" C7 " + CEOL
-    cQuery += "               WHERE "+ U_JSFILCOM( 'SC7', 'SB1' ) + CEOL
-    cQuery += "                 AND C7.C7_PRODUTO = B1.B1_COD " + CEOL
-    cQuery += "                 AND C7.C7_RESIDUO <> 'S' " + CEOL
-    cQuery += "                 AND C7.C7_ENCER   <> 'E' " + CEOL
-    cQuery += "                 AND C7.C7_CONAPRO = 'B' " + CEOL						// identifica quantidade em pedido de compra com bloqueio
-    cQuery += "                 AND C7.D_E_L_E_T_ = ' '), 0)) QTDBLOQ, " + CEOL	    
-    
-    cQuery += "       MAX(COALESCE( (SELECT SUM(C7.C7_QUANT - C7.C7_QUJE) EMPED FROM "+ RetSqlName( 'SC7' ) +" C7 " + CEOL
-    cQuery += "               WHERE "+ U_JSFILCOM( 'SC7', 'SB1' ) + CEOL
-    cQuery += "                 AND C7.C7_PRODUTO = B1.B1_COD " + CEOL
-    cQuery += "                 AND C7.C7_RESIDUO <> 'S' " + CEOL
-    cQuery += "                 AND C7.C7_ENCER   <> 'E' " + CEOL
-    cQuery += "                 AND C7.C7_CONAPRO <> 'B' " + CEOL						// desconsidera se o pedido ainda estiver pendente de aprovação
-    cQuery += "                 AND C7.D_E_L_E_T_ = ' '), 0)) QTDCOMP, " + CEOL
-
-    cQuery += "       MAX(COALESCE( (SELECT MAX( C7.C7_DATPRF ) FROM "+ RetSqlName( 'SC7' ) +" C7 " + CEOL
-    cQuery += "               WHERE "+ U_JSFILCOM( 'SC7', 'SB1' ) + CEOL
-    cQuery += "                 AND C7.C7_PRODUTO = B1.B1_COD " + CEOL
-    cQuery += "                 AND C7.C7_RESIDUO <> 'S' " + CEOL
-    cQuery += "                 AND C7.C7_ENCER   <> 'E' " + CEOL
-    cQuery += "                 AND C7.C7_CONAPRO <> 'B' " + CEOL						// desconsidera se o pedido ainda estiver pendente de aprovação
-    cQuery += "                 AND C7.D_E_L_E_T_ = ' '), '        ')) PRVENT, " + CEOL
-    
-    cQuery += "       MAX(COALESCE( ( SELECT AVG("+ cZB3 +"_CONMED) "+ cZB3 +"_CONMED FROM "+ RetSqlName( cZB3 ) +" "+ cZB3 +" " + CEOL
-    cQuery += "              WHERE "+ U_JSFILCOM( cZB3, 'SB1' ) + CEOL 
-    cQuery += "                  AND "+ cZB3 +"."+ cZB3 +"_PROD   = B1.B1_COD " + CEOL
-    cQuery += "                  AND "+ cZB3 +"."+ cZB3 +"_DATA   = '"+ DtoS( dDtCalc ) +"' " + CEOL
-    cQuery += "                  AND "+ cZB3 +".D_E_L_E_T_ = ' ' ), 0.0001 )) "+ cZB3 +"_CONMED, " + CEOL
-    
-    cQuery += "       MAX(COALESCE( ( SELECT AVG("+ cZB3 +"_INDINC) "+ cZB3 +"_INDINC FROM "+ RetSqlName( cZB3 ) +" "+ cZB3 +" " + CEOL
-    cQuery += "              WHERE "+ U_JSFILCOM( cZB3, 'SB1' ) +" "+ CEOL 
-    cQuery += "                  AND "+ cZB3 +"."+ cZB3 +"_PROD   = B1.B1_COD " + CEOL
-    cQuery += "                  AND "+ cZB3 +"."+ cZB3 +"_DATA   = '"+ DtoS( dDtCalc ) +"' " + CEOL
-    cQuery += "                  AND "+ cZB3 +".D_E_L_E_T_ = ' '), 0 )) "+ cZB3 +"_INDINC " + CEOL
-
-    cQuery += "FROM "+ RetSqlName( 'SB1' ) +" B1 " + CEOL
-    
-    cQuery += "LEFT JOIN "+ RetSqlName( 'SB2' ) +" B2 " + CEOL
-    cQuery += " ON "+ U_JSFILCOM( 'SB2', 'SB1' ) + CEOL
-    cQuery += "AND B2.B2_COD    = B1.B1_COD "+ CEOL
-    cQuery += "AND B2.B2_LOCAL  IN ( '"+ cLocais +"' ) " + CEOL
-    cQuery += "AND B2.D_E_L_E_T_ = ' ' " + CEOL
-
-    cQuery += "LEFT JOIN "+ RetSqlName( 'SA2' ) +" A2PAD "+ CEOL
-    cQuery += " ON "+ U_JSFILCOM( 'SA2', 'SB1', 'A2PAD' ) + CEOL
-    cQuery += "AND A2PAD.A2_COD     = B1.B1_PROC "+ CEOL
-    cQuery += "AND A2PAD.A2_LOJA    = B1.B1_LOJPROC "+ CEOL
-    cQuery += "AND A2PAD.D_E_L_E_T_ = ' ' "+ CEOL
-
-    cQuery += "WHERE B1.B1_FILIAL "+ U_JSFILIAL( 'SB1', _aFil ) +" "+ CEOL 
-    cQuery += "  AND B1.B1_MSBLQL  <> '1' " + CEOL				// Faz leitura apenas dos itens ativos
-    cQuery += "  AND B1.B1_TIPO IN ( "+ cTypes +" ) " + CEOL	// Desconsidera produtos acabado e serviços da análise do MRP
-    cQuery += "  AND B1.B1_MRP     = 'S' " + CEOL				// Apenas os produtos que devem entrar no MRP
-    
-    if Len( aTmp ) > 0
-        For nX := 1 to Len( aTmp )
-            cQuery += "  AND B1.B1_DESC LIKE '%"+ aTmp[nX] +"%' " + CEOL
-        Next nX 
-    EndIf
-
-    // Verifica se o filtro de fornecedor padrão foi informado na pesquisa de produtos
-    if ! Empty( aFilters[3] )
-        cQuery += "  AND B1.B1_PROC = '"+ aFilters[3] +"' " + CEOL
-    endif
-    
-    cQuery += "  AND B1.D_E_L_E_T_ = ' ' " + CEOL
-    cQuery += "GROUP BY COALESCE(B2.B2_FILIAL, '"+ cFilAnt +"'), B1.B1_COD, B1.B1_DESC, B1.B1_UM, B1.B1_LM, B1.B1_QE, B1.B1_PE, B1.B1_LE, B1.B1_PROC, " + CEOL
-    cQuery += "         B1.B1_LOJPROC, B1.R_E_C_N_O_, A2PAD.A2_X_LTIME, B1.B1_EMIN "+ CEOL
-    cQuery += "ORDER BY FILIAL, B1.B1_COD, B1.B1_DESC "	+ CEOL
+    // Devolve posicionamento na filial de origem
+    cFilAnt := cFilHist
 
     ConOut( cQuery )
 return cQuery
@@ -378,3 +448,106 @@ Função facilitadora para utilização da função Help do Protheus
 /*/
 static function hlp( cTitle, cFail, cHelp )
 return Help( ,, cTitle,, cFail, 1, 0, NIL, NIL, NIL, NIL, NIL,{ cHelp } )
+
+/*/{Protheus.doc} RuptWF
+Retorna conteúdo do html base para montagem de e-mail de alerta de ruptura de estoque
+@type function
+@version 1.0
+@author Jean Carlos Pandolfo Saggin
+@since 1/2/2025
+@return character, cWF
+/*/
+user function RuptWF()
+
+    local cWF := "" as character
+
+    cWF += '<!DOCTYPE html>' + CEOL
+    cWF += '<html>' + CEOL
+    cWF += CEOL
+    cWF += '	<head>' + CEOL
+    cWF += '		<meta http-equiv="Content-Language" content="en-us">' + CEOL
+    cWF += '		<meta http-equiv="Content-Type" content="text/html; charset=windows-1252">' + CEOL
+    cWF += '		<title>Workflow %EMPRESA%</title>' + CEOL
+    cWF += '	</head>' + CEOL
+    cWF += '	<body style="font-family: Arial, Tahoma, Calibri, sans-serif; font-size:14px; font-weight: normal; " >' + CEOL
+    cWF += '		<p style="color: #ff8000; font-weight: bold">%TITULOMSG%</p>' + CEOL
+    cWF += '		<p> ' + CEOL
+    cWF += '			<b> A T E N Ç Ã O </b>, ' + CEOL
+    cWF += '		</p>' + CEOL
+    cWF += CEOL
+    cWF += '		<p style="text-align: justify" >Com base na análise de materiais realizada em ' + CEOL
+    cWF += '			<b> %DATAHORA%</b> ' + CEOL
+    cWF += '			, foram identificados alguns itens com risco de ruptura de estoque. São eles: '+ CEOL
+    cWF += '		</p>' + CEOL
+    cWF += CEOL
+    cWF += '		<table style="width:100%; border-collapse: collapse">' + CEOL
+    cWF += '			<tr>' + CEOL
+    cWF += '				<td style="border-spacing: 5px; padding: 10px; background: linear-gradient(to bottom, rgb(240, 128, 24) 0%,rgb(204, 109, 20) 100%); color:white; border-top-left-radius: 5px;" align="center"> Produto </td>' + CEOL
+    cWF += '				<td style="border-spacing: 5px; padding: 10px; background: linear-gradient(to bottom, rgb(240, 128, 24) 0%,rgb(204, 109, 20) 100%); color:white; " align="center"> Descrição </td>' + CEOL
+    cWF += '				<td style="border-spacing: 5px; padding: 10px; background: linear-gradient(to bottom, rgb(240, 128, 24) 0%,rgb(204, 109, 20) 100%); color:white; " align="center"> Cons. Medio(D) </td>' + CEOL
+    cWF += '				<td style="border-spacing: 5px; padding: 10px; background: linear-gradient(to bottom, rgb(240, 128, 24) 0%,rgb(204, 109, 20) 100%); color:white; " align="center"> Tp Dia </td>' + CEOL
+    cWF += '				<td style="border-spacing: 5px; padding: 10px; background: linear-gradient(to bottom, rgb(240, 128, 24) 0%,rgb(204, 109, 20) 100%); color:white; " align="center"> Dur. Estoque(D) </td>' + CEOL
+    cWF += '				<td style="border-spacing: 5px; padding: 10px; background: linear-gradient(to bottom, rgb(240, 128, 24) 0%,rgb(204, 109, 20) 100%); color:white; " align="center"> Nec. Compra </td>' + CEOL
+    cWF += '				<td style="border-spacing: 5px; padding: 10px; background: linear-gradient(to bottom, rgb(240, 128, 24) 0%,rgb(204, 109, 20) 100%); color:white; " align="center"> Estoq. Atual </td>'+ CEOL
+    cWF += '				<td style="border-spacing: 5px; padding: 10px; background: linear-gradient(to bottom, rgb(240, 128, 24) 0%,rgb(204, 109, 20) 100%); color:white; " align="center"> Empenho (Reserva) </td>' + CEOL
+    cWF += '				<td style="border-spacing: 5px; padding: 10px; background: linear-gradient(to bottom, rgb(240, 128, 24) 0%,rgb(204, 109, 20) 100%); color:white; " align="center"> Qtde Comprada </td>' + CEOL
+    cWF += '				<td style="border-spacing: 5px; padding: 10px; background: linear-gradient(to bottom, rgb(240, 128, 24) 0%,rgb(204, 109, 20) 100%); color:white; " align="center"> Prev. Entrega </td>' + CEOL
+    cWF += '				<td style="border-spacing: 5px; padding: 10px; background: linear-gradient(to bottom, rgb(240, 128, 24) 0%,rgb(204, 109, 20) 100%); color:white; " align="center"> T. Entrega (Dias) </td>'+ CEOL
+    cWF += '				<td style="border-spacing: 5px; padding: 10px; background: linear-gradient(to bottom, rgb(240, 128, 24) 0%,rgb(204, 109, 20) 100%); color:white; border-top-right-radius: 5px;" align="center"> Detalhamento </td>' + CEOL
+    cWF += '			</tr>' + CEOL
+    cWF += '		<tr>' + CEOL
+    cWF += '				<td style="border-left: 1px solid rgb(204, 109, 20); background-color: %it.clproduto%" align="left">' + CEOL
+    cWF += '					<font size="2">%IT.PRODUTO% </font></td>' + CEOL
+    cWF += '				<td style="border-collapse: collapse; border-spacing: 5px; padding: 10px; background-color: %it.cldescricao%" align="left">' + CEOL
+    cWF += '					<font size="2">%IT.DESCRICAO% </font></td>' + CEOL
+    cWF += '				<td style="border-collapse: collapse; border-spacing: 5px; padding: 10px; background-color: %it.clconsumo%" align="right">' + CEOL
+    cWF += '					<font size="2">%IT.CONSUMO% </font></td>' + CEOL
+    cWF += '				<td style="border-collapse: collapse; border-spacing: 5px; padding: 10px; background-color: %it.cltipodia%" align="center">' + CEOL
+    cWF += '					<font size="2">%IT.TIPODIA% </font></td>' + CEOL
+    cWF += '				<td style="border-collapse: collapse; border-spacing: 5px; padding: 10px; background-color: %it.clduracao%" align="center">' + CEOL
+    cWF += '					<font size="2">%IT.DURACAO% </font></td>' + CEOL
+    cWF += '				<td style="border-collapse: collapse; border-spacing: 5px; padding: 10px; background-color: %it.clnecessidade%" align="right">' + CEOL
+    cWF += '					<font size="2">%IT.NECESSIDADE% </font></td>' + CEOL
+    cWF += '				<td style="border-collapse: collapse; border-spacing: 5px; padding: 10px; background-color: %it.clestoque%" align="right">' + CEOL
+    cWF += '					<font size="2">%IT.ESTOQUE% </font></td>' + CEOL
+    cWF += '				<td style="border-collapse: collapse; border-spacing: 5px; padding: 10px; background-color: %it.clempenho%" align="right">' + CEOL
+    cWF += '					<font size="2">%IT.EMPENHO% </font></td>' + CEOL
+    cWF += '				<td style="border-collapse: collapse; border-spacing: 5px; padding: 10px; background-color: %it.clcomprado%" align="right">' + CEOL
+    cWF += '					<font size="2">%IT.COMPRADO% </font></td>' + CEOL
+    cWF += '				<td style="border-collapse: collapse; border-spacing: 5px; padding: 10px; background-color: %it.clprevisao%" align="center">' + CEOL
+    cWF += '					<font size="2">%IT.PREVISAO% </font></td>' + CEOL
+    cWF += '				<td style="border-collapse: collapse; border-spacing: 5px; padding: 10px; background-color: %it.clldtime%" align="center">' + CEOL
+    cWF += '					<font size="2">%IT.LDTIME% </font></td>' + CEOL
+    cWF += '				<td style="border-right: 1px solid rgb(204, 109, 20);  background-color: %it.clmensagem%" align="left">' + CEOL
+    cWF += '					<font size="2">%IT.MENSAGEM% </font></td>' + CEOL
+    cWF += '			</tr>' + CEOL
+    cWF += '			<tr>' + CEOL
+    cWF += '				 <td style="border-spacing: 5px; padding: 10px; background: linear-gradient(to bottom, rgb(240, 128, 24) 0%,rgb(204, 109, 20) 100%); border-bottom-left-radius: 5px; " ></td>' + CEOL
+    cWF += '				 <td style="border-spacing: 5px; padding: 10px; background: linear-gradient(to bottom, rgb(240, 128, 24) 0%,rgb(204, 109, 20) 100%); color: white"></td>' + CEOL
+    cWF += '				 <td style="border-spacing: 5px; padding: 10px; background: linear-gradient(to bottom, rgb(240, 128, 24) 0%,rgb(204, 109, 20) 100%); color: white"></td>' + CEOL
+    cWF += '				 <td style="border-spacing: 5px; padding: 10px; background: linear-gradient(to bottom, rgb(240, 128, 24) 0%,rgb(204, 109, 20) 100%); color: white"></td>' + CEOL
+    cWF += '				 <td style="border-spacing: 5px; padding: 10px; background: linear-gradient(to bottom, rgb(240, 128, 24) 0%,rgb(204, 109, 20) 100%); color: white"></td>' + CEOL
+    cWF += '				 <td style="border-spacing: 5px; padding: 10px; background: linear-gradient(to bottom, rgb(240, 128, 24) 0%,rgb(204, 109, 20) 100%); color: white"></td>' + CEOL
+    cWF += '				 <td style="border-spacing: 5px; padding: 10px; background: linear-gradient(to bottom, rgb(240, 128, 24) 0%,rgb(204, 109, 20) 100%); color: white"></td>' + CEOL
+    cWF += '				 <td style="border-spacing: 5px; padding: 10px; background: linear-gradient(to bottom, rgb(240, 128, 24) 0%,rgb(204, 109, 20) 100%); color: white"></td>' + CEOL
+    cWF += '				 <td style="border-spacing: 5px; padding: 10px; background: linear-gradient(to bottom, rgb(240, 128, 24) 0%,rgb(204, 109, 20) 100%); color: white"></td>' + CEOL
+    cWF += '				 <td style="border-spacing: 5px; padding: 10px; background: linear-gradient(to bottom, rgb(240, 128, 24) 0%,rgb(204, 109, 20) 100%); color: white"></td>' + CEOL
+    cWF += '				 <td style="border-spacing: 5px; padding: 10px; background: linear-gradient(to bottom, rgb(240, 128, 24) 0%,rgb(204, 109, 20) 100%); color: white"></td>' + CEOL
+    cWF += '				 <td style="border-spacing: 5px; padding: 10px; background: linear-gradient(to bottom, rgb(240, 128, 24) 0%,rgb(204, 109, 20) 100%); border-bottom-right-radius: 5px; color: white" align="right" ></td>' + CEOL
+    cWF += '			</tr>' + CEOL
+    cWF += '		</table>' + CEOL
+    cWF += '		</br>' + CEOL
+    cWF += CEOL
+    cWF += '		<span style="font-family:  Tahoma, Calibri, sans-serif; color:#FF8000;"><font size="1">' + CEOL
+    cWF += '			</br>' + CEOL
+    cWF += '			<hr noshade color="#FF8000" size="0.5px">' + CEOL
+    cWF += '				<p align="left">' + CEOL
+    cWF += '					<b>Esta mensagem foi enviada de maneira automática pelos nossos sitemas, portante, não há necessidade de resposta.</b>' + CEOL
+    cWF += '				</p>' + CEOL
+    cWF += ' 			</hr>' + CEOL
+    cWF += CEOL
+    cWF += '		</span>' + CEOL
+    cWF += '	</body>' + CEOL
+    cWF += '</html>' + CEOL
+
+return cWF
