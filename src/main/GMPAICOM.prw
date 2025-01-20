@@ -7821,7 +7821,7 @@ static function procData( cFile )
 
 					// Se o registro já existe para o produto, atualiza os dados
 					RecLock( cZB3, !lExist )
-						( cZB3 )->( FieldPut( FieldPos( cZB3 +'_FILIAL' ), FWxFilial('ZB3' ) ) )
+						( cZB3 )->( FieldPut( FieldPos( cZB3 +'_FILIAL' ), FWxFilial( cZB3 ) ) )
 						for nField := 1 to len( aFileHdr )
 							if ( cZB3 )->( FieldPos( aFileHdr[nField][1] ) ) > 0
 								( cZB3 )->( FieldPut( FieldPos( aFileHdr[nField][1] ), typeAdapt( aFileHdr[nField][1], aAux[gt( aFileHdr[nField][1] )] ) ) )
