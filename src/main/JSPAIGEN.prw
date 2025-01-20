@@ -48,6 +48,10 @@ user function JSDETVER()
     aAdd( aDetVer, { '07','0002','03/01/2025', 'Ajustar máscara do campo consumo médio e ajustado query de consulta de pedidos em carteira' } )
     aAdd( aDetVer, { '07','0003','13/01/2025', 'Ajuste refresh da tela de formação de preços, acesso a formação de preços pelo documento de entrada, '+;
                                                 'alinhamento de labels na tela de formação de preços.' } )
+    aAdd( aDetVer, { '08','0001','14/01/2025', 'Incluído tratativa a parâmetro para indicar se o usuário tem acesso para gravar novo preço de venda, '+;
+                                                'Ajuste na chamada do botão Tornar Padrão para gravar o conteúdo e fazer refresh corretamente.' } )
+    aAdd( aDetVer, { '08','0002','15/01/2025', 'Ajuste do filtro por grupo de produto, implementação de tela para detalhamento do consumo do produto.' } )
+    aAdd( aDetVer, { '09','0001','16/01/2025', 'Rotina para formação de preços separada do Documento de Entrada.' } )
 return aDetVer
 
 /*/{Protheus.doc} JSFILIAL
@@ -261,6 +265,7 @@ user function JSQRYINF( aConf, aFilters )
     local cFilHist := cFilAnt
     local nFil     := 0 as numeric
     local cDB      := TCGetDB()
+    local cFdGroup := AllTrim( SuperGetMv( 'MV_X_PNC13',,'B1_GRUPO' ) )
 
     default aConf := {}
     default aFilters := {}
@@ -551,3 +556,149 @@ user function RuptWF()
     cWF += '</html>' + CEOL
 
 return cWF
+
+/*/{Protheus.doc} JSQRYSAI
+Query para leitura das saidas de produtos que tem relação com venda de produtos do grupo econômico
+@type function
+@version 1.0
+@author Jean Carlos Pandolfo Saggin
+@since 1/15/2025
+@param cProduto, character, ID do produto
+@param dDe, date, inídio da faixa de pesquisa de vendas pela data de emissao
+@param dAte, date, fim da faixa de pesquisa de vendas pela data de emissao
+@param _aFil, array, vetor de filiais selecionadas pelo usuário
+@return character, cQuery
+/*/
+user function JSQRYSAI( cProduto, dDe, dAte, _aFil )
+    
+    local cQuery   := "" as character
+    local aCliSM0  := {} as array
+    local cCliSM0  := "" as character
+    local nAux     := 0  as numeric
+    local cFilHist := cFilAnt
+    local nFil     := 0 as numeric
+    local cDB      := TCGETDB()
+
+    default _aFil    := {}
+    default cProduto := ""
+
+    aCliSM0 := getCliSM0()
+    if len( aCliSM0 ) > 0
+        aEval( aCliSM0, {|x| nAux++, cCliSM0 += "'"+ x[1] + x[2] +"'" + iif( nAux < len(aCliSM0), ',', '' ) } )
+    endif
+
+    for nFil := 1 to len( _aFil )
+        cFilAnt := _aFil[nFil]
+
+        cQuery := "SELECT " + CEOL
+        cQuery += "  'V' AS TIPO, D2.D2_FILIAL, D2.D2_COD, D2.D2_DOC, D2.D2_SERIE, D2.D2_EMISSAO, D2.D2_CLIENTE, D2.D2_LOJA, " + CEOL
+        cQuery += "  A1.A1_NOME, D2.D2_LOCAL, D2.D2_QUANT " + CEOL
+        cQuery += "FROM "+ RetSqlName( 'SD2' ) +" D2 " + CEOL
+                    
+        cQuery += "INNER JOIN "+ RetSqlName( 'SF4' ) +" F4 " + CEOL
+        cQuery += " ON F4.F4_FILIAL  = '"+ FWxFilial( 'SF4' ) +"' "+ CEOL
+        cQuery += "AND F4.F4_CODIGO  = D2.D2_TES "+ CEOL
+        cQuery += "AND F4.F4_ESTOQUE = 'S' "+ CEOL
+        cQuery += "AND F4.D_E_L_E_T_ = ' ' "+ CEOL
+
+        cQuery += "INNER JOIN "+ RetSqlName( 'SA1' ) +" A1 " + CEOL
+        cQuery += "  ON A1.A1_FILIAL  = '"+ FWxFilial( 'SA1' ) +"' "+ CEOL
+        cQuery += " AND A1.A1_COD     = D2.D2_CLIENTE "+ CEOL
+        cQuery += " AND A1.A1_LOJA    = D2.D2_LOJA "+ CEOL
+        cQuery += " AND A1.D_E_L_E_T_ = ' ' "+ CEOL
+
+        cQuery += "WHERE D2.D2_FILIAL  = '"+ FWxFilial( 'SD2' ) +"' "+ CEOL
+        cQuery += "  AND D2.D2_TIPO    = 'N' "+ CEOL
+        cQuery += "  AND D2.D2_EMISSAO BETWEEN '"+ DtoS( dDe ) +"' AND '"+ DtoS( dAte ) +"' " + CEOL
+        if ! Empty( cCliSM0 )       // Se houver clientes cadastrados que estão dentro do mesmo grupo econômico
+            cQuery += "  AND CONCAT( D2.D2_CLIENTE, D2.D2_LOJA ) NOT IN ( "+ cCliSM0 +" ) " + CEOL
+        endif
+        if ! Empty( cProduto )
+            cQuery += "  AND D2.D2_COD     = '"+ cProduto +"' " + CEOL
+        endif
+        cQuery += "  AND D2.D_E_L_E_T_ = ' ' " + CEOL
+
+        cQuery += "UNION ALL "+ CEOL
+
+        cQuery += "SELECT " + CEOL
+        cQuery += "  'P' AS TIPO, D3.D3_FILIAL D2_FILIAL, D3.D3_COD D2_COD, C2.C2_NUM D2_DOC, '"+ Space( TAMSX3('D2_SERIE')[1] ) +"' AS D2_SERIE, D3.D3_EMISSAO D2_EMISSAO, "
+        cQuery += "  COALESCE( C6.C6_CLI,'"+ Space( TamSX3('D2_CLIENTE')[1] ) +"' ) D2_CLIENTE, "
+        cQuery += "  COALESCE( C6.C6_LOJA, '"+ Space( TamSX3('D2_LOJA')[1] ) +"' ) D2_LOJA, "
+        cQuery += "  COALESCE( A1.A1_NOME, '"+ Space( TamSX3('A1_NOME')[1] ) +"' ) A1_NOME, "
+        cQuery += "  D3.D3_LOCAL AS D2_LOCAL, D3.D3_QUANT AS D2_QUANT " + CEOL
+        cQuery += "FROM "+ RetSqlName( 'SD3' ) +" D3 " + CEOL
+
+        cQuery += "INNER JOIN "+ RetSqlname('SC2'  ) +" C2 " + CEOL
+        cQuery += " ON C2.C2_FILIAL = '"+ FWxFilial( 'SC2' ) +"' " + CEOL
+        if cDB == 'ORACLE'
+            cQuery += "AND C2.C2_NUM || C2.C2_ITEM || C2.C2_SEQUEN = D3.D3_OP " + CEOL
+        else
+            cQuery += "AND CONCAT( CONCAT( C2.C2_NUM, C2.C2_ITEM ), C2.C2_SEQUEN ) = D3.D3_OP " + CEOL
+        endif
+        cQuery += "AND C2.D_E_L_E_T_ = ' ' " + CEOL
+
+        cQuery += "LEFT JOIN "+ RetSqlName( 'SC6' ) +" C6 " + CEOL
+        cQuery += " ON C6.C6_FILIAL  = '"+ FWxFilial( 'SC6' ) +"' " + CEOL
+        cQuery += "AND C6.C6_NUM     = C2.C2_PEDIDO " + CEOL
+        cQuery += "AND C6.C6_ITEM    = C2.C2_ITEMPV " + CEOL
+        cQuery += "AND C6.D_E_L_E_T_ = ' ' " + CEOL
+
+        cQuery += "LEFT JOIN "+ RetSqlName( 'SA1' ) +" A1 " + CEOL
+        cQuery += " ON A1.A1_FILIAL  = '"+ FWxFilial( 'SA1' ) +"' "+ CEOL
+        cQuery += "AND A1.A1_COD     = C6.C6_CLI "+ CEOL
+        cQuery += "AND A1.A1_LOJA    = C6.C6_LOJA "+ CEOL
+        cQuery += "AND A1.D_E_L_E_T_ = ' ' "+ CEOL
+
+        cQuery += "WHERE D3.D3_FILIAL = '"+ FWxFilial( 'SD3' ) +"' "+ CEOL
+        if ! Empty( cProduto )
+            cQuery += "  AND D3.D3_COD    = '"+ cProduto +"' " + CEOL
+        endif
+        cQuery += "  AND D3.D3_EMISSAO BETWEEN '"+ DtoS( dDe ) +"' AND '"+ DtoS( dAte ) +"' " + CEOL
+        cQuery += "  AND D3.D3_TM     >= '500' " + CEOL
+        cQuery += "  AND D3.D3_OP     <> '"+ Space( TAMSX3('D3_OP')[1] ) +"' " + CEOL
+        cQuery += "  AND D3.D3_ESTORNO = ' ' " + CEOL
+        cQuery += "  AND D3.D_E_L_E_T_ = ' ' " + CEOL
+
+        if nFil < len( _aFil )
+            cQuery += "UNION ALL "+ CEOL
+        endif
+        
+    next nFil
+
+    // Devolve a filial que o usuário estava conectado quando iniciou a função
+    cFilAnt := cFilHist
+
+return cQuery
+
+/*/{Protheus.doc} getCliSM0
+Obtém os clientes do cadastro que tem relação com as empresas do grupo econômico
+@type function
+@version 1.0
+@author Jean Carlos Pandolfo Saggin
+@since 1/15/2025
+@return array, aCliSM0
+/*/
+static function getCliSM0()
+
+    local aCliSM0 := {} as array
+    local cQuery  := "" as character
+    local cAlias  := "" as character
+
+    cQuery := "SELECT DISTINCT A1.A1_COD, A1.A1_LOJA FROM SYS_COMPANY M0 "
+    cQuery += "INNER JOIN "+ RetSqlName( 'SA1' ) +" A1 "
+    cQuery += " ON A1.A1_FILIAL = '"+ FWxFilial( 'SA1' ) +"' " 
+    cQuery += "AND A1.A1_CGC    = M0.M0_CGC "
+    cQuery += "AND A1.D_E_L_E_T_ = ' ' "
+    cQuery += "WHERE M0.M0_CGC LIKE '"+ SubStr( SM0->M0_CGC, 1, 8 ) +"%' "
+    cQuery += "  AND M0.D_E_L_E_T_ = ' ' "
+
+    cAlias := MPSysOpenQuery( cQuery )
+    if ! ( cAlias )->( EOF() )
+        while ! ( cAlias )->( EOF() )
+            aAdd( aCliSM0, { ( cAlias )->A1_COD, ( cAlias )->A1_LOJA } )
+            ( cAlias )->( DBSkip() )
+        end
+    endif
+    ( cAlias )->( DBCloseArea() )
+
+return aCliSM0
