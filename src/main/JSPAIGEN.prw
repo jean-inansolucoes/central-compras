@@ -52,6 +52,11 @@ user function JSDETVER()
                                                 'Ajuste na chamada do botão Tornar Padrão para gravar o conteúdo e fazer refresh corretamente.' } )
     aAdd( aDetVer, { '08','0002','15/01/2025', 'Ajuste do filtro por grupo de produto, implementação de tela para detalhamento do consumo do produto.' } )
     aAdd( aDetVer, { '09','0001','16/01/2025', 'Rotina para formação de preços separada do Documento de Entrada.' } )
+    aAdd( aDetVer, { '09','0002','20/01/2025', 'Edição de browse para permitir ocultar campos desnecessários do browse conforme necessidade do usuário.' } )
+    aAdd( aDetVer, { '09','0003','20/01/2025', 'Valida resolução de tela utilizada pelo equipamento.' } )
+    aAdd( aDetVer, { '09','0004','21/01/2025', 'Melhorias gráficas na tela de formação de preços para evitar distorção de componentes.' } )
+    aAdd( aDetVer, { '09','0005','21/01/2025', 'Ajuste na tela de visualização de saídas para evitar falha no cálculo de média quando o produto não contém movimentações no período analisado.' } )
+    aAdd( aDetVer, { '10','0001','21/01/2025', 'Adicionado parâmetro nas configurações indicar se a empresa vai considerar o empenho para obter o saldo atual de estoque.' } )
 return aDetVer
 
 /*/{Protheus.doc} JSFILIAL
