@@ -2612,8 +2612,6 @@ Static Function fLoadAna( lNoInt )
 	Local aMes   := { 'jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez' }
 	Local nX     := 0
 	Local aTemp  := {}
-	local aFilData := getFilData({})
-	local cINCGC   := "" as character
 	local aCliLoja := {} as array
 	Local cINCli   := "" as character
 	local nAux     := 0 as numeric
@@ -2624,8 +2622,10 @@ Static Function fLoadAna( lNoInt )
 	
 	oDash:DeActivate()
 	
-	// Monta expressão para a cláusula IN do SQL
-	aEval( aFilData, {|x| nAux++, cINCGC += "'"+ x[4] +"'" + iif( nAux < len( aFilData ), ',', '' ) } )
+	aCliLoja := U_JSCLISM0()
+	if len( aCliLoja ) > 0
+        aEval( aCliLoja, {|x| nAux++, cINCli += "'"+ x[1] + x[2] +"'" + iif( nAux < len(aCliLoja), ',', '' ) } )
+    endif
 
 	If cCboAna == '3'		// Mensal 
 		oLblAna:CCAPTION := iif( nGetQtd == 0, '...', iif( nGetQtd > 1, 'meses', 'mês' ) )
@@ -2670,21 +2670,6 @@ Static Function fLoadAna( lNoInt )
 	
 	// Antes de processar os dados para o gráfico, verifica se existe conteúdo no grid de produtos
 	if oBrwPro != Nil .and. Len( aColPro ) > 0
-		
-		for nX := 1 to len( aFilData )
-			// QUery para identificação dos diferentes cadastros de clientes equivalentes as filiais do cadastro de empresas
-			cQuery := "SELECT DISTINCT A1.A1_COD FROM "+ RetSqlName( 'SA1' ) +" A1 " + CEOL
-			cQuery += "WHERE A1.A1_CGC IN ( "+ cINCGC +" ) " + CEOL
-			cQuery += "  AND A1.D_E_L_E_T_ = ' ' " + CEOL
-			DBUseArea( .T., 'TOPCONN', TcGenQry(,,cQuery), 'SA1TMP', .F., .T. )
-			while ! SA1TMP->( EOF() )
-				aAdd( aCliLoja, SA1TMP->A1_COD )
-				SA1TMP->( DBSkip() )
-			end
-			SA1TMP->( DBCloseArea() )
-			nAux := 0
-			aEval( aCliLoja, {|x| nAux++, cINCli += "'"+ x +"'" + iif( nAux < len( aCliLoja ), ',', '' ) } )
-		next nX
 
 		aTemp   := StrTokArr( AllTrim( aColPro[ oBrwPro:nAt ][ nPosDes ] ), ' ' )
 		cDesPro := ""
@@ -2710,7 +2695,7 @@ Static Function fLoadAna( lNoInt )
 			cQuery += "  AND D2.D2_TIPO    = 'N' " + CEOL		// Apenas notas de saída do tipo N
 			cQuery += "  AND D2.D2_EMISSAO BETWEEN '"+ DtoS( aPer[nX][01] ) +"' AND '"+ DtoS( aPer[nX][02] ) +"' " + CEOL
 			if ! Empty( cINCli )			// Codigos de clientes referente as filiais do cadastro de empresas
-				cQuery += "  AND D2.D2_CLIENTE NOT IN ( "+ cINCli +" ) " + CEOL
+				cQuery += "  AND CONCAT(D2.D2_CLIENTE,D2.D2_LOJA) NOT IN ( "+ cINCli +" ) " + CEOL
 			endif
 			cQuery += "  AND D2.D_E_L_E_T_ = ' ' " + CEOL
 
@@ -2734,6 +2719,7 @@ Static Function fLoadAna( lNoInt )
 			cQuery += "  AND D3.D3_COD    = '"+ aColPro[ oBrwPro:nAt ][ nPosPrd ] +"' " + CEOL
 			cQuery += "  AND D3.D3_EMISSAO BETWEEN '"+ DtoS( aPer[nX][01] ) +"' AND '"+ DtoS( aPer[nX][02] ) +"' " + CEOL
 			cQuery += "  AND D3.D3_TM     >= '500' " + CEOL
+			cQuery += "  AND D3.D3_OP     <> '"+ Space( TAMSX3('D3_OP')[1] ) +"' " + CEOL
 			cQuery += "  AND D3.D3_ESTORNO = ' ' " + CEOL
 			cQuery += "  AND D3.D_E_L_E_T_ = ' ' " + CEOL
 		

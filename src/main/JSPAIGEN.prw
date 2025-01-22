@@ -562,6 +562,17 @@ user function RuptWF()
 
 return cWF
 
+/*/{Protheus.doc} JSCLISM0
+Retorna vetor com cliente + filial dos cadastros que possuem ligação com filiais da empresa corrente cadastradas no sistema
+@type function
+@version 1.0
+@author Jean Carlos Pandolfo Saggin
+@since 1/22/2025
+@return array, aCliSM0
+/*/
+User Function JSCLISM0()
+return getCliSM0()
+
 /*/{Protheus.doc} JSQRYSAI
 Query para leitura das saidas de produtos que tem relação com venda de produtos do grupo econômico
 @type function
