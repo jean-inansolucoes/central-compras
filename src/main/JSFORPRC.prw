@@ -37,8 +37,9 @@ user function JSFORPRC()
         Return nil
     endif
     
-    cFilter := "SF1->F1_TIPO == 'N' .and. SF1->F1_DTDIGITA >= StoD('"+ DtoS( MV_PAR03 ) +"') .and. SF1->F1_DTDIGITA <= StoD('"+ DtoS( MV_PAR04 ) +"') "  // Apenas dessa faixa de digitação
-    cFilter += ".and. SF1->F1_EMISSAO >= StoD('"+ DtoS( MV_PAR01 ) +"') .and. SF1->F1_EMISSAO <= StoD('"+ DtoS( MV_PAR02 ) +"') "       // Apenas dessa faixa de emissão
+    cFilter := "SF1->F1_EMISSAO >= StoD('"+ DtoS( MV_PAR01 ) +"') .and. SF1->F1_EMISSAO <= StoD('"+ DtoS( MV_PAR02 ) +"') "       // Apenas dessa faixa de emissão
+    cFilter += " .and. SF1->F1_DTDIGITA >= StoD('"+ DtoS( MV_PAR03 ) +"') .and. SF1->F1_DTDIGITA <= StoD('"+ DtoS( MV_PAR04 ) +"') "  // Apenas dessa faixa de digitação
+    cFilter += " .and. SF1->F1_TIPO == 'N' "
     if !Empty( MV_PAR05 )       // Fornecedor
         cFilter += ".and. SF1->F1_FORNECE == '"+ MV_PAR05 +"' "     // Apenas do fornecedor informado
     endif
@@ -53,9 +54,6 @@ user function JSFORPRC()
     aAdd( aRotina, { 'Form. Preço', 'U_JSFPRECO', 0, 2, 0, Nil } )
     aAdd( aRotina, { 'Legenda', 'U_JSFPLEG', 0, 2, 0, Nil } )
 
-    DBSelectArea( 'SF1' )
-    SF1->( DBSetOrder( 1 ) )
-
     if SF1->( FieldPos( 'F1_X_FPRC' ) ) == 0
         Hlp( 'F1_X_FPRC',;
              'Ambiente desatualizado para utilização da rotina de formação de preços.',;
@@ -63,8 +61,10 @@ user function JSFORPRC()
              'Solicite a atualização necessária para a equipe responsável pelo Painel de Compras, execute a atualização e tente novamente em seguida.' )
             return Nil
     endif
-
-    SF1->( DBSetFilter( {|| &cFilter }, cFilter ) )
+    
+    DBSelectArea( 'SF1' )
+    SF1->( DBOrderNickName( 'FORPRC01' ) )      // FILIAL + EMISSAO + DTDIGIT + TIPO + FORNECE + LOJA + _X_FPRC
+    Processa({|| SF1->( DBSetFilter( {|| &cFilter }, cFilter ) ) }, 'Aguarde...', 'Identificando documentos com o filtro especificado...')
 
     mBrowse( 6, 1, 22, 75, cAlias,,,,,,aColors )
 
