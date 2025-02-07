@@ -277,6 +277,7 @@ User Function GMPAICOM()
 	
 	// Filtros de tipos de produtos "padrões" definidos nas configurações
 	_aFilters[2] := PADR(aConfig[21],200,' ')		// pré-definições dos tipos de produtos a serem analisados
+	cLastRun     := AllTrim( SuperGetMv( 'MV_X_PNC12',,"" ) )
 
 	// Botões da EnchoiceBar
 	// aAdd( aButtons, { "BTNWARN"  , {|| fShowEv() }           , "Riscos de Ruptura" } )
@@ -284,7 +285,7 @@ User Function GMPAICOM()
 	// aAdd( aButtons, { "BTNNOTIFY", {|| fShowEv( aColPro[ oBrwPro:nAt][nPosPrd] ) }, "Eventos do Produto" } )
 	aAdd( aButtons, { "BTNEMPEN" , {|| iif( oBrwPro:nAt > 0, fShowEm( aColPro[ oBrwPro:nAt][nPosPrd] ), Nil ) }, "Empenhos do Produto" } )
 	aAdd( aButtons, { "BTNPEDIDO", {|| iif( oBrwPro:nAt > 0, fPedFor(), Nil ) }, "Pedidos em Aberto" } )
-	aAdd( aButtons, { "BTNIMPORT", {|| impData() }           , "Importar Indices dos Produtos" } )
+	aAdd( aButtons, { "BTNIMPORT", {|| cLastRun := impData( cLastRun ) }, "Importar Indices dos Produtos" } )
 	aAdd( aButtons, { "BTNENTR"  , {|| iif( oBrwPro:nAt > 0, entryDocs( aColPro[ oBrwPro:nAt ][nPosPrd] ), Nil ) }, "Entradas" } )
 	aAdd( aButtons, { "BTNSAIDA" , {|| iif( oBrwPro:nAt > 0, outPuts( aColPro[ oBrwPro:nAt ][nPosPrd] ), Nil ) }, "Saídas" } )
 	aAdd( aButtons, { "BTNPAICFG", {|| fManPar(), fLoadCfg() }, "Parâmetros Internos (F12)" } )
@@ -293,10 +294,8 @@ User Function GMPAICOM()
 									Processa( {|| fLoadInf() }, 'Aguarde!','Executando filtro de produtos...' ) }, "Selecionar Filiais" } )
 	aAdd( aButtons, { "BTNFILTRO", {|| _aFilters := prodFilter( _aFilters ),;
 									Processa( {|| fLoadInf() }, 'Aguarde!','Executando filtro de produtos...' ) }, "Filtro" } )
-	// aAdd( aButtons, { "BTNPRINT" , {|| printBrw( oBrwPro ) }, 'Imprimir Análise' } )
 
 	// Valida existência do parâmetro para que o sistema possa alimentar a data e hora da última execução do recálculo dos dados de produtos
-	cLastRun := AllTrim( SuperGetMv( 'MV_X_PNC12',,"" ) )
 	if ! GetMV( 'MV_X_PNC12', .T. /* lCheck */ )
 		Hlp( 'MV_X_PNC12',;
 			 'Parâmetro interno que armazena data da última execução do JOB de recálculo dos índices individuais dos produtos '+;
@@ -3416,7 +3415,7 @@ Static Function fMarkPro()
 			aAdd( aLinCar, Date() + aColPro[oBrwPro:nAt][nPosLdT] )
 			aAdd( aLinCar, RetField( 'SB1', 1, xFilial( 'SB1' ) + aColPro[oBrwPro:nAt][nPosPrd], 'B1_LOCPAD' ) )
 			aAdd( aLinCar, Space( TAMSX3( 'C7_OBS' )[01] ) )
-			aAdd( aLinCar, Space( TAMSX3( 'C7_CC'  )[1] ) /* cCC */ )
+			aAdd( aLinCar, '' /* cCC */ )
 			aAdd( aLinCar, RetField( 'SB1', 1, xFilial( 'SB1' ) + aColPro[oBrwPro:nAt][nPosPrd], 'B1_IPI' ) )
 			aAdd( aLinCar, aColPro[oBrwPro:nAt][nPosFor] )
 			aAdd( aLinCar, aColPro[oBrwPro:nAt][nPosLoj] )
@@ -4251,7 +4250,7 @@ User Function GMINDPRO( aParam )
 	_aFilters[2] := PADR(aConfig[21],200,' ')					// pré-definições dos tipos de produtos a serem analisados
 
 	// Valida se existe o parâmetro configurado no ambiente
-	lMVPNC12 := GetMv( 'MV_X_PNC12', .T. /* lCheck */ )
+	lMVPNC12 := GetMv( 'MV_X_PNC12', .T. /* lCheck */ ) 
 
 	// Monta string referente aos armazens que serão utilizados para somatório dos saldos dos produtos
 	cFormula := AllTrim( SuperGetMv( 'MV_X_PNC01',,"" ) )
@@ -5186,7 +5185,7 @@ Static Function fCarCom( cFor, cLoj )
 	Private oTotal  as object
 	Private cTransp := Space( iif( SC7->( FieldPos( 'C7_X_TRANS' ) ) > 0, TAMSX3( 'C7_X_TRANS' )[1], 6 ) )
 	Private nTotPed := 0 as numeric
-	Private aAlter  := {"QUANT","PRECO","TOTAL","DINICOM","DATPRF","C7_IPI", "C7_CC" }
+	Private aAlter  := {"QUANT","PRECO","TOTAL","DINICOM","DATPRF","C7_IPI"}
 	Private dGetEmi := Date()
 	Private cGetLoj := cLoj
 	Private cGetFor := cFor
@@ -5282,6 +5281,7 @@ Static Function fCarCom( cFor, cLoj )
     
 	nCol := 6
 	nLin := 36
+	@ nLin, nCol SAY oLblFil PROMPT "Filial:"                SIZE 060, 007 OF oDlgCar COLORS 0, 16777215 PIXEL
 	nCol += 120
     @ nLin, nCol SAY oLblEmi PROMPT "Dt. Emissão:"           SIZE 041, 007 OF oDlgCar COLORS 0, 16777215 PIXEL
 	nCol += 60
@@ -7735,11 +7735,13 @@ Função de importação dos dados de produtos via excel
 @version 1.0
 @author Jean Carlos Pandolfo Saggin
 @since 26/06/2024
-@return logical, lSuccess
+@return character, cLastRun
 /*/
-static function impData()
+static function impData( cLast )
+
 	local lSuccess := .T. as logical
 	local cPatch   := "" as character
+	local cLastRun := "" as character
 	
 	// Obtem arquivo com patch completo a partir do smartclient do usuário
 	cPatch := AllTrim( cGetFile( 'Arquivo CSV |*.csv',; 
@@ -7754,6 +7756,11 @@ static function impData()
 		if File( cPatch )
 			MsAguarde( {|| lSuccess := procData( cPatch ) }, 'Aguarde!','Importando índices de produtos...' )
 			if lSuccess
+				if GetMv( 'MV_X_PNC12', .T. /* lCheck */ )
+					cLastRun := GetMv( 'MV_X_PNC12' )
+				else
+					cLastRun := cLast
+				endif
 				Processa( {|| fLoadInf() }, 'Aguarde!','Analisando dados do MRP...' )
 			endif
 		else
@@ -7762,7 +7769,7 @@ static function impData()
 				 'Selecione outro arquivo ou verifique se o caminho informado para o arquivo é válido.' )
 		endif
 	endif
-return lSuccess
+return cLastRun
 
 /*/{Protheus.doc} procData
 Função para processamento do arquivo .csv
@@ -7785,6 +7792,10 @@ static function procData( cFile )
 	local nRead    := 0 as numeric
 	local nPerc    := 0 as numeric
 	local cMessage := "" as character
+	local lMVPNC12 := GetMv( 'MV_X_PNC12', .T. /* lCheck */ )
+	local cDtTime  := "" as character
+	local nFail    := 0 as numeric
+	local nLine    := 0 as numeric
 	
 	Private aFileHdr := {} as array
 
@@ -7800,6 +7811,7 @@ static function procData( cFile )
 		while oFile:hasLine() .and. lSuccess
 			// Obtem as linhas do arquivo
 			cLine := AllTrim(oFile:GetLine())
+			nLine++
 			aAux  := StrTokArr2( cLine, ';' )
 
 			nRead := oFile:getBytesRead()
@@ -7825,20 +7837,28 @@ static function procData( cFile )
 			else
 				// Verifica se o ID do produto está presente no registro do arquivo
 				// Verifica também se o produto da linha do arquivo é um registro apto para uso 
-				if gt( cZB3 +'_PROD' ) > 0 .and. gt( cZB3 +'_DATA' ) > 0 .and. ExistCpo( 'SB1', aAux[gt( cZB3 +'_PROD' )], 1 )
+				if gt( cZB3 +'_PROD' ) > 0 .and. gt( cZB3 +'_DATA' ) > 0 
 					
-					// Tenta localizar registro do produto na data informada para garantir que o registro não vai se repetir
-					lExist := ( cZB3 )->( DBSeek( FWxFilial( cZB3 ) + aAux[gt( cZB3 +'_PROD' )] + DtoS(CtoD(aAux[gt( cZB3 +'_DATA' )])) ) )
+					DBSelectArea( 'SB1' )
+					SB1->( DBSetOrder( 1 ) )
+					if SB1->( DBSeek( FWxFilial( 'SB1' ) + aAux[gt( cZB3 +'_PROD' )] ) )
+						// Tenta localizar registro do produto na data informada para garantir que o registro não vai se repetir
+						lExist := ( cZB3 )->( DBSeek( FWxFilial( cZB3 ) + aAux[gt( cZB3 +'_PROD' )] + DtoS(CtoD(aAux[gt( cZB3 +'_DATA' )])) ) )
 
-					// Se o registro já existe para o produto, atualiza os dados
-					RecLock( cZB3, !lExist )
-						( cZB3 )->( FieldPut( FieldPos( cZB3 +'_FILIAL' ), FWxFilial( cZB3 ) ) )
-						for nField := 1 to len( aFileHdr )
-							if ( cZB3 )->( FieldPos( aFileHdr[nField][1] ) ) > 0
-								( cZB3 )->( FieldPut( FieldPos( aFileHdr[nField][1] ), typeAdapt( aFileHdr[nField][1], aAux[gt( aFileHdr[nField][1] )] ) ) )
-							endif
-						next nField
-					( cZB3 )->( MsUnlock() )
+						// Se o registro já existe para o produto, atualiza os dados
+						RecLock( cZB3, !lExist )
+							( cZB3 )->( FieldPut( FieldPos( cZB3 +'_FILIAL' ), FWxFilial( cZB3 ) ) )
+							for nField := 1 to len( aFileHdr )
+								if ( cZB3 )->( FieldPos( aFileHdr[nField][1] ) ) > 0
+									( cZB3 )->( FieldPut( FieldPos( aFileHdr[nField][1] ), typeAdapt( aFileHdr[nField][1], aAux[gt( aFileHdr[nField][1] )] ) ) )
+								endif
+							next nField
+						( cZB3 )->( MsUnlock() )
+					else
+						nFail++
+						ConOut( 'O produto '+ aAux[gt( cZB3 +'_PROD' )] +' da linha '+ StrZero( nLine, 5 ) +' nao foi localizado' )
+					endif
+					
 				elseif ! gt( cZB3 +'_PROD' ) > 0 .or. ! gt( cZB3 +'_DATA' ) > 0 
 					Hlp( 'CAMPOS CHAVE',;
 						'Os campos de codigo do produto e/ou data não foram informados no arquivo .csv',;
@@ -7849,6 +7869,19 @@ static function procData( cFile )
 			
 		end
 		oFile:Close()
+
+		// Grava data de importação do índice
+		if lMVPNC12
+			cDtTime := FWTimeStamp(2)
+			PutMV( 'MV_X_PNC12', cDtTime )
+		endif
+
+		if nFail > 0
+			Hlp( 'PRODUTOS INEXISTENTES',;
+				cValToChar(nFail) +' produtos da planilha não foram localizados no cadastro e, sendo assim, não chegaram a ser importados',;
+				'Verifique o arquivo console.log do servidor para identificar os códigos que foram ignorados na importação' )
+		endif
+
 	endif
 return lSuccess
 
