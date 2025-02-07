@@ -58,6 +58,8 @@ user function JSDETVER()
     aAdd( aDetVer, { '09','0005','21/01/2025', 'Ajuste na tela de visualização de saídas para evitar falha no cálculo de média quando o produto não contém movimentações no período analisado.' } )
     aAdd( aDetVer, { '10','0001','21/01/2025', 'Adicionado parâmetro nas configurações indicar se a empresa vai considerar o empenho para obter o saldo atual de estoque.' } )
     aAdd( aDetVer, { '11','0001','23/01/2025', 'Implementado novo índice na tabela SF1 para agilizar abertura da tela de formação de preços' } )
+    aAdd( aDetVer, { '11','0002','24/01/2025', 'Realizado ajuste para permitir que usuário informe o centro de custos durante fechamento do carrinho de compra' } )
+    aAdd( aDetVer, { '11','0003','06/02/2025', 'Implementado impressão de relatório do browse de produtos' } )
 return aDetVer
 
 /*/{Protheus.doc} JSFILIAL

@@ -293,6 +293,7 @@ User Function GMPAICOM()
 									Processa( {|| fLoadInf() }, 'Aguarde!','Executando filtro de produtos...' ) }, "Selecionar Filiais" } )
 	aAdd( aButtons, { "BTNFILTRO", {|| _aFilters := prodFilter( _aFilters ),;
 									Processa( {|| fLoadInf() }, 'Aguarde!','Executando filtro de produtos...' ) }, "Filtro" } )
+	// aAdd( aButtons, { "BTNPRINT" , {|| printBrw( oBrwPro ) }, 'Imprimir Análise' } )
 
 	// Valida existência do parâmetro para que o sistema possa alimentar a data e hora da última execução do recálculo dos dados de produtos
 	cLastRun := AllTrim( SuperGetMv( 'MV_X_PNC12',,"" ) )
@@ -3415,7 +3416,7 @@ Static Function fMarkPro()
 			aAdd( aLinCar, Date() + aColPro[oBrwPro:nAt][nPosLdT] )
 			aAdd( aLinCar, RetField( 'SB1', 1, xFilial( 'SB1' ) + aColPro[oBrwPro:nAt][nPosPrd], 'B1_LOCPAD' ) )
 			aAdd( aLinCar, Space( TAMSX3( 'C7_OBS' )[01] ) )
-			aAdd( aLinCar, '' /* cCC */ )
+			aAdd( aLinCar, Space( TAMSX3( 'C7_CC'  )[1] ) /* cCC */ )
 			aAdd( aLinCar, RetField( 'SB1', 1, xFilial( 'SB1' ) + aColPro[oBrwPro:nAt][nPosPrd], 'B1_IPI' ) )
 			aAdd( aLinCar, aColPro[oBrwPro:nAt][nPosFor] )
 			aAdd( aLinCar, aColPro[oBrwPro:nAt][nPosLoj] )
@@ -5185,7 +5186,7 @@ Static Function fCarCom( cFor, cLoj )
 	Private oTotal  as object
 	Private cTransp := Space( iif( SC7->( FieldPos( 'C7_X_TRANS' ) ) > 0, TAMSX3( 'C7_X_TRANS' )[1], 6 ) )
 	Private nTotPed := 0 as numeric
-	Private aAlter  := {"QUANT","PRECO","TOTAL","DINICOM","DATPRF","C7_IPI"}
+	Private aAlter  := {"QUANT","PRECO","TOTAL","DINICOM","DATPRF","C7_IPI", "C7_CC" }
 	Private dGetEmi := Date()
 	Private cGetLoj := cLoj
 	Private cGetFor := cFor
@@ -5281,7 +5282,6 @@ Static Function fCarCom( cFor, cLoj )
     
 	nCol := 6
 	nLin := 36
-	@ nLin, nCol SAY oLblFil PROMPT "Filial:"                SIZE 060, 007 OF oDlgCar COLORS 0, 16777215 PIXEL
 	nCol += 120
     @ nLin, nCol SAY oLblEmi PROMPT "Dt. Emissão:"           SIZE 041, 007 OF oDlgCar COLORS 0, 16777215 PIXEL
 	nCol += 60
