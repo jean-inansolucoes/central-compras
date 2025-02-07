@@ -294,8 +294,10 @@ User Function GMPAICOM()
 									Processa( {|| fLoadInf() }, 'Aguarde!','Executando filtro de produtos...' ) }, "Selecionar Filiais" } )
 	aAdd( aButtons, { "BTNFILTRO", {|| _aFilters := prodFilter( _aFilters ),;
 									Processa( {|| fLoadInf() }, 'Aguarde!','Executando filtro de produtos...' ) }, "Filtro" } )
+	aAdd( aButtons, { "BTNPRINT" , {|| printBrw( oBrwPro ) }, 'Exportar dados de produtos' } )
 
 	// Valida existência do parâmetro para que o sistema possa alimentar a data e hora da última execução do recálculo dos dados de produtos
+	cLastRun := AllTrim( SuperGetMv( 'MV_X_PNC12',,"" ) )
 	if ! GetMV( 'MV_X_PNC12', .T. /* lCheck */ )
 		Hlp( 'MV_X_PNC12',;
 			 'Parâmetro interno que armazena data da última execução do JOB de recálculo dos índices individuais dos produtos '+;
@@ -3415,7 +3417,7 @@ Static Function fMarkPro()
 			aAdd( aLinCar, Date() + aColPro[oBrwPro:nAt][nPosLdT] )
 			aAdd( aLinCar, RetField( 'SB1', 1, xFilial( 'SB1' ) + aColPro[oBrwPro:nAt][nPosPrd], 'B1_LOCPAD' ) )
 			aAdd( aLinCar, Space( TAMSX3( 'C7_OBS' )[01] ) )
-			aAdd( aLinCar, '' /* cCC */ )
+			aAdd( aLinCar, Space( TAMSX3( 'C7_CC'  )[1] ) /* cCC */ )
 			aAdd( aLinCar, RetField( 'SB1', 1, xFilial( 'SB1' ) + aColPro[oBrwPro:nAt][nPosPrd], 'B1_IPI' ) )
 			aAdd( aLinCar, aColPro[oBrwPro:nAt][nPosFor] )
 			aAdd( aLinCar, aColPro[oBrwPro:nAt][nPosLoj] )
@@ -4250,7 +4252,7 @@ User Function GMINDPRO( aParam )
 	_aFilters[2] := PADR(aConfig[21],200,' ')					// pré-definições dos tipos de produtos a serem analisados
 
 	// Valida se existe o parâmetro configurado no ambiente
-	lMVPNC12 := GetMv( 'MV_X_PNC12', .T. /* lCheck */ ) 
+	lMVPNC12 := GetMv( 'MV_X_PNC12', .T. /* lCheck */ )
 
 	// Monta string referente aos armazens que serão utilizados para somatório dos saldos dos produtos
 	cFormula := AllTrim( SuperGetMv( 'MV_X_PNC01',,"" ) )
@@ -5185,7 +5187,7 @@ Static Function fCarCom( cFor, cLoj )
 	Private oTotal  as object
 	Private cTransp := Space( iif( SC7->( FieldPos( 'C7_X_TRANS' ) ) > 0, TAMSX3( 'C7_X_TRANS' )[1], 6 ) )
 	Private nTotPed := 0 as numeric
-	Private aAlter  := {"QUANT","PRECO","TOTAL","DINICOM","DATPRF","C7_IPI"}
+	Private aAlter  := {"QUANT","PRECO","TOTAL","DINICOM","DATPRF","C7_IPI", "C7_CC" }
 	Private dGetEmi := Date()
 	Private cGetLoj := cLoj
 	Private cGetFor := cFor
@@ -7869,7 +7871,7 @@ static function procData( cFile )
 			
 		end
 		oFile:Close()
-
+		
 		// Grava data de importação do índice
 		if lMVPNC12
 			cDtTime := FWTimeStamp(2)
@@ -9373,7 +9375,7 @@ static function makeTot( oBrowse, dDe, dAte, _aFil, cProduto )
 	endif
 	( cTmp )->( DBCloseArea() )
 
-	IncProc( 'Calculando índices...' )
+	IncProc( 'Calculando índices...' ) 
 	nIndGiro := ( nDocPrd / nDocTot ) * 100
 	
 	if nIndGiro >= aConfig[10]
@@ -9411,6 +9413,124 @@ static function makeTot( oBrowse, dDe, dAte, _aFil, cProduto )
 	oIndGiro:CtrlRefresh()
 	oClassif:CtrlRefresh()
 	oQtdSai:CtrlRefresh()
+
+	restArea( aArea )
+return Nil
+
+/*/{Protheus.doc} printBrw
+Função para gerar processo de extração dos dados de análise dos produtos
+@type function
+@version 1.0
+@author Jean Carlos Pandolfo Saggin
+@since 2/6/2025
+@param oBrowse, object, objeto do browse
+/*/
+static function printBrw( oBrowse )
+	
+	local aArea := getArea()
+	local oReport as object
+
+	oReport := repPrdDef()
+	oReport:PrintDialog()																																																																								
+
+	restArea( aArea )
+return Nil
+
+/*/{Protheus.doc} repPrdDef
+Função que gera o modelo do relatório no formato TReport
+@type function
+@version 1.0
+@author Jean Carlos Pandolfo Saggin
+@since 2/7/2025
+@return object, oReport
+/*/
+static function repPrdDef()
+	
+	local oReport  as object
+	local bReport  := {|oReport| repPrtProd( oReport ) }
+	local oSection as object
+	local oColumns := oBrwPro:GetColumns()
+	local nCol     := 0 as numeric
+
+	oReport := TReport():New( "GMPAICOM",;
+							  "Análise de Produtos para Compra",;
+							  Nil,;
+							  bReport,;
+							  Nil )
+	oReport:SetTotalInLine( .F. )
+	oReport:lParamPage := .F.
+	oReport:oPage:SetPaperSize( 9 )			// Default tamanho A4
+	oReport:cFontBody := 'Courier New'
+	oReport:nFontBody := 6
+	oReport:nLineHeight := 30
+	oReport:SetLandscape()					// Formato default paisagem
+
+	oSection := TRSection():New( oReport,;
+								 "Produtos Analisados",;
+								 { "QRY_AUX" } )
+	
+	oSection:SetTotalInLine( .F. )
+	oSection:SetHeaderSection( .T. )		// Imprime cabecalho da seção
+
+	// Algoritmo para identificar colunas ativas do browse e criar as TRCell dinamicamente
+	if ValType( oColumns ) == 'A'
+		for nCol := 1 to len( oColumns )
+			if ! Empty( oColumns[nCol]:GetID() ) .and. !oColumns[nCol]:Deleted()
+				TRCell():New( oSection /* oSection */,; 
+							oColumns[nCol]:GetID() /* cFieldID */,; 
+							"QRY_AUX" /* cMainAlias */,;
+							oColumns[nCol]:GetTitle() /* cTitle */,;
+							oColumns[nCol]:GetPicture() /* cPicture */,;
+							oColumns[nCol]:GetSize() /* nSize */,;
+							.T. /* lPixels */,;
+							&('{|| '+ oColumns[nCol]:ReadVar() +'}') /* bPrinterCodeBlock */,;
+							iif( oColumns[nCol]:GetAlign() == 0, "CENTER", iif( oColumns[nCol]:GetAlign() == 1, "LEFT", "RIGHT" ) ) /* cAlign */,;
+							Nil /* cHeaderAlign */,;
+							Nil /* lCellBreak */,;
+							Nil /* nColSpace */,;
+							Nil /* lAutoSize */,;
+							Nil /* nClrBack */,;
+							Nil /* nClrFore */,;
+							Nil /* lBold */ )
+			endif
+		next nCol
+	endif
+	
+return oReport
+
+/*/{Protheus.doc} repPrtProd
+Função para imprimir o relatório utilizando o modelo criado anteriormente
+@type function
+@version 1.0
+@author Jean Carlos Pandolfo Saggin
+@since 2/7/2025
+@param oReport, object, Model do relatório
+/*/
+static function repPrtProd( oReport )
+	
+	local aArea    := getArea()
+	local oSection := oReport:Section(1)
+	local nLine    := 0 as numeric
+	local nLineOld := oBrwPro:At()
+
+	oReport:SetMeter( len( aColPro ) )	
+	if len( aColPro ) > 0
+
+		oSection:Init()
+		for nLine := 1 to len( aColPro )
+			
+			oBrwPro:GoTo( nLine )
+
+			oReport:SetMsgPrint( 'Imprimindo registro '+ cValToChar( nLine )  +' de '+ cValToChar( len( aColPro ) ) )
+			oReport:IncMeter()
+			oSection:PrintLine()
+
+		next nLine
+
+		oBrwPro:GoTo( nLineOld )
+		oSection:Finish()
+
+	endif
 
 	restArea( aArea )
 return Nil
