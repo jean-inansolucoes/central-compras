@@ -6,6 +6,7 @@
 #include 'tbicode.ch'
 #include 'style.ch'
 #include 'matr110.ch'							// Include padrão do relatório de pedido de compra
+#include 'fwmvcdef.ch'
 
 #define CEOL CHR( 13 ) + CHR( 10 )				// ENTER
 #define NESP 2									// ESPAÇO EM MM ENTRE OS OBJETOS NA TELA
@@ -285,7 +286,6 @@ User Function GMPAICOM()
 	// aAdd( aButtons, { "BTNNOTIFY", {|| fShowEv( aColPro[ oBrwPro:nAt][nPosPrd] ) }, "Eventos do Produto" } )
 	aAdd( aButtons, { "BTNEMPEN" , {|| iif( oBrwPro:nAt > 0, fShowEm( aColPro[ oBrwPro:nAt][nPosPrd] ), Nil ) }, "Empenhos do Produto" } )
 	aAdd( aButtons, { "BTNPEDIDO", {|| iif( oBrwPro:nAt > 0, fPedFor(), Nil ) }, "Pedidos em Aberto" } )
-	aAdd( aButtons, { "BTNIMPORT", {|| cLastRun := impData( cLastRun ) }, "Importar Indices dos Produtos" } )
 	aAdd( aButtons, { "BTNENTR"  , {|| iif( oBrwPro:nAt > 0, entryDocs( aColPro[ oBrwPro:nAt ][nPosPrd] ), Nil ) }, "Entradas" } )
 	aAdd( aButtons, { "BTNSAIDA" , {|| iif( oBrwPro:nAt > 0, outPuts( aColPro[ oBrwPro:nAt ][nPosPrd] ), Nil ) }, "Saídas" } )
 	aAdd( aButtons, { "BTNPAICFG", {|| fManPar(), fLoadCfg() }, "Parâmetros Internos (F12)" } )
@@ -295,6 +295,9 @@ User Function GMPAICOM()
 	aAdd( aButtons, { "BTNFILTRO", {|| _aFilters := prodFilter( _aFilters ),;
 									Processa( {|| fLoadInf() }, 'Aguarde!','Executando filtro de produtos...' ) }, "Filtro" } )
 	aAdd( aButtons, { "BTNPRINT" , {|| printBrw( oBrwPro ) }, 'Exportar dados de produtos' } )
+	aAdd( aButtons, { "BTNIMPORT", {|| cLastRun := impData( cLastRun ) }, "Importar Indices dos Produtos" } )
+	aAdd( aButtons, { "BTNPROD"  , {|| manutProd( aColPro[oBrwPro:nAt][nPosPrd] ) }, 'Manutenção do Produto' } )
+	aAdd( aButtons, { "BTNPRMRP" , {|| mrpRemove( aColPro[oBrwPro:nAt][nPosPrd] ) }, 'Remover do MRP' } )
 
 	// Valida existência do parâmetro para que o sistema possa alimentar a data e hora da última execução do recálculo dos dados de produtos
 	cLastRun := AllTrim( SuperGetMv( 'MV_X_PNC12',,"" ) )
@@ -9534,3 +9537,64 @@ static function repPrtProd( oReport )
 
 	restArea( aArea )
 return Nil
+
+/*/{Protheus.doc} manutProd
+Função de chamada da rotina de manutenção de produtos usando modelo MVC
+@type function
+@version 1.0
+@author Jean Carlos Pandolfo Saggin
+@since 2/7/2025
+@param cProduto, character, ID do produto
+/*/
+static function manutProd( cProduto )
+	
+	local cFunOld := FunName()
+
+	DBSelectArea( 'SB1' )
+	SB1->( DBSetOrder( 1 ) )
+	if SB1->( DBSeek( FWxFilial( 'SB1' ) + cProduto ) )
+		SetFunName( 'MATA010' )
+		If FWExecView( 'Manutenção do Produto', 'MATA010', MODEL_OPERATION_UPDATE ) == 0
+			Processa( {|| fLoadInf() }, 'Aguarde!','Executando filtro de produtos...' )			
+		endif
+		SetFunName( cFunOld )
+	endif
+return Nil
+
+/*/{Protheus.doc} mrpRemove
+Função para remover o produto do MRP
+@type function
+@version 1.0
+@author Jean Carlos Pandolfo Saggin
+@since 2/8/2025
+@param cProduto, character, ID do produto
+@return logical, lSuccess
+/*/
+static function mrpRemove( cProduto )
+	local cFunOld := FunName()
+	local aFields := {} as array
+	local lSuccess := .F. as logical
+	
+	DBSelectArea( 'SB1' )
+	SB1->( DBSetOrder( 1 ) )
+	if SB1->( DBSeek( FWxFilial( 'SB1' ) + cProduto ) )
+
+		// Verifica se realmente quer remover o produto dos cálculos do MRP
+		if MsgYesNo( 'Está certo(a) de que quer remover este produto dos cálculos do MRP? Se possuir Ordens de Produção '+;
+					'que utilizem este produto como matéria-prima, os empenhos não serão gerados!', 'A T E N Ç Ã O !' )
+
+			SetFunName( 'MATA010' )
+			aAdd( aFields, { "B1_FILIAL", FWxFilial( "SB1" ), Nil } )
+			aAdd( aFields, { "B1_COD", cProduto, Nil } )
+			aAdd( aFields, { "B1_MRP", 'N' } )
+			If FWMVCRotAuto( FWLoadModel( 'MATA010' ), "SB1", MODEL_OPERATION_UPDATE, {{"SB1MASTER", aFields}} ,,.T.)
+				lSuccess := .T.
+				Processa( {|| fLoadInf() }, 'Aguarde!','Executando filtro de produtos...' )			
+			endif
+			SetFunName( cFunOld )
+
+		endif
+	endif
+
+	SetFunName( cFunOld )
+return lSuccess

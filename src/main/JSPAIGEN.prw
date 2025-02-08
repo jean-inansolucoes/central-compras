@@ -60,6 +60,7 @@ user function JSDETVER()
     aAdd( aDetVer, { '11','0001','23/01/2025', 'Implementado novo índice na tabela SF1 para agilizar abertura da tela de formação de preços' } )
     aAdd( aDetVer, { '11','0002','24/01/2025', 'Realizado ajuste para permitir que usuário informe o centro de custos durante fechamento do carrinho de compra' } )
     aAdd( aDetVer, { '11','0003','06/02/2025', 'Implementado impressão de relatório do browse de produtos' } )
+    aAdd( aDetVer, { '11','0003','08/02/2025', 'Incluído botão para desconsiderar produto do MRP' } )
 return aDetVer
 
 /*/{Protheus.doc} JSFILIAL
