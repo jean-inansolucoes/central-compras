@@ -151,6 +151,13 @@ User Function GMPAICOM()
 	Private cUserId   	:= RetCodUsr()
 	Private lLGPD		:= FindFunction("SuprLGPD") .And. SuprLGPD()								 
 	Private aStru	    := FWFormStruct(3,"SC7")[1]
+	Private lSupabase   := .F. as logical
+
+	// Atualiza variável que indica se a conexão com supabase está ativa
+	lSupabase := U_JSGLBPAR( .T. /* lCheck */ )
+	if ! lSupabase
+		Return Nil
+	endif
 
 	// Valida existência do parâmetro de definição de alias da tabela de notificações
 	if ! GetMv( 'MV_X_PNC02', .T. ) .or. Empty( cZB3 )
@@ -282,8 +289,8 @@ User Function GMPAICOM()
 
 	// Botões da EnchoiceBar
 	// aAdd( aButtons, { "BTNWARN"  , {|| fShowEv() }           , "Riscos de Ruptura" } )
-	aAdd( aButtons, { "BMPMANUT" , {|| doFormul( cFormula ) }, "Formula de Cálculo" } )
 	// aAdd( aButtons, { "BTNNOTIFY", {|| fShowEv( aColPro[ oBrwPro:nAt][nPosPrd] ) }, "Eventos do Produto" } )
+	aAdd( aButtons, { "BMPMANUT" , {|| doFormul( cFormula ) }, "Formula de Cálculo" } )
 	aAdd( aButtons, { "BTNEMPEN" , {|| iif( oBrwPro:nAt > 0, fShowEm( aColPro[ oBrwPro:nAt][nPosPrd] ), Nil ) }, "Empenhos do Produto" } )
 	aAdd( aButtons, { "BTNPEDIDO", {|| iif( oBrwPro:nAt > 0, fPedFor(), Nil ) }, "Pedidos em Aberto" } )
 	aAdd( aButtons, { "BTNENTR"  , {|| iif( oBrwPro:nAt > 0, entryDocs( aColPro[ oBrwPro:nAt ][nPosPrd] ), Nil ) }, "Entradas" } )
@@ -295,6 +302,7 @@ User Function GMPAICOM()
 	aAdd( aButtons, { "BTNFILTRO", {|| _aFilters := prodFilter( _aFilters ),;
 									Processa( {|| fLoadInf() }, 'Aguarde!','Executando filtro de produtos...' ) }, "Filtro" } )
 	aAdd( aButtons, { "BTNPRINT" , {|| printBrw( oBrwPro ) }, 'Exportar dados de produtos' } )
+	aAdd( aButtons, { "BTNPRDFOR", {|| impPrdFor() }, 'Importar Vínculo Produto x Fornecedor' } )
 	aAdd( aButtons, { "BTNIMPORT", {|| cLastRun := impData( cLastRun ) }, "Importar Indices dos Produtos" } )
 	aAdd( aButtons, { "BTNPROD"  , {|| manutProd( aColPro[oBrwPro:nAt][nPosPrd] ) }, 'Manutenção do Produto' } )
 	aAdd( aButtons, { "BTNPRMRP" , {|| mrpRemove( aColPro[oBrwPro:nAt][nPosPrd] ) }, 'Remover do MRP' } )
@@ -369,7 +377,6 @@ User Function GMPAICOM()
 	oBrwPro:SetDataArray()
 	oBrwPro:SetArray( aColPro )
 	oBrwPro:DisableReport()
-	oBrwPro:DisableConfig()
 	oBrwPro:AddLegend( "aColPro[oBrwPro:nAt]["+ cValToChar( nPosInc ) +"] >= "+ cValToChar( aConfig[10] ), LG_CRITICO, "Itens Criticos" )
 	oBrwPro:AddLegend( "aColPro[oBrwPro:nAt]["+ cValToChar( nPosInc ) +"] < "+ cValToChar( aConfig[10] ) +" .and. "+;
 					   "aColPro[oBrwPro:nAt]["+ cValToChar( nPosInc ) +"] >= "+ cValToChar( aConfig[11] ), LG_ALTO, "Alto Giro" )
@@ -382,7 +389,6 @@ User Function GMPAICOM()
 	oBrwPro:SetColumns( aHeaPro )
 	oBrwPro:GetColumn(nPosFor+2):xF3 := "SA2"
 	oBrwPro:SetEditCell( .T., {|| U_PCOMVLD() } )
-	oBrwPro:SetLineHeight( 20 )
 	oBrwPro:SetPreEditCell( {|oBrw,oCol,cPre| U_PCOMPRE(oBrw, oCol, cPre) } )
 	oBrwPro:SetChange( {|| Processa( {|| iif( ValType( oDash ) == 'O', fLoadAna(), Nil ) }, 'Aguarde!', 'Analisando sazonalidade do produto...' ) } )
 	oBrwPro:Activate()
@@ -2400,8 +2406,11 @@ Static Function fPedFor( nOpc )
 	Local oBtnLeg   := Nil
 	local oBtnImp   as object
 	local oBtnMail  as object
+	Local oBtnExc   as object
 	local nPosBtn   := 0 as numeric
 	local lEnvPed   := AllTrim(SuperGetMv( "MV_ENVPED",, '0')) $ '1|2'
+	local bExcluir  := {|| iif( Len(oGrid:aCols) > 0, orderDel( oGrid:aCols[oGrid:nAt][ColPos(oGrid,'C7_FILIAL')],;
+							oGrid:aCols[oGrid:nAt][ColPos(oGrid,'NUMERO')] ), Nil) }
 	
 	Private aColsEx := {}
 	Private oGrid   := Nil
@@ -2447,14 +2456,19 @@ Static Function fPedFor( nOpc )
     @ 002, 043 MSGET oGetPrd VAR cGetPrd SIZE 059, 012 OF oDlgPed WHEN .F. COLORS 0, 16777215 PIXEL
     @ 002, 104 MSGET oGetDes VAR cGetDes SIZE 214, 012 OF oDlgPed WHEN .F. COLORS 0, 16777215 PIXEL
     
-	nPosBtn := iif( lEnvPed, 334, 375 )
+	nPosBtn := iif( lEnvPed, 295, 336 )
     @ 136, nPosBtn BUTTON oBtnLeg  PROMPT "&Legenda"  SIZE 037, 012 OF oDlgPed ACTION fLegenda() PIXEL
 	nPosBtn+= 39
 	if lEnvPed
 		@ 136, nPosBtn BUTTON oBtnMail PROMPT "&Enviar E-mail" SIZE 045, 012 OF oDlgPed ACTION sndMail( oGrid:aCols[oGrid:nAt][ColPos(oGrid,'NUMERO')] ) PIXEL
 		nPosBtn += 47
 	endif
-	@ 136, nPosBtn BUTTON oBtnImp  PROMPT "&Imprimir" SIZE 037, 012 OF oDlgPed ACTION iif( Len(oGrid:aCols) > 0, GMPCPRINT( oGrid:aCols[oGrid:nAt][ColPos(oGrid,'NUMERO')] ), Nil) PIXEL
+	@ 136, nPosBtn BUTTON oBtnImp  PROMPT "&Imprimir" SIZE 037, 012 OF oDlgPed ACTION iif( Len(oGrid:aCols) > 0, GMPCPRINT( oGrid:aCols[oGrid:nAt][ColPos(oGrid,'C7_FILIAL')],;
+																															oGrid:aCols[oGrid:nAt][ColPos(oGrid,'NUMERO')] ), Nil) PIXEL
+	nPosBtn += 39
+	@ 136, nPosBtn BUTTON oBtnExc  PROMPT "&Excluir"  SIZE 037, 012 OF oDlgPed ACTION Eval( bExcluir ) PIXEL
+	oBtnExc:bWhen := {|| Len(oGrid:aCols) > 0 }
+
 	nPosBtn += 39
     @ 136, nPosBtn BUTTON oBtnFec  PROMPT "&Fechar"   SIZE 037, 012 OF oDlgPed ACTION oDlgPed:End() PIXEL
     
@@ -2462,6 +2476,68 @@ Static Function fPedFor( nOpc )
 	Processa( {|| fPedPen( .F./*lNoInt*/, nOpc, aColPro[ oBrwPro:nAt ][ nPosPrd ] /*cProd*/ ) }, 'Aguarde!','Buscando pedidos não atendidos!' )
 	
 Return ( Nil )
+
+/*/{Protheus.doc} orderDel
+FUnção para eliminação completa do pedido de compra
+@type function
+@version 1.0
+@author Jean Carlos Pandolfo Saggin
+@since 2/18/2025
+@param cFil, character, Filial do pedido
+@param cPedido, character, ID do pedido
+@return logical, lSuccess
+/*/
+static function orderDel( cFil, cPedido )
+	
+	local lSuccess := .F. as logical
+	local aCab     := {} as array
+	local aItens   := {} as array
+	local aLine    := {} as array
+
+	Private lMsErroAuto := .F. as logical
+
+	DBSelectArea( 'SC7' )
+	SC7->( DBSetOrder( 1 ) )
+	if SC7->( DBSeek( cFil + cPedido ) )
+		
+		aAdd( aCab, { "C7_FILIAL", SC7->C7_FILIAL, Nil } )
+		aAdd( aCab, { "C7_NUM", SC7->C7_NUM, Nil } )
+		aAdd( aCab, { "C7_EMISSAO", SC7->C7_EMISSAO, Nil } )
+		aAdd( aCab, { "C7_FORNECE", SC7->C7_FORNECE, Nil } )
+		aAdd( aCab, { "C7_LOJA", SC7->C7_LOJA, Nil } )
+		aAdd( aCab, { "C7_COND", SC7->C7_COND, Nil } )
+		aAdd( aCab, { "C7_CONTATO", SC7->C7_CONTATO, Nil } )
+		aAdd( aCab, { "C7_FILENT", SC7->C7_FILENT, Nil } )
+
+		While ! SC7->( EOF() ) .and. SC7->C7_FILIAL + SC7->C7_NUM == cFil + cPedido
+			
+			aAdd( aLine, { "C7_ITEM", SC7->C7_ITEM, Nil } )
+			aAdd( aLine, { "C7_PRODUTO", SC7->C7_PRODUTO, Nil } )
+			aAdd( aLine, { "C7_QUANT", SC7->C7_QUANT, Nil } )
+			aAdd( aLine, { "C7_PRECO", SC7->C7_PRECO, Nil } )
+			aAdd( aLine, { "C7_REC_WT", SC7->(Recno()), Nil } )
+			aAdd( aItens, aCLone( aLine ) )
+			aLine := {}
+
+			SC7->( DBSkip() )
+		end
+
+		if len( aCab ) > 0 .and. len( aItens ) > 0
+			lMsErroAuto := .F.
+			MSExecAuto({|a,b,c,d,e| MATA120(a,b,c,d,e)},1,aCab,aItens,5,.F.)
+			if lMsErroAuto
+				lSuccess := .F.
+				MostraErro()
+			else
+				MsgInfo( "Pedido "+ cPedido +" excluído com sucesso!", 'S U C E S S O !' )
+				Processa( {|| fPedPen( .F./*lNoInt*/, 2, aColPro[ oBrwPro:nAt ][ nPosPrd ] /*cProd*/ ) }, 'Aguarde!','Buscando pedidos não atendidos!' )
+			endif
+		endif
+
+	endif
+
+return lSuccess
+
 
 /*/{Protheus.doc} sndMail
 Função que envia e-mail para o fornecedor
@@ -2533,6 +2609,8 @@ Static Function fPedPen( lNoInt, nOpc, cProd )
 	Default lNoInt := .F.
 	Default nOpc   := 2		// Exibe os pedidos pendentes para o produto
 	
+	aColsEx := {}
+
 	cQuery += "SELECT C7.C7_FILIAL, C7.C7_NUM NUMERO, C7_ITEM, C7_CONAPRO, SUM( C7.C7_QUANT ) C7_QUANT, SUM(C7.C7_QUANT - C7.C7_QUJE) SALDO, C7.C7_PRECO, SUM( C7.C7_TOTAL ) C7_TOTAL, " + CEOL
 	cQuery += "       C7.C7_DATPRF, C7.C7_EMISSAO, C7.C7_FORNECE, C7.C7_LOJA, A2.A2_NOME " + CEOL
 	cQuery += "FROM "+ RetSqlName( 'SC7' ) +" C7 " + CEOL
@@ -2567,7 +2645,6 @@ Static Function fPedPen( lNoInt, nOpc, cProd )
 	PEDTMP->( DbGoTop() )
 	
 	If !PEDTMP->( EOF() )
-		aColsEx := {}
 		While !PEDTMP->( EOF() )
 			
 			aAdd( aColsEx, { iif( PEDTMP->C7_CONAPRO == 'B', "BR_AZUL", "BR_VERDE" ),;
@@ -2779,8 +2856,11 @@ Static Function fLoadInf()
 	
 	_aProdFil := {} 
 	aMrkFor   := {} 
-	DbSelectArea( 'FORTMP' )
-	ZAP
+
+	if !IsInCallStack( "A2LTMCHG" )
+		DbSelectArea( 'FORTMP' )
+		ZAP
+	endif
 	
 	aColPro  := {}
 	aFullPro := {}
@@ -2824,6 +2904,8 @@ Static Function fLoadInf()
 				
 				DbSelectArea( 'SB1' )
 				DBSelectArea( 'FORTMP' )
+				DBSelectArea( 'SA2' )
+				SA2->( DBSetOrder( 1 ) )
 				FORTMP->( DBSetOrder( 2 ) )		// COD + LOJA
 
 				While !PRDTMP->( EOF() )
@@ -2838,44 +2920,53 @@ Static Function fLoadInf()
 					cFornece := PADR( aAux[1], TAMSX3('A2_COD')[1], ' ')		// Codigo do fornecedor
 					cLoja    := PADR( aAux[2], TAMSX3('A2_LOJA')[1], ' ' )		// Codigo da loja
 
-					if ! FORTMP->( DBSeek( cFornece + cLoja ) )
+					// Quando alteração for chamada pela validação do LDTime do fornecedor, não tem necessidade de atualizar dados dos fornecedores
+					if ! isInCallStack( "A2LTMCHG" )
+						if ! FORTMP->( DBSeek( cFornece + cLoja ) )
 
-						RecLock( 'FORTMP', .T. )
-						FORTMP->MARK        := cMarca
-						FORTMP->A2_COD      := cFornece
-						FORTMP->A2_LOJA     := cLoja
-						FORTMP->LEADTIME    := calcLt( Nil, cFornece, cLoja )
+							RecLock( 'FORTMP', .T. )
+							FORTMP->MARK        := cMarca
+							FORTMP->A2_COD      := cFornece
+							FORTMP->A2_LOJA     := cLoja
+							FORTMP->LEADTIME    := calcLt( Nil, cFornece, cLoja )
 
-						DBSelectArea( 'SA2' )
-						SA2->( DBSetOrder( 1 ) )
-						if SA2->( DBSeek( FWxFilial( 'SA2' ) + cFornece + cLoja ) )
-							FORTMP->A2_NOME     := SA2->A2_NOME
-							FORTMP->A2_NREDUZ   := SA2->A2_NREDUZ
-							FORTMP->A2_EMAIL    := SA2->A2_EMAIL
-							FORTMP->A2_X_LTIME  := SA2->A2_X_LTIME
-						else
-							FORTMP->A2_NOME     := "SEM FORNECEDOR"
-							FORTMP->A2_NREDUZ   := "SEM FORNECEDOR"
-							FORTMP->A2_EMAIL    := " "
-							FORTMP->A2_X_LTIME  := 0
+							DBSelectArea( 'SA2' )
+							SA2->( DBSetOrder( 1 ) )
+							if SA2->( DBSeek( FWxFilial( 'SA2' ) + cFornece + cLoja ) )
+								FORTMP->A2_NOME     := SA2->A2_NOME
+								FORTMP->A2_NREDUZ   := SA2->A2_NREDUZ
+								FORTMP->A2_EMAIL    := SA2->A2_EMAIL
+								FORTMP->A2_X_LTIME  := SA2->A2_X_LTIME
+							else
+								FORTMP->A2_NOME     := "SEM FORNECEDOR"
+								FORTMP->A2_NREDUZ   := "SEM FORNECEDOR"
+								FORTMP->A2_EMAIL    := " "
+								FORTMP->A2_X_LTIME  := 0
+							endif
+							FORTMP->PEDIDO := iif( aScan( aCarCom, {|x| x[13]+x[14] == FORTMP->A2_COD + FORTMP->A2_LOJA } ) > 0, 'S', 'N' )									
+							FORTMP->( MsUnlock() )
+							
+							aAdd( aMrkFor, FORTMP->A2_COD + FORTMP->A2_LOJA )
+
 						endif
-						FORTMP->PEDIDO := iif( aScan( aCarCom, {|x| x[13]+x[14] == FORTMP->A2_COD + FORTMP->A2_LOJA } ) > 0, 'S', 'N' )									
-						FORTMP->( MsUnlock() )
-						
-						aAdd( aMrkFor, FORTMP->A2_COD + FORTMP->A2_LOJA )
-
 					endif
 
 					// Identifica lead-time conforme regra definida para produto, fornecedor (informado) ou fornecedor (calculado)
+
 					if PRDTMP->B1_PE > 0
 						nLeadTime := PRDTMP->B1_PE
 						cLeadTime := 'P'		// Produto
-					elseif PRDTMP->A2_X_LTIME > 0
-						nLeadTime := PRDTMP->A2_X_LTIME
-						cLeadTime := 'F'		// Fornecedor Padrao
 					else
-						nLeadTime := calcLt( PRDTMP->B1_COD, cFornece, cLoja )
-						cLeadTime := 'C'		// Calculado
+						// Posiciona no fornecedor e loja
+						if SA2->( DBSeek( FWxFilial( 'SA2' ) + cFornece + cLoja ) )
+							if SA2->A2_X_LTIME > 0
+								nLeadTime := SA2->A2_X_LTIME
+								cLeadTime := 'F'		// Fornecedor
+							else
+								nLeadTime := calcLt( PRDTMP->B1_COD, cFornece, cLoja )
+								cLeadTime := 'C'		// Calculado					
+							endif
+						endif
 					endif 
 
 					// Cálculo da duração do estoque com os pedidos de compra aprovados
@@ -3020,9 +3111,12 @@ Static Function fLoadInf()
 	aFullPro := aClone( aColPro )
 	oBrwPro:SetArray(aColPro)
 	oBrwPro:UpdateBrowse()
-
-	oBrwFor:Refresh(.T. /* lGoTop */)
-	oBrwFor:UpdateBrowse()
+	
+	// Apenas atualiza o browse de fornecedores quando a alteração não partir dele mesmo
+	if !isInCallStack( 'A2LTMCHG' )
+		oBrwFor:Refresh(.T. /* lGoTop */)
+		oBrwFor:UpdateBrowse()
+	endif
 
 	fLoadAna()
 	
@@ -4034,7 +4128,7 @@ Static Function fLoadCfg( lAuto )
 	
 	DbSelectArea( cAliCfg )
 	( cAliCfg )->( DbSetOrder( 1 ) )
-	If ( cAliCfg )->( DbSeek( xFilial( cAliCfg ) + cEmpAnt + cFilAnt ) )
+	If ( cAliCfg )->( DbSeek( FWxFilial( cAliCfg ) ) )
 		
 		aAdd( aConfig, &( cPref + 'PRJEST' ) )		// [01] - Projeção padrão de estoque em dias
 		aAdd( aConfig, &( cPref + 'ITECRI' ) )		// [02] - Classificação de giro: Traz Itens críticos pré-selecionado?
@@ -5521,7 +5615,7 @@ Static Function fGrvPed( oCbo, aCbo, cCbo, cFornece, cLoja )
 				next nX
 
 				if MsgYesNo( 'Pedido de compra número <b>'+ SC7->C7_NUM +'</b> gerado com SUCESSO para a filial '+ cFilAnt +'! Deseja realizar a impressão do pedido?','S U C E S S O ! Pedido Nro. '+ SC7->C7_NUM +'' )
-					GMPCPrint( SC7->C7_NUM )
+					GMPCPrint( SC7->C7_FILIAL, SC7->C7_NUM )
 				endif
 
 				if AllTrim(SuperGetMv( "MV_ENVPED",, '0')) $ '1|2' .and.; 
@@ -5560,7 +5654,7 @@ Função para geração automática do pedido de compra diretamente pela tela do pain
 @since 6/6/2022
 @param cPC, character, Número do pedido de compra
 /*/
-Static Function GMPCPRINT( cPC )
+Static Function GMPCPRINT( cFil, cPC )
 	
 	local aArea    := getArea()
 	Local oRep     := Nil
@@ -5576,7 +5670,7 @@ Static Function GMPCPRINT( cPC )
 		// Tenta posicionar no pedido recebido por parâmetro na tabela SC7, se não conseguir, cai fora da função
 		DBSelectArea( 'SC7' )
 		SC7->( DBSetOrder( 1 ) )		// C7_FILIAL + C7_NUM + C7_ITEM
-		if ! SC7->( DBSeek( FWxFilial( "SC7" ) + cPC ) )
+		if ! SC7->( DBSeek( cFil + cPC ) )
 			restArea( aArea )
 			MsgStop( 'Número do pedido de compra <b>'+ cPC +'</b> não foi recebido corretamente na função de impressão!','F A L H A' )
 			return Nil
@@ -7515,7 +7609,6 @@ FUnção de validação da alteração do campo do Lead-Time do Fornecedor
 /*/
 static function A2LTMCHG()
 	
-	local aArea := getArea()
 	local lRet := .T. as logical
 
 	if FORTMP->A2_X_LTIME < 0
@@ -7527,11 +7620,11 @@ static function A2LTMCHG()
 			RecLock( 'SA2', .F. )
 			SA2->A2_X_LTIME := FORTMP->A2_X_LTIME
 			SA2->( MsUnlock() )
-			Processa( {|| fLoadInf() }, 'Aguarde!','Analisando dados do MRP...' )
+
+			Processa( {|| fLoadInf() }, 'Aguarde!','Executando filtro de produtos...' )
 		endif
 	endif
 
-	restArea( aArea )
 return lRet
 
 /*/{Protheus.doc} getFullName
@@ -7734,6 +7827,45 @@ static function doFilter( cText, cField )
 
 return cFilter
 
+/*/{Protheus.doc} impPrdFor
+Função para importar vínculo de produto versus fornecedor no Protheus
+@type function
+@version 1.0
+@author Jean Carlos Pandolfo Saggin
+@since 2/13/2025
+@return logical, lSuccess
+/*/
+static function impPrdFor()
+	
+	local lSuccess := .T. as logical
+	local cPath    := "" as character
+
+	// Obtem arquivo com patch completo a partir do smartclient do usuário
+	cPatch := AllTrim( cGetFile( 'Arquivo CSV |*.csv',; 
+								 'Selecione o arquivo CSV que gostariade importar...',;
+								 0 /* nMascPad */,;
+								 "" /* cInitDir */,;
+								 .T. /* lOpen */,;
+								 GETF_LOCALHARD,;
+								 .F. /* lServerTree */,;
+								 .T. /* lKeepCase */ ) )
+	
+	// Se retornar vazio, é porque usuário cancelou o processo antes de selecionar a pasta
+	if ! Empty( cPatch )
+		if File( cPatch )
+			MsAguarde( {|| lSuccess := procPrdFor( cPatch ) }, 'Aguarde!','Importando vínculo de produto e fornecedor...' )
+			if lSuccess
+				MsgInfo( 'Arquivo '+ cPath +' importado com sucesso!', 'S U C E S S O !' )
+			endif
+		else
+			Hlp( 'ARQUIVO INVALIDO',;
+				 'Caminho ou nome do arquivo é inválido!',;
+				 'Selecione outro arquivo ou verifique se o caminho informado para o arquivo é válido.' )
+		endif
+	endif
+
+return lSuccess
+
 /*/{Protheus.doc} impData
 Função de importação dos dados de produtos via excel
 @type function
@@ -7775,6 +7907,183 @@ static function impData( cLast )
 		endif
 	endif
 return cLastRun
+
+/*/{Protheus.doc} procPrdFor
+Função de processamento do vínculo de produto e fornecedor
+@type function
+@version 1.0
+@author Jean Carlos Pandolfo Saggin
+@since 2/13/2025
+@param cFile, character, patch completo do arquivo selecionado pelo usuário
+@return logical, lSuccess
+/*/
+static function procPrdFor( cFile )
+
+	local lSuccess := .T. as logical
+	local oFile    := FWFileReader():New( cFile )
+	local cLine    := "" as character
+	local aAux     := {} as array
+	local lExist   := .F. as logical
+	local nField   := 0 as numeric
+	local nSize    := 0 as numeric
+	local nRead    := 0 as numeric
+	local nPerc    := 0 as numeric
+	local cMessage := "" as character
+	local nFail    := 0 as numeric
+	local nLine    := 0 as numeric
+	local cChave   := "" as character
+	
+	Private aFileHdr := {} as array
+
+	// Verifica se tem permissão de leitura para abrir o arquivo
+	if oFile:Open()
+		
+		nSize := oFile:GetFileSize()
+
+		// Seta o índice de pesquisa
+		DBSelectArea( "SA5" )
+		SA5->( DBSetOrder( 1 ) )		// PRODUTO + DATA
+
+		// Enquanto encontrar linhas no arquivo, processa as informações...
+		while oFile:hasLine() .and. lSuccess
+			// Obtem as linhas do arquivo
+			cLine := AllTrim(oFile:GetLine())
+			nLine++
+			aAux  := StrTokArr2( cLine, ';' )
+
+			nRead := oFile:getBytesRead()
+			nPerc := Round( (nRead/nSize)*100,0)
+			if nPerc < 10
+				cMessage := "Bora trabalhar! Iniciando os trabalhos, "+ cValToChar( nPerc ) +'% já foi!'
+			elseif nPerc < 50
+				cMessage := "Tenha paciência, logo chegaremos na metade! Já estamos em "+ cValToChar( nPerc ) +'%...'
+			elseif nPerc < 80
+				cMessage := "Não disse? Falta só "+ cValToChar( 100-nPerc ) +'% para finalizar...'
+			else
+				cMessage := "Agora é mamão com açúcar, faltando "+ cValToChar( 100-nPerc ) +'% nem dá mais tempo de tomar café...'
+			endif
+			MsProcTxt( cMessage )
+			
+			// Quando estiver na primeira linha, popula o vetor do cabeçalho para saber quais campos existem no arquivo
+			if len( aFileHdr ) == 0
+				aEval( aAux, {|x| aAdd( aFileHdr, { x,;
+													GetSX3Cache( x, 'X3_TIPO' ),;
+													GetSX3Cache( x, 'X3_TAMANHO' ),;
+													GetSX3Cache( x, 'X3_DECIMAL' ),;
+													GetSX3Cache( x, 'X3_DECIMAL' ) } ) } )
+			else
+				// Verifica se o ID do produto está presente no registro do arquivo
+				// Verifica também se o produto da linha do arquivo é um registro apto para uso 
+				if checkStruct( "SA5", aFileHdr ) 
+					
+					DBSelectArea( 'SA5' )
+					SA5->( DBSetOrder( 1 ) )		// A5_FORNECE + A5_LOJA + A5_PRODUTO
+					if SB1->( DBSeek( FWxFilial( 'SB1' ) + aAux[gt( "A5_PRODUTO" )] ) )
+
+						DBSelectArea( 'SA2' )
+						SA2->( DBSetOrder( 1 ) )		// A2_COD + A2_LOJA
+						if SA2->( DBSeek( FWxFilial( 'SA2' ) + PADR( AllTrim( aAux[gt( 'A5_FORNECE' )]),TAMSX3('A2_COD')[1], ' ' ) +; 
+						 PADR( AllTrim( aAux[gt( 'A5_LOJA' )]),TAMSX3('A2_LOJA')[1], ' ' ) ) )
+							// Tenta localizar registro do produto na data informada para garantir que o registro não vai se repetir
+							lExist := SA5->( DBSeek( FWxFilial( "SA5" ) + PADR(AllTrim( aAux[gt( 'A5_FORNECE' )] ), TAMSX3('A5_FORNECE')[1], ' ' ) + aAux[gt( 'A5_LOJA' )] + aAux[gt( 'A5_PRODUTO' )] ) )
+							if ! lExist
+								// Se o código da chave estiver informada no arquivo, utiliza a do arquivo, do contrário, gera uma nova com base na sequencia das chaves existentes na tabela
+								if gt( 'A5_CHAVE' ) == 0
+									cChave := newKey()
+								else
+									cChave := aAux[gt( 'A5_CHAVE' )]
+								endif
+							endif
+							// Se o registro já existe para of produto, atualiza os dados
+							RecLock( "SA5", !lExist )
+								
+								SA5->( FieldPut( FieldPos( 'A5_FILIAL' ), FWxFilial( "SA5" ) ) )
+								
+								if !lExist
+									SA5->( FieldPut( FieldPos( 'A5_CHAVE' ), cChave ) )
+								endif
+
+								for nField := 1 to len( aFileHdr )
+									if SA5->( FieldPos( aFileHdr[nField][1] ) ) > 0
+										SA5->( FieldPut( FieldPos( aFileHdr[nField][1] ), typeAdapt( aFileHdr[nField][1], aAux[gt( aFileHdr[nField][1] )] ) ) )
+									endif
+								next nField
+								
+							SA5->( MsUnlock() )
+						else
+							nFail++
+							ConOut( 'O fornecedor '+ aAux[gt( 'A5_FORNECE' )] +' da linha '+ StrZero( nLine, 5 ) +' nao foi localizado' )	
+						endif
+					else
+						nFail++
+						ConOut( 'O produto '+ aAux[gt( 'A5_PRODUTO' )] +' da linha '+ StrZero( nLine, 5 ) +' nao foi localizado' )
+					endif
+				else
+					lSuccess := .F.
+				endif
+			endif
+			
+		end
+		oFile:Close()
+		
+		if nFail > 0
+			Hlp( 'INCONSISTENCIAS',;
+				cValToChar(nFail) +' registros da planilha apresentaram problemas no momento da checagem de seus respectivos cadastros (produto e/ou fornecedor) e, sendo assim, não chegaram a ser importados',;
+				'Verifique o arquivo console.log do servidor para identificar os códigos que foram ignorados na importação' )
+		endif
+
+	endif
+return lSuccess
+
+/*/{Protheus.doc} newKey
+Obtem nova chave do campo A5_CHAVE na função de importação do vínculo de produto versus fornecedor
+@type function
+@version 1.0
+@author Jean Carlos Pandolfo Saggin
+@since 2/13/2025
+@return character, cNewKey
+/*/
+static function newKey()`
+
+	local cNewKey := StrZero(1,TAMSX3( 'A5_CHAVE' )[1] )
+	local cQuery := "" as character
+	local cAlias := "" as character
+
+	// MOnta query para leitura do ultimo número utilizado
+	cQuery := "SELECT COALESCE(MAX(A5_CHAVE),'"+ cNewKey +"') A5_CHAVE FROM "+ RetSqlName( 'SA5' ) +" WHERE A5_FILIAL = '"+ FWxFilial( 'SA5' ) +"' AND D_E_L_E_T_ = ' ' "
+	cAlias := MpSysOpenQuery( cQuery )
+	if !Empty( ( cAlias )->A5_CHAVE )
+		cNewKey := Soma1( ( cAlias )->A5_CHAVE )
+	endif
+	( cAlias )->( DBCloseArea() )
+	
+return cNewKey
+
+/*/{Protheus.doc} checkStruct
+Função para checar se os campos obrigatórios estão vindo no arquivo .csv
+@type function
+@version 1.0
+@author Jean Carlos Pandolfo Saggin
+@since 2/13/2025
+@param cAlias, character, Alias que está sendo validado
+@param aHeader, array, Cabeçalho contendo o nome físico dos campos que estão sendo informados no arquivo para importação
+@return logical, lSuccess
+/*/
+static function checkStruct( cAlias, aHeader )
+	local lSuccess := .T. as logical
+	local aFldSA5  := { "A5_FORNECE", "A5_LOJA", "A5_NOMEFOR", "A5_PRODUTO", "A5_NOMPROD" }
+	local nField   := 0 as numeric
+	if cAlias == 'SA5'		// Produto versus fornecedor
+		for nField := 1 to len( aFldSA5 )
+			lSuccess := lSuccess .and. aScan( aHeader, {|x| AllTrim(x[1]) == AllTrim(aFldSA5[nField]) } ) > 0
+		next nField
+		if ! lSuccess
+			Hlp( 'ESTRUTURA INVALIDA',;
+				'Os campos obrigatórios para importação do vínculo entre produto e fornecedor não foram encontrados no arquivo .csv',;
+				'Verifique se os campos obrigatórios estão presentes no arquivo e tente novamente' )
+		endif
+	endif
+return lSuccess
 
 /*/{Protheus.doc} procData
 Função para processamento do arquivo .csv
@@ -8244,6 +8553,7 @@ static function getColPro( aFields, aAlter )
 	local nX       := 0 as numeric
 	local aAux     := {} as array
 	local cType    := "" as character
+	local nPropor  := 0.6 
 
 	for nX := 1 to len( aFields )
 		DBSelectArea( 'SB1' )
@@ -8260,7 +8570,7 @@ static function getColPro( aFields, aAlter )
 							StrTran(GetSX3Cache( aFields[nX], 'X3_TIPO' ),'M','C'),;                // [n][03] Tipo de dados
 							AllTrim(GetSX3Cache( aFields[nX], 'X3_PICTURE' )),;                     // [n][04] Máscara
 							iif( cType == "C", 1, iif( cType == "N", 2, 0 )),;                      // [n][05] Alinhamento (0=Centralizado, 1=Esquerda ou 2=Direita)
-							GetSX3Cache( aFields[nX], 'X3_TAMANHO' ),;                             	// [n][06] Tamanho
+							GetSX3Cache( aFields[nX], 'X3_TAMANHO' )*nPropor,;                             	// [n][06] Tamanho
 							GetSX3Cache( aFields[nX], 'X3_DECIMAL' ),;                              // [n][07] Decimal
 							aScan( aAlter, {|x| AllTrim(x) == aFields[nX] } ) > 0,;                 // [n][08] Indica se permite a edição
 							{|| AlwaysTrue() },;                          							// [n][09] Code-Block de validação da coluna após a edição
@@ -8279,7 +8589,7 @@ static function getColPro( aFields, aAlter )
 							"N",;                													// [n][03] Tipo de dados
 							"@E 999,999,999",;                     									// [n][04] Máscara
 							2,;                      												// [n][05] Alinhamento (0=Centralizado, 1=Esquerda ou 2=Direita)
-							11,;                             										// [n][06] Tamanho
+							11 * nPropor,;                             										// [n][06] Tamanho
 							0,;                              										// [n][07] Decimal
 							aScan( aAlter, {|x| AllTrim(x) == aFields[nX] } ) > 0,;                 // [n][08] Indica se permite a edição
 							{|| AlwaysTrue() },;                          							// [n][09] Code-Block de validação da coluna após a edição
@@ -8298,7 +8608,7 @@ static function getColPro( aFields, aAlter )
 							"N",;                													// [n][03] Tipo de dados
 							"@E 999,999,999",;                     									// [n][04] Máscara
 							2,;                      												// [n][05] Alinhamento (0=Centralizado, 1=Esquerda ou 2=Direita)
-							11,;                             										// [n][06] Tamanho
+							11 * nPropor,;                             										// [n][06] Tamanho
 							0,;                              										// [n][07] Decimal
 							aScan( aAlter, {|x| AllTrim(x) == aFields[nX] } ) > 0,;                 // [n][08] Indica se permite a edição
 							{|| AlwaysTrue() },;                          							// [n][09] Code-Block de validação da coluna após a edição
@@ -8317,7 +8627,7 @@ static function getColPro( aFields, aAlter )
 							"N",;                													// [n][03] Tipo de dados
 							"@E 9,999,999.99",;                     								// [n][04] Máscara
 							2,;                      												// [n][05] Alinhamento (0=Centralizado, 1=Esquerda ou 2=Direita)
-							11,;                             										// [n][06] Tamanho
+							11 * nPropor,;                             										// [n][06] Tamanho
 							2,;                              										// [n][07] Decimal
 							aScan( aAlter, {|x| AllTrim(x) == aFields[nX] } ) > 0,;                 // [n][08] Indica se permite a edição
 							{|| AlwaysTrue() },;                          							// [n][09] Code-Block de validação da coluna após a edição
@@ -8336,7 +8646,7 @@ static function getColPro( aFields, aAlter )
 							"N",;                													// [n][03] Tipo de dados
 							"@E 9,999,999.99",;                     								// [n][04] Máscara
 							2,;                      												// [n][05] Alinhamento (0=Centralizado, 1=Esquerda ou 2=Direita)
-							11,;                             										// [n][06] Tamanho
+							11 * nPropor,;                             										// [n][06] Tamanho
 							2,;                              										// [n][07] Decimal
 							aScan( aAlter, {|x| AllTrim(x) == aFields[nX] } ) > 0,;                 // [n][08] Indica se permite a edição
 							{|| AlwaysTrue() },;                          							// [n][09] Code-Block de validação da coluna após a edição
@@ -8355,7 +8665,7 @@ static function getColPro( aFields, aAlter )
 							"N",;                													// [n][03] Tipo de dados
 							"@E 9,999,999.9999",;                     								// [n][04] Máscara
 							2,;                      												// [n][05] Alinhamento (0=Centralizado, 1=Esquerda ou 2=Direita)
-							14,;                             										// [n][06] Tamanho
+							14 * nPropor,;                             										// [n][06] Tamanho
 							4,;                              										// [n][07] Decimal
 							aScan( aAlter, {|x| AllTrim(x) == aFields[nX] } ) > 0,;                 // [n][08] Indica se permite a edição
 							{|| AlwaysTrue() },;                          							// [n][09] Code-Block de validação da coluna após a edição
@@ -8375,7 +8685,7 @@ static function getColPro( aFields, aAlter )
 							"N",;                													// [n][03] Tipo de dados
 							"@E 999",;                     											// [n][04] Máscara
 							2,;                      												// [n][05] Alinhamento (0=Centralizado, 1=Esquerda ou 2=Direita)
-							3,;                             										// [n][06] Tamanho
+							3 * nPropor,;                             										// [n][06] Tamanho
 							0,;                              										// [n][07] Decimal
 							aScan( aAlter, {|x| AllTrim(x) == aFields[nX] } ) > 0,;                 // [n][08] Indica se permite a edição
 							{|| AlwaysTrue() },;                          							// [n][09] Code-Block de validação da coluna após a edição
@@ -8394,7 +8704,7 @@ static function getColPro( aFields, aAlter )
 							"N",;                													// [n][03] Tipo de dados
 							"@E 999",;                     											// [n][04] Máscara
 							2,;                      												// [n][05] Alinhamento (0=Centralizado, 1=Esquerda ou 2=Direita)
-							3,;                             										// [n][06] Tamanho
+							3 * nPropor,;                             										// [n][06] Tamanho
 							0,;                              										// [n][07] Decimal
 							aScan( aAlter, {|x| AllTrim(x) == aFields[nX] } ) > 0,;                 // [n][08] Indica se permite a edição
 							{|| AlwaysTrue() },;                          							// [n][09] Code-Block de validação da coluna após a edição
@@ -8413,7 +8723,7 @@ static function getColPro( aFields, aAlter )
 							"N",;                													// [n][03] Tipo de dados
 							AllTrim(GetSX3Cache("B2_QATU", "X3_PICTURE")),;                     	// [n][04] Máscara
 							2,;                      												// [n][05] Alinhamento (0=Centralizado, 1=Esquerda ou 2=Direita)
-							GetSX3Cache("B2_QATU", "X3_TAMANHO"),;                             		// [n][06] Tamanho
+							GetSX3Cache("B2_QATU", "X3_TAMANHO") * nPropor,;                             		// [n][06] Tamanho
 							GetSX3Cache("B2_QATU", "X3_DECIMAL"),;                         			// [n][07] Decimal
 							aScan( aAlter, {|x| AllTrim(x) == aFields[nX] } ) > 0,;                 // [n][08] Indica se permite a edição
 							{|| AlwaysTrue() },;                          							// [n][09] Code-Block de validação da coluna após a edição
@@ -8432,7 +8742,7 @@ static function getColPro( aFields, aAlter )
 							"N",;                													// [n][03] Tipo de dados
 							AllTrim(GetSX3Cache("B2_RESERVA", "X3_PICTURE")),;                     	// [n][04] Máscara
 							2,;                      												// [n][05] Alinhamento (0=Centralizado, 1=Esquerda ou 2=Direita)
-							GetSX3Cache("B2_RESERVA", "X3_TAMANHO"),;                             	// [n][06] Tamanho
+							GetSX3Cache("B2_RESERVA", "X3_TAMANHO") * nPropor,;                             	// [n][06] Tamanho
 							GetSX3Cache("B2_RESERVA", "X3_DECIMAL"),;                         		// [n][07] Decimal
 							aScan( aAlter, {|x| AllTrim(x) == aFields[nX] } ) > 0,;                 // [n][08] Indica se permite a edição
 							{|| AlwaysTrue() },;                          							// [n][09] Code-Block de validação da coluna após a edição
@@ -8451,7 +8761,7 @@ static function getColPro( aFields, aAlter )
 							"N",;                													// [n][03] Tipo de dados
 							AllTrim(GetSX3Cache("C7_QUANT", "X3_PICTURE")),;                     	// [n][04] Máscara
 							2,;                      												// [n][05] Alinhamento (0=Centralizado, 1=Esquerda ou 2=Direita)
-							GetSX3Cache("C7_QUANT", "X3_TAMANHO"),;                             	// [n][06] Tamanho
+							GetSX3Cache("C7_QUANT", "X3_TAMANHO") * nPropor,;                             	// [n][06] Tamanho
 							GetSX3Cache("C7_QUANT", "X3_DECIMAL"),;                         		// [n][07] Decimal
 							aScan( aAlter, {|x| AllTrim(x) == aFields[nX] } ) > 0,;                 // [n][08] Indica se permite a edição
 							{|| AlwaysTrue() },;                          							// [n][09] Code-Block de validação da coluna após a edição
@@ -8470,7 +8780,7 @@ static function getColPro( aFields, aAlter )
 							"N",;                													// [n][03] Tipo de dados
 							AllTrim(GetSX3Cache("B1_PE", "X3_PICTURE")),;                     		// [n][04] Máscara
 							2,;                      												// [n][05] Alinhamento (0=Centralizado, 1=Esquerda ou 2=Direita)
-							GetSX3Cache("B1_PE", "X3_TAMANHO"),;                             		// [n][06] Tamanho
+							GetSX3Cache("B1_PE", "X3_TAMANHO") * nPropor,;                             		// [n][06] Tamanho
 							GetSX3Cache("B1_PE", "X3_DECIMAL"),;                         			// [n][07] Decimal
 							aScan( aAlter, {|x| AllTrim(x) == aFields[nX] } ) > 0,;                 // [n][08] Indica se permite a edição
 							{|| AlwaysTrue() },;                          							// [n][09] Code-Block de validação da coluna após a edição
@@ -8508,7 +8818,7 @@ static function getColPro( aFields, aAlter )
 							"D",;                													// [n][03] Tipo de dados
 							Nil,;                     												// [n][04] Máscara
 							0,;                      												// [n][05] Alinhamento (0=Centralizado, 1=Esquerda ou 2=Direita)
-							8,;                             										// [n][06] Tamanho
+							8 * nPropor,;                             										// [n][06] Tamanho
 							0,;                         											// [n][07] Decimal
 							aScan( aAlter, {|x| AllTrim(x) == aFields[nX] } ) > 0,;                 // [n][08] Indica se permite a edição
 							{|| AlwaysTrue() },;                          							// [n][09] Code-Block de validação da coluna após a edição

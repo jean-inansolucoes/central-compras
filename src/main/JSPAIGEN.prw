@@ -31,6 +31,7 @@ Função com detalhamento das versões do aplicativo.
 @return array, aDetVer
 /*/
 user function JSDETVER()
+
     local aDetVer := {} as array
     aAdd( aDetVer, { '01','0001','18/09/2024', 'Versão inicial do Painel de Compras' } )
     aAdd( aDetVer, { '02','0002','20/09/2024', 'Permite informar valor de frete ao pedido de compra e também informar um código de transportadora relacionado ao processo.' } )
@@ -61,6 +62,18 @@ user function JSDETVER()
     aAdd( aDetVer, { '11','0002','24/01/2025', 'Realizado ajuste para permitir que usuário informe o centro de custos durante fechamento do carrinho de compra' } )
     aAdd( aDetVer, { '11','0003','06/02/2025', 'Implementado impressão de relatório do browse de produtos' } )
     aAdd( aDetVer, { '11','0003','08/02/2025', 'Incluído botão para desconsiderar produto do MRP' } )
+    aAdd( aDetVer, { '12','0001','13/02/2025', 'Remover campos de empresa e filial da tabela de parâmetros gerais, trazer ultimo diretório utilizado na rotina de transferência '+;
+                                                'de arquivos do server para o cliente e do cliente para o server.' } )
+    aAdd( aDetVer, { '12','0002','13/02/2025', 'Implementado função para obter vínculo entre produto x fornecedor através de arquivo .csv' } )
+    aAdd( aDetVer, { '12','0003','14/02/2025', 'Implementação de conexão com banco web para obter dados de configurações por meio de API, '+;
+                                                'remoção de função de copia para servidor e cópia para diretório local' } )
+    aAdd( aDetVer, { '12','0004','18/02/2025', 'Adicionado funcionalidade para permitir eliminar resíduo de um determinado produto quando o fornecedor não vai mais atendê-lo.' } )
+    aAdd( aDetVer, { '12','0005','20/02/2025', 'Correção de bug ao excluir o último pedido listado na tela de pedidos em aberto para o produto' } )
+    aAdd( aDetVer, { '12','0006','20/02/2025', 'Ajuste de bug no browse de fornecedores ao alterar leadtime informado' } )
+    aAdd( aDetVer, { '12','0007','20/02/2025', 'Adicionado proporção de 60% para o tamanho das colunas do browse de produtos em relação ao tamanho físico do campo no dicionário de dados' } )
+    aAdd( aDetVer, { '12','0008','20/02/2025', 'Ajuste para o sistema trazer o lead-time default do fornecedor quando não houver leadtime definido para o produto' } )
+    aAdd( aDetVer, { '12','0009','21/02/2025', 'Ajuste de espaçamento no código do fornecedor na função de importação da relação de produto versus fornecedor' } )
+
 return aDetVer
 
 /*/{Protheus.doc} JSFILIAL
@@ -112,63 +125,6 @@ user function JSFILIAL( cAlias, aFil )
     endif
 
 return cFilExp
-
-/*/{Protheus.doc} JSFILCOM
-Função para retornar algoritmo de comparação entre os campos filiais de dois alíases diferentes
-@type function
-@version 1.0
-@author Jean Carlos Pandolfo Saggin
-@since 14/10/2024
-@param cLeft, character, tabela da esquerda de onde está vindo o dado para ser comparado
-@param cRight, character, tabela da difeita onde está sendo executado o filtro para encontrar os dados relacionados
-@param cAliasLeft, character, alias atribuído à tabela na query (não obrigatório)
-@param cAliasRight, character, alias atribuído à tabela na query (não obrigatório)
-@return character, cExpression
-/*/
-// User Function JSFILCOM( cLeft, cRight, cAliasLeft, cAliasRight )
-
-//     local cFunction   := iif( TCGetDB() $ "MSSQL|POSTGRES", "SUBSTRING", "SUBSTR" )
-//     local cExpression := "" as character
-//     local cFieldLeft  := iif( SubStr( cLeft,1,1 ) == 'S', SubStr( cLeft,2,2 ), cLeft ) + '_FILIAL'
-//     local cFieldRight := iif( SubStr( cRight,1,1 ) == 'S', SubStr( cRight,2,2 ), cRight ) + '_FILIAL'
-//     local cALeft      := "" as character
-//     local cARight     := "" as character
-    
-//     default cAliasLeft  := iif( SubStr( cLeft,1,1 ) == 'S', SubStr( cLeft,2,2 ), cLeft )
-//     default cAliasRight := iif( SubStr( cRight,1,1 ) == 'S', SubStr( cRight,2,2 ), cRight )
-    
-//     cALeft := cAliasLeft+'.'
-//     cARight := cAliasRight+'.'
-
-//     // Verifica se a tratativa de filial é diferente para as duas tabelas
-//     if ! Len(AllTrim(FWxFilial( cLeft ))) == Len(AllTrim(FWxFilial( cRight )))
-
-//         // Se for diferente, verifica se a tabela da esquerda usa filial compartilhada
-//         if Len( AllTrim( FWxFilial( cLeft ) ) ) == 0
-
-//             // Se usa filial compartilhada, apenas compara com FWxFilial, pois a expressão ficará assim: A1_FILIAL = '  '
-//             cExpression := cALeft + cFieldLeft +" = '"+ FWxFilial( cLeft ) +"' "
-        
-//         // Verifica se a tabela da direita usa filial compartilhada
-//         elseif Len( AllTrim( FWxFilial( cRight ) ) ) == 0
-        
-//             // Se usa filial compartilhada, chama função que retorna um filtro IN para a SQL usando as filiais selecionadas pelo usuário para filtrar os registros do alias da esquerda
-//             cExpression := cALeft + cFieldLeft + U_JSFILIAL( cLeft, _aFil ) + ' '
-        
-//         // Verifica se o tamanho do conteúdo da filial da tabela da esquerda é menor do que o da direita
-//         elseif Len( AllTrim( FWxFilial( cLeft ) ) ) < Len( AllTrim( FWxFilial( cRight ) ) )
-
-//             // Se a informação da filial da tabel a da esquerda for menor do que a informação da filial da tabela da direita, compara as duas usando substring para adequar o tamanho das duas informações
-//             cExpression := cFunction +'('+ cALeft + cFieldLeft +',1,'+ cValToChar( Len( AllTrim( FWxFilial( cLeft ) ) ) ) +') = '+ cFunction +'('+ cARight + cFieldRight +',1,'+ cValToChar( Len( AllTrim( FWxFilial( cLeft ) ) ) ) +') '
-//         else
-//             cExpression := cFunction +'('+ cALeft + cFieldLeft +',1,'+ cValToChar( Len( AllTrim( FWxFilial( cRight ) ) ) ) +') = '+ cFunction +'('+ cARight + cFieldRight +',1,'+ cValToChar( Len( AllTrim( FWxFilial( cRight ) ) ) ) +') '
-//         endif
-
-//     else
-//         cExpression := cALeft + cFieldLeft + ' = ' + cARight + cFieldRight
-//     endif
-
-// return cExpression
 
 /*/{Protheus.doc} JSPAITYP
 Função da consulta padrão PAITYP para retornar tipos de produtos desejados.
@@ -722,3 +678,25 @@ static function getCliSM0()
     ( cAlias )->( DBCloseArea() )
 
 return aCliSM0
+
+/*/{Protheus.doc} JSGETDB
+Retorna o link para o banco de dados configurado nos parâmetros do cliente
+@type function
+@version 1.0
+@author Jean Carlos Pandolfo Saggin
+@since 22/08/2023
+@return character, cSupabase
+/*/
+User Function JSGETDB()
+return "https://mqdxpnvezumlldeusbmh.supabase.co"
+
+/*/{Protheus.doc} JSGETKEY
+Função para devolver ao requisitante a API key de comunicação com o banco
+@type function
+@version 1.0
+@author Jean Carlos Pandolfo Saggin
+@since 22/08/2023
+@return character, cApiKey
+/*/
+User Function JSGETKEY()
+return "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1xZHhwbnZlenVtbGxkZXVzYm1oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Mzk1NjQxMjIsImV4cCI6MjA1NTE0MDEyMn0._bjK4yUSX6jlkWYKdwg4ou0VUBjJpIHkD5jZb4o3lqY"
