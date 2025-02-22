@@ -73,6 +73,9 @@ user function JSDETVER()
     aAdd( aDetVer, { '12','0007','20/02/2025', 'Adicionado proporção de 60% para o tamanho das colunas do browse de produtos em relação ao tamanho físico do campo no dicionário de dados' } )
     aAdd( aDetVer, { '12','0008','20/02/2025', 'Ajuste para o sistema trazer o lead-time default do fornecedor quando não houver leadtime definido para o produto' } )
     aAdd( aDetVer, { '12','0009','21/02/2025', 'Ajuste de espaçamento no código do fornecedor na função de importação da relação de produto versus fornecedor' } )
+    aAdd( aDetVer, { '12','0010','22/02/2025', 'Alteração para que, quando o produto for colocado no carrinho por meio do alt+x, a linha do grid de produtos seja atualizada' } )
+    aAdd( aDetVer, { '12','0011','22/02/2025', 'Permitir alterar a quantidade diretamente no campo do browse do produto quando não for utilizado compra multi-filial' } )
+    // aAdd( aDetVer, { '13','0001','21/02/2025', 'Implementação do conceito de perfis de cálculo' } )
 
 return aDetVer
 

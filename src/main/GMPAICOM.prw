@@ -3587,6 +3587,7 @@ Static Function fMarkPro()
 	
 	cFilAnt := cFilHist
 	oBrwFor:UpdateBrowse()
+	oBrwPro:LineRefresh()
 	oBrwPro:oBrowse:SetFocus()
 	
 Return ( Nil )
@@ -3697,8 +3698,18 @@ User Function PCOMVLD()
 		endif
 		
 		if nColAtu == nPosNec						// Alteração no campo de necessidade de compra
+			
 			if aScan( aCarCom, {|x| AllTrim( x[01] ) == AllTrim( aColPro[ oBrwPro:nAt ][ nPosPrd ] ) } ) > 0
 				if MsgYesNo( 'Você está alterando a necessidade de compra de um produto que já está no carrinho, deseja mesmo alterar?','Alteração de produto do carrinho')
+
+					// Quando a compra não for multi-filial, foi permitida a edição diretamente no grid principal
+					if len( _aFil ) == 1 .and. _aFil[1] == cFilAnt
+						// Valida se quantidade do browse de produtos é diferente da quantidade do vetor x filial
+						if aColPro[oBrwPro:At()][nPosNec] != _aProdFil[aScan(_aProdFil,{|x| x[3] == aColPro[oBrwPro:At()][nPosPrd] .and. x[25] == _aFil[1] })][6]
+							_aProdFil[aScan(_aProdFil,{|x| x[3] == aColPro[oBrwPro:At()][nPosPrd] .and. x[25] == _aFil[1] })][6] := aColPro[oBrwPro:At()][nPosNec]
+						endif
+					endif
+					
 					aCarCom[ aScan( aCarCom, {|x| AllTrim( x[01] ) == AllTrim( aColPro[ oBrwPro:nAt ][ nPosPrd ] ) } ) ][ 04 ] := aColPro[oBrwPro:At()][nPosNec]
 					aCarCom[ aScan( aCarCom, {|x| AllTrim( x[01] ) == AllTrim( aColPro[ oBrwPro:nAt ][ nPosPrd ] ) } ) ][ 06 ] := aColPro[oBrwPro:At()][nPosNec] * aColPro[oBrwPro:nAt][nPosNeg]
 					
@@ -3720,6 +3731,14 @@ User Function PCOMVLD()
 				Else
 					lReturn := .F.
 				EndIf
+			else
+				// Quando a compra não for multi-filial, foi permitida a edição diretamente no grid principal
+				if len( _aFil ) == 1 .and. _aFil[1] == cFilAnt
+					// Valida se quantidade do browse de produtos é diferente da quantidade do vetor x filial
+					if aColPro[oBrwPro:At()][nPosNec] != _aProdFil[aScan(_aProdFil,{|x| x[3] == aColPro[oBrwPro:At()][nPosPrd] .and. x[25] == _aFil[1] })][6]
+						_aProdFil[aScan(_aProdFil,{|x| x[3] == aColPro[oBrwPro:At()][nPosPrd] .and. x[25] == _aFil[1] })][6] := aColPro[oBrwPro:At()][nPosNec]
+					endif
+				endif
 			EndIf
 		ElseIf nColAtu == nPosNeg					// Alteração no campo do valor negociado
 			if aScan( aCarCom, {|x| AllTrim( x[01] ) == AllTrim( aColPro[ oBrwPro:nAt ][ nPosPrd ] ) } ) > 0
@@ -9069,117 +9088,123 @@ user function PCOMPRE(oBrw, oCol, cPre )
 	Private oProFil  as object
 
 	if (oBrw:ColPos()-2) == nPosNec
+		
+		// Quando a compra não for multi-filial, permite a edição diretamente no grid principal
+		if len( _aFil ) == 1 .and. _aFil[1] == cFilAnt
+			lCanEdit := .T.
+		else
+			// Cria subvetor editável apenas com o produto selecionado
+			if len( _aProdFil ) > 0
+				for nX := 1 to len( _aProdFil )
+					cFil := _aProdFil[nX][25]		// Filial
+					// Executa verificação apenas quando o produto for referente a linha selecionada
+					if _aProdFil[nX][3]	== cProduto .and. _aProdFil[nX][23] == cFornece .and. _aProdFil[nX][24] == cLoja
+						// Verifica se o produto já não foi adicionado anteriormente.
+						if len( aProFil ) == 0 .or. aScan( aProFil, {|x| x[3] == cProduto .and. x[23] == cFornece .and. x[24] == cLoja .and. x[25] == cFil } ) == 0
+							aAdd( aProFil, aClone( _aProdFil[nX] ) )
+						endif
 
-		// Cria subvetor editável apenas com o produto selecionado
-		if len( _aProdFil ) > 0
-			for nX := 1 to len( _aProdFil )
-				cFil := _aProdFil[nX][25]		// Filial
-				// Executa verificação apenas quando o produto for referente a linha selecionada
-				if _aProdFil[nX][3]	== cProduto .and. _aProdFil[nX][23] == cFornece .and. _aProdFil[nX][24] == cLoja
-					// Verifica se o produto já não foi adicionado anteriormente.
-					if len( aProFil ) == 0 .or. aScan( aProFil, {|x| x[3] == cProduto .and. x[23] == cFornece .and. x[24] == cLoja .and. x[25] == cFil } ) == 0
-						aAdd( aProFil, aClone( _aProdFil[nX] ) )
 					endif
+				next nX		
+			endif
+			
+			// aAdd( _aProdFil,{ nIndGir,;
+			// aScan( aCarCom, {|x| x[1] == PRDTMP->B1_COD .and. x[13] == cFornece .and. x[14] == cLoja } ) > 0,;
+			// PRDTMP->B1_COD,;
+			// PRDTMP->B1_DESC,;
+			// PRDTMP->B1_UM,;
+			// nQtdCom /*Necessidade de compra*/,;
+			// PRDTMP->QTDBLOQ /*Ped. Compra Bloq.*/,;
+			// nPrice /*Preço negociado*/,;
+			// nPrice /*Ultimo Preço*/,; 
+			// PRDTMP->( FieldGet( FieldPos( cZB3 +'_CONMED' ) ) ) /*Consumo Medio*/,;
+			// nPrjEst /*Duracao Estimada*/,;
+			// nDurPrv /*Duracao Prev.*/,;
+			// PRDTMP->ESTOQUE /*Em Estoque*/,;
+			// PRDTMP->EMPENHO /*Empenho*/,; 
+			// PRDTMP->QTDCOMP /*Quantidade já Comprada*/,;
+			// nLeadTime /*Lead Time Médio do Produto*/,;
+			// cLeadTime /*Tipo Lead-Time*/,;
+			// StoD( PRDTMP->PRVENT ) /*Prev. Entrega*/,;
+			// PRDTMP->B1_LM /*Lote Mínimo*/,;
+			// PRDTMP->B1_QE /*Quantidade da Embalagem*/,;
+			// PRDTMP->B1_LE /*Lote Econômico*/,;
+			// PRDTMP->B1_EMIN /* Estoque Minimo (Estoque Segurança) */,;
+			// cFornece /*Fornecedor*/,;
+			// cLoja /*Loja do Fornecedor*/,;
+			// PRDTMP->FILIAL /* Filial */ } )
 
-				endif
-			next nX		
+			aAdd( aColumns, FWBrwColumn():New() )
+			aColumns[len(aColumns)]:SetTitle( 'Filial' )
+			aColumns[len(aColumns)]:SetData( &( "{|oBrw| aProFil[oBrw:At()][25] }" ) )
+			aColumns[len(aColumns)]:SetType( 'C' )
+			aColumns[len(aColumns)]:SetAlign( 1 )		// Alinha a Esquerda
+			aColumns[len(aColumns)]:SetSize( TAMSX3( 'C7_FILIAL' )[1] )
+			aColumns[len(aColumns)]:SetPicture( "@!" )
+
+			aAdd( aColumns, FWBrwColumn():New() )
+			aColumns[len(aColumns)]:SetTitle( 'Qtde' )
+			aColumns[len(aColumns)]:SetData( &( "{|oBrw| aProFil[oBrw:At()][6] }" ) )
+			aColumns[len(aColumns)]:SetType( 'N' )
+			aColumns[len(aColumns)]:SetAlign( 2 )		// Alinha a Direita
+			aColumns[len(aColumns)]:SetSize( TAMSX3( 'C7_QUANT' )[1] )
+			aColumns[len(aColumns)]:SetDecimal( TAMSX3( 'C7_QUANT' )[2] )
+			aColumns[len(aColumns)]:SetPicture( PesqPict( 'SC7', 'C7_QUANT' ) )
+
+			aAdd( aColumns, FWBrwColumn():New() )
+			aColumns[len(aColumns)]:SetTitle( 'Cons.Medio' )
+			aColumns[len(aColumns)]:SetData( &( "{|oBrw| aProFil[oBrw:At()][10] }" ) )
+			aColumns[len(aColumns)]:SetType( 'N' )
+			aColumns[len(aColumns)]:SetAlign( 2 )		// Alinha a Direita
+			aColumns[len(aColumns)]:SetSize( TAMSX3( cZB3 +'_CONMED' )[1] )
+			aColumns[len(aColumns)]:SetDecimal( TAMSX3( cZB3 +'_CONMED' )[2] )
+			aColumns[len(aColumns)]:SetPicture( PesqPict( cZB3, cZB3 +'_CONMED' ) )
+
+			aAdd( aColumns, FWBrwColumn():New() )
+			aColumns[len(aColumns)]:SetTitle( 'Em Estoque' )
+			aColumns[len(aColumns)]:SetData( &( "{|oBrw| aProFil[oBrw:At()][13] }" ) )
+			aColumns[len(aColumns)]:SetType( 'N' )
+			aColumns[len(aColumns)]:SetAlign( 2 )		// Alinha a Direita
+			aColumns[len(aColumns)]:SetSize( 11 )
+			aColumns[len(aColumns)]:SetDecimal( 2 )
+			aColumns[len(aColumns)]:SetPicture( "@E 999,999.99" )
+
+			aAdd( aColumns, FWBrwColumn():New() )
+			aColumns[len(aColumns)]:SetTitle( 'Empenhado' )
+			aColumns[len(aColumns)]:SetData( &( "{|oBrw| aProFil[oBrw:At()][14] }" ) )
+			aColumns[len(aColumns)]:SetType( 'N' )
+			aColumns[len(aColumns)]:SetAlign( 2 )		// Alinha a Direita
+			aColumns[len(aColumns)]:SetSize( 11 )
+			aColumns[len(aColumns)]:SetDecimal( 2 )
+			aColumns[len(aColumns)]:SetPicture( "@E 999,999.99" )
+
+			aAdd( aColumns, FWBrwColumn():New() )
+			aColumns[len(aColumns)]:SetTitle( 'Comprado' )
+			aColumns[len(aColumns)]:SetData( &( "{|oBrw| aProFil[oBrw:At()][15] }" ) )
+			aColumns[len(aColumns)]:SetType( 'N' )
+			aColumns[len(aColumns)]:SetAlign( 2 )		// Alinha a Direita
+			aColumns[len(aColumns)]:SetSize( 11 )
+			aColumns[len(aColumns)]:SetDecimal( 2 )
+			aColumns[len(aColumns)]:SetPicture( "@E 999,999.99" )
+
+			oQtdFil := TDialog():New(0,0,500,800,'Quantidades x Filial - '+ aColPro[oBrwPro:At()][nPosDes],,,,,CLR_BLACK,CLR_WHITE,,,.T.)
+			
+			oProFil := FWBrowse():New( oQtdFil )
+			oProFil:SetDataArray()
+			oProFil:SetArray( aProFil )
+			oProFil:DisableConfig()
+			oProFil:DisableReport()
+			oProFil:SetColumns( aColumns )
+			oProFil:SetLineHeight( 20 )
+			oProFil:SetEditCell( .T., bVldCell )
+			oProFil:GetColumn(2):SetReadVar( "aProFil[oProFil:At()][6]" )
+			oProFil:GetColumn(2):lEdit := .T.
+			oProFil:Activate()	
+
+			oQtdFil:Activate(,,,.T., bValid,,bInit)
+			lCanEdit := .F.
 		endif
-		
-		// aAdd( _aProdFil,{ nIndGir,;
-		// aScan( aCarCom, {|x| x[1] == PRDTMP->B1_COD .and. x[13] == cFornece .and. x[14] == cLoja } ) > 0,;
-		// PRDTMP->B1_COD,;
-		// PRDTMP->B1_DESC,;
-		// PRDTMP->B1_UM,;
-		// nQtdCom /*Necessidade de compra*/,;
-		// PRDTMP->QTDBLOQ /*Ped. Compra Bloq.*/,;
-		// nPrice /*Preço negociado*/,;
-		// nPrice /*Ultimo Preço*/,; 
-		// PRDTMP->( FieldGet( FieldPos( cZB3 +'_CONMED' ) ) ) /*Consumo Medio*/,;
-		// nPrjEst /*Duracao Estimada*/,;
-		// nDurPrv /*Duracao Prev.*/,;
-		// PRDTMP->ESTOQUE /*Em Estoque*/,;
-		// PRDTMP->EMPENHO /*Empenho*/,; 
-		// PRDTMP->QTDCOMP /*Quantidade já Comprada*/,;
-		// nLeadTime /*Lead Time Médio do Produto*/,;
-		// cLeadTime /*Tipo Lead-Time*/,;
-		// StoD( PRDTMP->PRVENT ) /*Prev. Entrega*/,;
-		// PRDTMP->B1_LM /*Lote Mínimo*/,;
-		// PRDTMP->B1_QE /*Quantidade da Embalagem*/,;
-		// PRDTMP->B1_LE /*Lote Econômico*/,;
-		// PRDTMP->B1_EMIN /* Estoque Minimo (Estoque Segurança) */,;
-		// cFornece /*Fornecedor*/,;
-		// cLoja /*Loja do Fornecedor*/,;
-		// PRDTMP->FILIAL /* Filial */ } )
 
-		aAdd( aColumns, FWBrwColumn():New() )
-		aColumns[len(aColumns)]:SetTitle( 'Filial' )
-		aColumns[len(aColumns)]:SetData( &( "{|oBrw| aProFil[oBrw:At()][25] }" ) )
-		aColumns[len(aColumns)]:SetType( 'C' )
-		aColumns[len(aColumns)]:SetAlign( 1 )		// Alinha a Esquerda
-		aColumns[len(aColumns)]:SetSize( TAMSX3( 'C7_FILIAL' )[1] )
-		aColumns[len(aColumns)]:SetPicture( "@!" )
-
-		aAdd( aColumns, FWBrwColumn():New() )
-		aColumns[len(aColumns)]:SetTitle( 'Qtde' )
-		aColumns[len(aColumns)]:SetData( &( "{|oBrw| aProFil[oBrw:At()][6] }" ) )
-		aColumns[len(aColumns)]:SetType( 'N' )
-		aColumns[len(aColumns)]:SetAlign( 2 )		// Alinha a Direita
-		aColumns[len(aColumns)]:SetSize( TAMSX3( 'C7_QUANT' )[1] )
-		aColumns[len(aColumns)]:SetDecimal( TAMSX3( 'C7_QUANT' )[2] )
-		aColumns[len(aColumns)]:SetPicture( PesqPict( 'SC7', 'C7_QUANT' ) )
-
-		aAdd( aColumns, FWBrwColumn():New() )
-		aColumns[len(aColumns)]:SetTitle( 'Cons.Medio' )
-		aColumns[len(aColumns)]:SetData( &( "{|oBrw| aProFil[oBrw:At()][10] }" ) )
-		aColumns[len(aColumns)]:SetType( 'N' )
-		aColumns[len(aColumns)]:SetAlign( 2 )		// Alinha a Direita
-		aColumns[len(aColumns)]:SetSize( TAMSX3( cZB3 +'_CONMED' )[1] )
-		aColumns[len(aColumns)]:SetDecimal( TAMSX3( cZB3 +'_CONMED' )[2] )
-		aColumns[len(aColumns)]:SetPicture( PesqPict( cZB3, cZB3 +'_CONMED' ) )
-
-		aAdd( aColumns, FWBrwColumn():New() )
-		aColumns[len(aColumns)]:SetTitle( 'Em Estoque' )
-		aColumns[len(aColumns)]:SetData( &( "{|oBrw| aProFil[oBrw:At()][13] }" ) )
-		aColumns[len(aColumns)]:SetType( 'N' )
-		aColumns[len(aColumns)]:SetAlign( 2 )		// Alinha a Direita
-		aColumns[len(aColumns)]:SetSize( 11 )
-		aColumns[len(aColumns)]:SetDecimal( 2 )
-		aColumns[len(aColumns)]:SetPicture( "@E 999,999.99" )
-
-		aAdd( aColumns, FWBrwColumn():New() )
-		aColumns[len(aColumns)]:SetTitle( 'Empenhado' )
-		aColumns[len(aColumns)]:SetData( &( "{|oBrw| aProFil[oBrw:At()][14] }" ) )
-		aColumns[len(aColumns)]:SetType( 'N' )
-		aColumns[len(aColumns)]:SetAlign( 2 )		// Alinha a Direita
-		aColumns[len(aColumns)]:SetSize( 11 )
-		aColumns[len(aColumns)]:SetDecimal( 2 )
-		aColumns[len(aColumns)]:SetPicture( "@E 999,999.99" )
-
-		aAdd( aColumns, FWBrwColumn():New() )
-		aColumns[len(aColumns)]:SetTitle( 'Comprado' )
-		aColumns[len(aColumns)]:SetData( &( "{|oBrw| aProFil[oBrw:At()][15] }" ) )
-		aColumns[len(aColumns)]:SetType( 'N' )
-		aColumns[len(aColumns)]:SetAlign( 2 )		// Alinha a Direita
-		aColumns[len(aColumns)]:SetSize( 11 )
-		aColumns[len(aColumns)]:SetDecimal( 2 )
-		aColumns[len(aColumns)]:SetPicture( "@E 999,999.99" )
-
-		oQtdFil := TDialog():New(0,0,500,800,'Quantidades x Filial - '+ aColPro[oBrwPro:At()][nPosDes],,,,,CLR_BLACK,CLR_WHITE,,,.T.)
-		
-		oProFil := FWBrowse():New( oQtdFil )
-		oProFil:SetDataArray()
-		oProFil:SetArray( aProFil )
-		oProFil:DisableConfig()
-		oProFil:DisableReport()
-		oProFil:SetColumns( aColumns )
-		oProFil:SetLineHeight( 20 )
-		oProFil:SetEditCell( .T., bVldCell )
-		oProFil:GetColumn(2):SetReadVar( "aProFil[oProFil:At()][6]" )
-		oProFil:GetColumn(2):lEdit := .T.
-		oProFil:Activate()	
-
-		oQtdFil:Activate(,,,.T., bValid,,bInit)
-		lCanEdit := .F.
 	elseif (oBrw:ColPos()-2) == nPosBlq
 		lCanEdit := .F.
 	endif

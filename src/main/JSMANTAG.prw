@@ -24,7 +24,8 @@ user function JSMANTAG()
         Return nil
     endif
 
-    oBrowse := BrowseDef()
+    oBrowse := FWLoadBrw( 'JSMANTAG' )
+    oBrowse:Activate()
 
 return Nil
 
