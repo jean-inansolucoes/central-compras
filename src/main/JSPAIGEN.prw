@@ -78,6 +78,7 @@ user function JSDETVER()
     aAdd( aDetVer, { '13','0001','21/02/2025', 'Implementação do conceito de perfis de cálculo' } )
     aAdd( aDetVer, { '13','0002','25/02/2025', 'Vínculo de perfil de cálculo com o produto para recálculos via JOB' } )
     aAdd( aDetVer, { '13','0003','25/02/2025', 'Vínculo automático de produto versus fornecedor ao informar fornecedor e loja na linha do produto' } )
+    aAdd( aDetVer, { '13','0004','26/02/2025', 'Ajuste para corrigir error-log durante recálculo de índices por produto através de JOB' } )
 
 return aDetVer
 

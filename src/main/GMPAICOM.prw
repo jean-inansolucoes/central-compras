@@ -819,7 +819,7 @@ static function entryDocs( cProduto, cDoc, cSerie, cFornece, cLoja, cTipo )
 		next nEmpr
 		
 		// Muda o formato de encerramento da query conforme banco utilizado
-		if cDB $ "ORACLE"
+		if AllTrim(cDB) == "ORACLE"
 			cQuery += ") TEMP " + CEOL
 		else
 			cQuery += ") AS TEMP " + CEOL
@@ -4360,7 +4360,6 @@ User Function GMINDPRO( aParam )
 	local nDiasTot  := 0 as numeric
 	local nTempo    := 0 as numeric
 	local nX        := 0 as numeric
-	local cDB       := TCGetDB()
 	local aDataWF   := {} as array
 	local nLin      := 0 as numeric
 	local cColor    := "" as character
@@ -4376,7 +4375,7 @@ User Function GMINDPRO( aParam )
 	Private _aFilters := {}
 	Private cZBM     := "" as character
 
-	Default aParam := {}
+	Default aParam := {"01","01"}
 	
 	// Valida parâmetros
 	if aParam != Nil .and. Len( aParam ) > 0
@@ -4691,7 +4690,7 @@ User Function GMINDPRO( aParam )
 
 			// Conta quantas vezes a MP apareceu em Ordens de Produção
 			cQuery := "SELECT "
-			if cDB $ "ORACLE"
+			if TCGetDB() == "ORACLE"
 				cQuery += "  COUNT( DISTINCT SUBSTR( D3.D3_OP,01, 06 ) ) QTD_OP " + CEOL
 			else
 				cQuery += "  COUNT( DISTINCT SUBSTRING( D3.D3_OP,01, 06 ) ) QTD_OP " + CEOL
@@ -9661,7 +9660,7 @@ static function outPuts( cProduto )
 	// Query para leitura dos dados de saída do produto
 	cQuery += "SELECT TEMP.* FROM ( "
 	cQuery += U_JSQRYSAI( cProduto, dDe, dAte, _aFil )
-	if cDB $ "ORACLE"
+	if AllTrim(cDB) == "ORACLE"
 		cQuery += ") TEMP "
 	else
 		cQuery += ") AS TEMP "
@@ -9791,7 +9790,7 @@ static function makeTot( oBrowse, dDe, dAte, _aFil, cProduto )
 	IncProc( 'Identificando número total de saídas' )
 	cQuery := "SELECT COUNT( DISTINCT CONCAT( TEMP.D2_DOC, TEMP.D2_SERIE ) ) QTD_SAIDAS FROM ( "
 	cQuery += U_JSQRYSAI( Nil, dDe, dAte, _aFil ) 
-	if cDB == "ORACLE"
+	if AllTrim(cDB) == "ORACLE"
 		cQuery += ") TEMP "
 	else
 		cQuery += " ) AS TEMP "
@@ -9822,7 +9821,7 @@ static function makeTot( oBrowse, dDe, dAte, _aFil, cProduto )
 	for nAux := 1 to len( aPer )
 		cQuery := "SELECT COALESCE(SUM( TEMP.D2_QUANT ),0) SAIDAS FROM ( "
 		cQuery += U_JSQRYSAI( cProduto, aPer[nAux][2], aPer[nAux][3], _aFil ) 
-		if cDB == "ORACLE"
+		if AllTrim(cDB) == "ORACLE"
 			cQuery += ") TEMP "
 		else
 			cQuery += " ) AS TEMP "
