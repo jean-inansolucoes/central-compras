@@ -71,21 +71,23 @@ User Function GMPAICOM()
 	local aButtons := {} as array
 	local oBmpCri, oBmpAlt, oBmpMed, oBmpBai, oBmpSem/* , oBmpSol */ := nil
 	local oRadMenu as object
+	local oPerfil  as object
+	local oDescPer as object
 	local aRadMenu := { "Todos os produtos", "Apenas sugestões de compra", "Apenas risco de ruptura" }
 	local cLastRun := "" as character
 	local oLine    as object
 	local cFileWF  := "" as character
-	// local oTblPro  as object
-	// local aStrPro  := {} as array
 	
 	Private aCarFil   := {} as array
 	Private aCboFil   := getCboFil()
 	Private _cFilPrd  := "" as character
 	Private _aTypes   := {} as array
-	Private nRadMenu  := 1 as numeric
-	Private cFormula  := AllTrim( SuperGetMv( 'MV_X_PNC01',,"" ) )			// Formula de cálculo da necessidade de compra
+	Private nRadMenu  := 1 as numeric 
 	Private cZB6      := AllTrim( SuperGetMv( 'MV_X_PNC04',,"" ) )			// Alias da tabela ZB6 no ambiente do cliente
-	Private cZB3      := AllTrim( SuperGetMv( 'MV_X_PNC02',,"" ) )			// Alias da tabela ZB3 no ambiente do cliente	
+	Private cZB3      := AllTrim( SuperGetMv( 'MV_X_PNC02',,"" ) )			// Alias da tabela ZB3 no ambiente do cliente
+	Private cZBM      := AllTrim( SuperGetMv( 'MV_X_PNC16',,'' ) )			// Alias da tabela ZBM no ambiente do cliente
+	Private cPerfil   := "" as character
+	Private cDescPer  := "" as character
 	Private cMarca    := GetMark()
 	Private oLblDia   := Nil
 	Private nGetQtd   := 0
@@ -182,6 +184,29 @@ User Function GMPAICOM()
 			'Verifique e configure o parâmetro MV_X_PNC04 através do módulo configurador do sistema.')
 		return Nil
 	endif
+
+	// Checa existencia do parâmetro e da configuração do alias da tabelas de perfis de cálculo
+	if ! GetMv( 'MV_X_PNC16', .T. ) .or. Empty( cZBM )
+		Hlp( 'MV_X_PNC16',;
+			'Parâmetro interno que define alias da tabela de perfis de cálculo não existe ou não foi configurado corretamente',;
+			'Verifique com a equipe responsável pela rotina, solicite atualização para a versão mais recente e tente novamente.' )
+		Return Nil
+	elseif FindFunction( 'U_JSPERCHK' )
+		// Função que checa existência de conteúdo na tabela e, se está vazia, cria um registro genérico com a fórmula padrão de cálculo de compras
+		// definida através do parâmetro MV_X_PNC01
+		if !U_JSPERCHK()
+			Return Nil 
+		endif
+	else
+		Hlp( 'MV_X_PNC16',;
+			'Função de manutenção dos perfis de cálculo não localizada neste ambiente',;
+			'Solicite à equipe responsável a atualização desta rotina e tente novamente.' )
+		Return Nil
+	endif
+
+	// Inicializa com o perfil de cálculo default da rotina
+	cPerfil  := StrZero( 1, TAMSX3( cZBM +'_ID' )[1] )
+	cDescPer := RetField( cZBM, 1, FWxFilial( cZBM ) + cPerfil, cZBM +'_DESC' )
 
 	// Checa configuração de envio de e-mail para fornecedor
 	if AllTrim( SuperGetMv( 'MV_ENVPED' ) ) $ "1|2"
@@ -290,7 +315,8 @@ User Function GMPAICOM()
 	// Botões da EnchoiceBar
 	// aAdd( aButtons, { "BTNWARN"  , {|| fShowEv() }           , "Riscos de Ruptura" } )
 	// aAdd( aButtons, { "BTNNOTIFY", {|| fShowEv( aColPro[ oBrwPro:nAt][nPosPrd] ) }, "Eventos do Produto" } )
-	aAdd( aButtons, { "BMPMANUT" , {|| doFormul( cFormula ) }, "Formula de Cálculo" } )
+	aAdd( aButtons, { "BMPMANUT" , {|| iif( !Empty(U_JSDoFrml( cPerfil )),;
+										Processa( {|| fLoadInf() }, 'Aguarde!','Analisando dados do MRP...' ), Nil ) }, "Formula de Cálculo" } ) 
 	aAdd( aButtons, { "BTNEMPEN" , {|| iif( oBrwPro:nAt > 0, fShowEm( aColPro[ oBrwPro:nAt][nPosPrd] ), Nil ) }, "Empenhos do Produto" } )
 	aAdd( aButtons, { "BTNPEDIDO", {|| iif( oBrwPro:nAt > 0, fPedFor(), Nil ) }, "Pedidos em Aberto" } )
 	aAdd( aButtons, { "BTNENTR"  , {|| iif( oBrwPro:nAt > 0, entryDocs( aColPro[ oBrwPro:nAt ][nPosPrd] ), Nil ) }, "Entradas" } )
@@ -417,6 +443,15 @@ User Function GMPAICOM()
 	oRadMenu := TRadMenu():New( 30, 70, aRadMenu,, oWinPar,,,,,,,,100,12,,,,.T.)
 	oRadMenu:bSetGet := {|u| iif( pCount()==0, nRadMenu, nRadMenu := u ) }
 	oRadMenu:bChange := {|| Processa( {|| fLoadInf() }, 'Aguarde!','Executando filtro de produtos...' ) }
+
+	oPerfil := TGet():New( 65, 70,{|u| If(pCount()>0,cPerfil:=u,cPerfil ) },oWinPar,030,012,"@!",,0,,,.F.,,.T.,,.F.,,.F.,.F.,,.F.,.F.,,'cPerfil',,,,.T.,.F.,,'Perfil Calc.', 1 )
+	oPerfil:cF3 := cZBM
+	oPerfil:bValid := {|| !Empty( cPerfil ) .and. ExistCpo( cZBM, cPerfil ) }
+	oPerfil:bChange := {|| cDescPer := RetField( cZBM, 1, FWxFilial( cZBM ) + cPerfil, cZBM +'_DESC' ),; 
+						   Processa( {|| fLoadInf() }, 'Aguarde!','Executando filtro de produtos...' ) }
+
+	oDescPer := TGet():New( 65, 110,{|u| If(pCount()>0,cDescPer:=u,cDescPer ) },oWinPar,070,012,"@x",,0,,,.F.,,.T.,,.F.,,.F.,.F.,,.F.,.F.,,'cDescPer',,,,.T.,.F.,,'Descrição', 1  )
+	oDescPer:bWhen := {|| .F. }
 
 	@ 06, 04 SAY oLblPer PROMPT "Período: " SIZE (oWinDash:nWidth/2)*0.1, 011 OF oWinDash FONT oFntTxt COLORS 8421504, 16777215 PIXEL
 	@ 04, 06+(oWinDash:nWidth/2)*0.1 MSCOMBOBOX oCboAna VAR cCboAna ITEMS aCboAna SIZE (oWinDash:nWidth/2)*0.3, 013 OF oWinDash COLORS 8421504, 16777215 FONT oFntCbo ON CHANGE Processa( {|| fLoadAna() }, 'Aguarde!', 'Analisando sazonalidade do produto...' ) PIXEL
@@ -2998,7 +3033,7 @@ Static Function fLoadInf()
 								PRDTMP->EMPENHO /* nQtdEmp */,;
 								PRDTMP->QTDCOMP /* nQtdPed */ }
 					
-					nQtdCom := fCalNec( aInfPrd )
+					nQtdCom := fCalNec( aInfPrd, cPerfil )
 					
 					// Quando apenas sugestões estiver marcado, exibe só os produtos com quantidade de compra maior que 0 (zero)
 					if nRadMenu == 2 .and. nQtdCom == 0
@@ -3523,7 +3558,7 @@ Static Function fMarkPro()
 				aAdd( aLinCar, 0 )
 			endif
 			aAdd( aLinCar, .F. )
-			
+
 			// Prepara vetores para carrinho de compra por produto e por filial
 			for nFil := 1 to len( _aFil )
 				cFilAnt := _aFil[nFil]
@@ -3537,6 +3572,17 @@ Static Function fMarkPro()
 
 					aAdd( aCarFil, aClone( aLinFil ) )
 					aLinFil := {}
+				endif
+				// Atualiza perfil de cálculo do produto automaticamente para que o sistema saiba qual perfil de cálculo o produto utiliza
+				// durante os recálculos feitos de maneira automática
+				DBSelectArea( 'SB1' )
+				SB1->( DBSetOrder( 1 ) )
+				if SB1->( DBSeek( FWxFilial( 'SB1' ) + aColPro[oBrwPro:nAt][nPosPrd] ) )
+					if ! SB1->B1_X_PERCA == cPerfil
+						RecLock( 'SB1', .F. )
+						SB1->B1_X_PERCA := cPerfil
+						SB1->( MsUnlock() )
+					endif
 				endif
 			next nFil
 			cFilAnt := cFilHist
@@ -3695,6 +3741,11 @@ User Function PCOMVLD()
 				oBrwFor:UpdateBrowse()
 			endif
 
+			// Atualiza o vínculo entre produto e fornecedor, quando necessário
+			updProFor( aColPro[oBrwPro:nAt][nPosPrd] /* cProduto */,;
+					   aColPro[oBrwPro:At()][nPosFor] /* cFornece */,;
+					   aColPro[oBrwPro:At()][nPosLoj] /* cLoja */ )
+
 		endif
 		
 		if nColAtu == nPosNec						// Alteração no campo de necessidade de compra
@@ -3835,7 +3886,7 @@ User Function PCOMVLD()
 							aColPro[ oBrwPro:nAt ][ nPosQtd ] /* nQtdCom */ }
 				
 				// Função que calcula a necessidade de compra
-				nQtdCom := fCalNec( aInfPrd )
+				nQtdCom := fCalNec( aInfPrd, cPerfil )
 				aColPro[ oBrwPro:nAt ][ nPosNec ] := nQtdCom
 				aColPro[ oBrwPro:nAt ][ nPosDur ] := nPrjEst
 				aColPro[ oBrwPro:nAt ][ nPosDuP ] := nDurPrv
@@ -4315,13 +4366,15 @@ User Function GMINDPRO( aParam )
 	local cColor    := "" as character
 	local nQtdAtual := 0 as numeric
 	
+	Private cPerfDef := "" as character
+	Private cPerfil  := "" as character
 	Private cFdGroup := "" as character
 	Private _aFil    := {} as array
 	Private cZB6     := "" as character
 	Private aConfig  := {} as array
-	Private cZB3     := "" as character
-	Private cFormula := "" as character
+	Private cZB3     := "" as character 
 	Private _aFilters := {}
+	Private cZBM     := "" as character
 
 	Default aParam := {}
 	
@@ -4366,12 +4419,24 @@ User Function GMINDPRO( aParam )
 					.F. /* lCancel */ }
 
 	_aFilters[2] := PADR(aConfig[21],200,' ')					// pré-definições dos tipos de produtos a serem analisados
+	
+	// Valida existência da tabela ZBM
+	cZBM         := AllTrim( GetMV( 'MV_X_PNC16' ) )			// Tabela de perfis de cálculo
+	if !Empty( cZBM )
+		if !U_JSPERCHK()
+			Return Nil
+		endif
+	else
+		ConOut( 'GMINDPRO - '+ Time() +' - AUSENCIA DE CONFIGURACAO PARA A TABELA DE PERFIS DE CALCULO' )
+		Return Nil
+	endif
+
+	// Define um perfil de cálculo padrão  
+	cPerfDef     := StrZero(1,TAMSX3(cZBM +'_ID')[1])
+	cPerfil      := cPerfDef
 
 	// Valida se existe o parâmetro configurado no ambiente
 	lMVPNC12 := GetMv( 'MV_X_PNC12', .T. /* lCheck */ )
-
-	// Monta string referente aos armazens que serão utilizados para somatório dos saldos dos produtos
-	cFormula := AllTrim( SuperGetMv( 'MV_X_PNC01',,"" ) )
 	
 	// Valida existência da função que analisa produtos pendentes de inativação
 	lFunIna := ExistBlock( "GMPRDDES" )
@@ -4440,7 +4505,10 @@ User Function GMINDPRO( aParam )
 		DbSelectArea( 'SB1' )
 	    DbSelectArea( cZB3 )
 	    (cZB3)->( DbSetOrder( 1 ) )
-	    	
+	    
+		DBSelectArea( 'SA2' )
+		SA2->( DBSetOrder( 1 ) )	
+
     	While !PRDTMP->( EOF() )
     		
     		nAtu++
@@ -4500,12 +4568,17 @@ User Function GMINDPRO( aParam )
 			if PRDTMP->B1_PE > 0
 				nLeadTime := PRDTMP->B1_PE
 				cLeadTime := 'P'		// Produto
-			elseif PRDTMP->A2_X_LTIME > 0
-				nLeadTime := PRDTMP->A2_X_LTIME
-				cLeadTime := 'F'		// Fornecedor Padrao
 			else
-				nLeadTime := calcLt( PRDTMP->B1_COD, cFornece, cLoja )
-				cLeadTime := 'C'		// Calculado
+				// Posiciona no fornecedor e loja
+				if SA2->( DBSeek( FWxFilial( 'SA2' ) + cFornece + cLoja ) )
+					if SA2->A2_X_LTIME > 0
+						nLeadTime := SA2->A2_X_LTIME
+						cLeadTime := 'F'		// Fornecedor
+					else
+						nLeadTime := calcLt( PRDTMP->B1_COD, cFornece, cLoja )
+						cLeadTime := 'C'		// Calculado					
+					endif
+				endif
 			endif 
 			
 			// Comando para leitura do índice de giro dos produtos
@@ -4755,7 +4828,11 @@ User Function GMINDPRO( aParam )
 						 PRDTMP->QTDCOMP }
 
     		// Calcula necessidade de compra do material
-    		nQtdCom := fCalNec( aInfPrd )  
+			cPerfil := RetField( 'SB1', 1, FWxFilial( 'SB1' ) + PRDTMP->B1_COD, 'B1_X_PERCA' )
+			if Empty( cPerfil )		// Quando vazio, usa o perfil default
+				cPerfil := cPerfDef
+			endif
+    		nQtdCom := fCalNec( aInfPrd, cPerfil )
     		
     		// Valida existência de chave primária da tabela
     		lInclui := ! (cZB3)->( DbSeek( xFilial( cZB3 ) + PRDTMP->B1_COD + DtoS( Date() ) ) )
@@ -4913,11 +4990,13 @@ FUnção que calcula a necessidade de compra para o produto com base na fórmula de
 @author Jean Carlos Pandolfo Saggin
 @since 11/04/2024
 @param aInfPrd, array, vetor com informações sobre o produto
+@param cPerfil, character, ID do perfil de compra setado pelo usuário na rotina de análise
 @return numeric, nQtdCom
 /*/
-Static Function fCalNec( aInfPrd )
+Static Function fCalNec( aInfPrd, cPerfil )
 	
 	local lPriLE    := aConfig[19] == 'S'
+	local cFormula  := "" as character
 	Private nQtdCom := 0
 	Private nDias   := 0
 	Private nLdTime := 0
@@ -4944,6 +5023,7 @@ Static Function fCalNec( aInfPrd )
 	nQtdPed := aInfPrd[11]		// Quantidade em pedido de compra não atendido
 
 	// Valida existência da fórmula
+	cFormula := AllTrim( RetField( cZBM, 1, FWxFilial( cZBM ) + cPerfil, cZBM+'_FORMUL' ) )
 	if Empty( cFormula )
 		Hlp( "FORMULA",;
 			"Não foi definida a fórmula de cálculo de necessidade de compra",;
@@ -5021,60 +5101,75 @@ Static Function fMarkAll()
 
 Return ( Nil )
 
-/*/{Protheus.doc} doFormul 
+/*/{Protheus.doc} JSDoFrml 
 Função de manutenção da fórmula de cálculo da necessidade de compra
 @type function
 @version 1.0
 @author Jean Carlos Pandolfo Saggin
 @since 09/04/2024
-@param cFormAtu, character, formula atual
+@param cID, character, ID do perfil de cálculo
 @return character, cFormula
 /*/
-Static Function doFormul( cFormAtu )
+User Function JSDoFrml( cID, oDlg )
 	
 	Local oBtnAbP  := Nil
 	Local oBtnAdd  := Nil
-	Local oBtnCan  := Nil
 	Local oBtnDiv  := Nil
 	Local oBtnFeP  := Nil
-	Local oBtnGrv  := Nil
 	Local oBtnMai  := Nil
 	Local oBtnMen  := Nil
 	Local oBtnVez  := Nil
 	Local oCboVar  := Nil
-	Local oCompon  := Nil
 	Local oFntFor  := TFont():New("Courier New", , 014, , .T., , , , , .F., .F.)
 	Local oGetFor  := Nil
 	Local oLblVar  := Nil
-	
-	Private cFormTmp := cFormAtu		// Formula temporária
+	local cPerf    := "" as character
+	local cFormula := "" as character
+	local bOk      := {|| cFormula := fGrvCri( cPerf, cFormTmp ), iif( oDlg==Nil, oDlgCri:End(), Nil ) }
+	local bCancel  := {|| oDlgCri:End() }
+	local aButtons := {} as array
+	local oModel    as object
+	local oMaster   as object
+	local cZBM     := AllTrim(GetMV( 'MV_X_PNC16' ))
+	local cForm    := ""
+	local cCboVar  := ""
+	local cFormTmp := ""		// Formula temporária
+
 	Private oDlgCri  := Nil
-	Private cCboVar  := ""
-	Private cGetFor  := ""
-
-	default cFormAtu := AllTrim( SuperGetMv( 'MV_X_PNC01',,"" ) )
 	
-	// Chama função de interpretação de fórmula
-	cGetFor := fLoadCri( cFormAtu )
-	
-	DEFINE MSDIALOG oDlgCri TITLE "Critério de Compra" FROM 000, 000 TO 175, 530 COLORS 0, 16777215 PIXEL
+	default oDlg := Nil
 
-    @ 025, 004 GROUP oCompon TO 052, 265 PROMPT "   Componentes para definição da fórmula de cálculo  " OF oDlgCri COLOR 0, 16777215 PIXEL
+	if !oDlg == Nil
+		oDlgCri  := oDlg
+		oModel   := FWModelActive()
+		oMaster  := oModel:GetModel( cZBM +'MASTER' )
+		cPerf    := oMaster:GetValue( cZBM +'_ID' )
+		cFormTmp := AllTrim( oMaster:GetValue( cZBM +'_FORMUL' ) )
+		cForm  := fLoadCri( oMaster:GetValue( cZBM +'_FORMUL' ) )
+	else
+		cFormTmp := AllTrim( RetField( cZBM, 1, FWxFilial( cZBM ) + cPerfil, cZBM +'_FORMUL' ) )
+		cForm  := fLoadCri( cFormTmp )
+		cPerf    := cID
+		DEFINE MSDIALOG oDlgCri TITLE "Critério de Compra - "+ AllTrim( RetField( cZBM, 1, FWxFilial( cZBM ) + cPerf, cZBM +"_DESC" ) ) FROM 000, 000 TO 175, 700 COLORS 0, 16777215 PIXEL
+	endif
+
     @ 037, 006 SAY oLblVar PROMPT "Variáveis" SIZE 025, 007 OF oDlgCri COLORS 0, 16777215 PIXEL
-    @ 054, 004 MSGET oGetFor VAR cGetFor SIZE 262, 015 OF oDlgCri COLORS 0, 16777215 WHEN .F. FONT oFntFor PIXEL
-    @ 035, 032 MSCOMBOBOX oCboVar VAR cCboVar ITEMS fGetVar( 1 /*nOpc*/ ) SIZE 070, 013 OF oDlgCri  COLORS 0, 16777215 PIXEL
-    @ 035, 104 BUTTON oBtnAdd PROMPT "&Adicionar" SIZE 035, 012 OF oDlgCri ACTION {|| cGetFor := fManFor( 1 /*nOpc*/,, cFormTmp ), oDlgCri:Refresh() } PIXEL
-    @ 035, 141 BUTTON oBtnRem PROMPT "&Remover" SIZE 035, 012 OF oDlgCri ACTION {|| cGetFor := fManFor( 2 /*nOpc*/,, cFormTmp ), oDlgCri:Refresh() } PIXEL
-    @ 035, 265-(12*6)-(2*6) BUTTON oBtnAbP PROMPT "(" SIZE 012, 012 OF oDlgCri ACTION {|| cGetFor := fManFor( 3 /*nOpc*/, oBtnAbP:CCAPTION /*cOpc*/, cFormTmp ), oDlgCri:Refresh() } PIXEL
-    @ 035, 265-(12*5)-(2*5) BUTTON oBtnFeP PROMPT ")" SIZE 012, 012 OF oDlgCri ACTION {|| cGetFor := fManFor( 3 /*nOpc*/, oBtnFeP:CCAPTION /*cOpc*/, cFormTmp ), oDlgCri:Refresh() } PIXEL
-    @ 035, 265-(12*4)-(2*4) BUTTON oBtnMen PROMPT "-" SIZE 012, 012 OF oDlgCri ACTION {|| cGetFor := fManFor( 3 /*nOpc*/, oBtnMen:CCAPTION /*cOpc*/, cFormTmp ), oDlgCri:Refresh() } PIXEL
-    @ 035, 265-(12*3)-(2*3) BUTTON oBtnMai PROMPT "+" SIZE 012, 012 OF oDlgCri ACTION {|| cGetFor := fManFor( 3 /*nOpc*/, oBtnMai:CCAPTION /*cOpc*/, cFormTmp ), oDlgCri:Refresh() } PIXEL
-    @ 035, 265-(12*2)-(2*2) BUTTON oBtnDiv PROMPT "/" SIZE 012, 012 OF oDlgCri ACTION {|| cGetFor := fManFor( 3 /*nOpc*/, oBtnDiv:CCAPTION /*cOpc*/, cFormTmp ), oDlgCri:Refresh() } PIXEL
-    @ 035, 265-(12*1)-(2*1) BUTTON oBtnVez PROMPT "x" SIZE 012, 012 OF oDlgCri ACTION {|| cGetFor := fManFor( 3 /*nOpc*/, "*" /*cOpc*/, cFormTmp ), oDlgCri:Refresh() } PIXEL
-    @ 073, 265-(37*1)-(2*0) BUTTON oBtnCan PROMPT "&Cancelar" SIZE 037, 012 OF oDlgCri ACTION oDlgCri:End() WHEN .T. PIXEL
-    @ 073, 265-(37*2)-(2*1) BUTTON oBtnGrv PROMPT "&Gravar" SIZE 037, 012 OF oDlgCri ACTION {|| cFormula := fGrvCri( cFormTmp ), oDlgCri:End() } PIXEL
+
+	oGetFor := TSay():New( 058, 004, {|u| cForm },oDlgCri,,oFntFor,,,,.T.,CLR_RED,CLR_WHITE,340,20)
+
+    @ 035, 032 MSCOMBOBOX oCboVar VAR cCboVar ITEMS fGetVar( 1 /*nOpc*/, @cCboVar ) SIZE 070, 013 OF oDlgCri  COLORS 0, 16777215 PIXEL
+    @ 035, 104 BUTTON oBtnAdd PROMPT "&Adicionar" SIZE 035, 012 OF oDlgCri ACTION {|| cForm := fManFor( 1 /*nOpc*/,, @cFormTmp, @cCboVar ), oGetFor:CtrlRefresh() } PIXEL
+    @ 035, 141 BUTTON oBtnRem PROMPT "&Remover" SIZE 035, 012 OF oDlgCri ACTION {|| cForm := fManFor( 2 /*nOpc*/,, @cFormTmp, @cCboVar ), oGetFor:CtrlRefresh() } PIXEL
+    @ 035, 350-(12*6)-(2*6) BUTTON oBtnAbP PROMPT "(" SIZE 012, 012 OF oDlgCri ACTION {|| cForm := fManFor( 3 /*nOpc*/, oBtnAbP:CCAPTION /*cOpc*/, @cFormTmp, @cCboVar ), oGetFor:CtrlRefresh() } PIXEL
+    @ 035, 350-(12*5)-(2*5) BUTTON oBtnFeP PROMPT ")" SIZE 012, 012 OF oDlgCri ACTION {|| cForm := fManFor( 3 /*nOpc*/, oBtnFeP:CCAPTION /*cOpc*/, @cFormTmp, @cCboVar ), oGetFor:CtrlRefresh() } PIXEL
+    @ 035, 350-(12*4)-(2*4) BUTTON oBtnMen PROMPT "-" SIZE 012, 012 OF oDlgCri ACTION {|| cForm := fManFor( 3 /*nOpc*/, oBtnMen:CCAPTION /*cOpc*/, @cFormTmp, @cCboVar ), oGetFor:CtrlRefresh() } PIXEL
+    @ 035, 350-(12*3)-(2*3) BUTTON oBtnMai PROMPT "+" SIZE 012, 012 OF oDlgCri ACTION {|| cForm := fManFor( 3 /*nOpc*/, oBtnMai:CCAPTION /*cOpc*/, @cFormTmp, @cCboVar ), oGetFor:CtrlRefresh() } PIXEL
+    @ 035, 350-(12*2)-(2*2) BUTTON oBtnDiv PROMPT "/" SIZE 012, 012 OF oDlgCri ACTION {|| cForm := fManFor( 3 /*nOpc*/, oBtnDiv:CCAPTION /*cOpc*/, @cFormTmp, @cCboVar ), oGetFor:CtrlRefresh() } PIXEL
+    @ 035, 350-(12*1)-(2*1) BUTTON oBtnVez PROMPT "x" SIZE 012, 012 OF oDlgCri ACTION {|| cForm := fManFor( 3 /*nOpc*/, "*" /*cOpc*/, @cFormTmp, @cCboVar ), oGetFor:CtrlRefresh() } PIXEL
     
-    ACTIVATE MSDIALOG oDlgCri CENTERED
+	if oDlg == Nil
+    	ACTIVATE MSDIALOG oDlgCri CENTERED ON INIT EnchoiceBar( oDlgCri, bOk, bCancel,, aButtons )
+	endif
 	
 Return ( cFormula )
 
@@ -5087,63 +5182,49 @@ Função responsável pela gravação da configuração do critério de compra
 @param cFormula, character, formula de cálculo da necessidade de compra
 @return character, cFormula
 /*/
-Static Function fGrvCri( cFormula )
+Static Function fGrvCri( cID, cFormula )
 	
-	local cSX6    := "SX6" as character
-	local lInc    := ! GetMv( 'MV_X_PNC01', .T. /* lCheck */ ) 	
-	
-	if lInc
-		DBSelectArea( cSX6 )
-		( cSX6 )->( DBSetOrder( 1 ) )
-		RecLock( cSX6, .T. )
-		( cSX6 )->(FieldPut( FieldPos( 'X6_FIL' ), Space( Len( cFilAnt ) ) ))
-		( cSX6 )->(FieldPut( FieldPos( 'X6_VAR' ), 'MV_X_PNC01' ))
-		( cSX6 )->(FieldPut( FieldPos( 'X6_TIPO' ), 'C' ))
-		( cSX6 )->(FieldPut( FieldPos( 'X6_DESCRIC' ), 'Formula de calculo da necessidade de compra do ' ))
-		( cSX6 )->(FieldPut( FieldPos( 'X6_DESC1' ), 'Painel de Compra' ))
-		( cSX6 )->(FieldPut( FieldPos( 'X6_DSCSPA' ), 'Formula de calculo da necessidade de compra do ' ))
-		( cSX6 )->(FieldPut( FieldPos( 'X6_DSCSPA1' ), 'Painel de Compra' ))
-		( cSX6 )->(FieldPut( FieldPos( 'X6_DSCENG' ), 'Formula de calculo da necessidade de compra do ' ))
-		( cSX6 )->(FieldPut( FieldPos( 'X6_DSCENG1' ), 'Painel de Compra' ))
-		( cSX6 )->(FieldPut( FieldPos( 'X6_CONTEUD' ), cFormula ))
-		( cSX6 )->(FieldPut( FieldPos( 'X6_CONTSPA' ), cFormula ))
-		( cSX6 )->(FieldPut( FieldPos( 'X6_CONTENG' ), cFormula ))
-		( cSX6 )->(FieldPut( FieldPos( 'X6_PROPRI' ), 'S' ))
-		(cSX6)->( MsUnlock() )
+	DBSelectArea( cZBM )
+	( cZBM )->( DBSetOrder( 1 ) )		// ID
+	if ( cZBM )->( DBSeek( FWxFilial( cZBM ) + cID ) )
+		RecLock( cZBM, .F. )
+		( cZBM )->( FieldPut( FieldPos( cZBM +'_FORMUL' ), cFormula ) )
+		( cZBM )->( MsUnlock() )
 	else
-		PutMV( 'MV_X_PNC01', cFormula )
+		cFormula := ""
 	endif
 	
 Return ( cFormula )
-
-/*
-+-----------------+-------------------------+---------------------------------+-------------------+
-| Fonte: GMPAICOM | Funcao:  fManFor        | Autor: Jean Carlos P. Saggin    |  Data: 26.07.2019 |
-+-----------------+-------------------------+---------------------------------+-------------------+
-| Descricao: Função que retorna as variáveis que poderão ser utilizadas na composição da fórmula  |
-|            de cálculo das necessidades de compra                                                |
-+-------------------------------------------------------------------------------------------------+
-| Parametros recebidos:                                                                           |
-| nOpc: ( 1=Adiciona conteúdo, 2=Remove conteúdo ou 3=Adiciona Operador )                         |
-| cOpc: Operador que será adicionado à fórmula                                                    |
-+-------------------------------------------------------------------------------------------------+
-| Retorno da funcao: bRet                                                                         |
-| O retorno da função deverá ser dinâmico de acordo com o parâmetro recebido 1=Conteúdo Combo ou  |
-| 2=Variáveis Disponíveis                                                                         |
-+-------------------------------------------------------------------------------------------------+  
+ 
 */
-Static Function fManFor( nOpc, cOpc, cGetFor )
+/*/{Protheus.doc} fManFor
+Função que re torna as variáveis que poderão ser utilizadas na composição da fórmula de cálculo das necessidades de compra
+@type function
+@version 1.0
+@author Jean Carlos Pandolfo Saggin
+@since 2/25/2025
+@param nOpc, numeric, 1=Adiciona COnteúdo, 2=Remove Conteúdo ou 3=Adiciona Operador
+@param cOpc, character, Operador que será adicionado à fórmula
+@param cFormTmp, character, Formula atual (não visual)
+@param cCboVar, character, Conteúdo do combo de variáveis
+@return character, cFormulaVisual
+/*/
+Static Function fManFor( nOpc, cOpc, cFormTmp, cCboVar )
 	
 	Local aItens   := {}
 	Local cVar     := ""
 	Local nX       := 0
 	local cAux     := "" as character
+	local oModel   as object
+	local oMaster  as object
+	local lMVC     := FWIsInCallStack( 'U_JSPERCAL' )
+	local cZBM     := AllTrim( GetMv( 'MV_X_PNC16' ) )
 	
 	Default cOpc := ""
-	
-	cAux := cGetFor // Inicializa com conteúdo atual da fórmula
+
+	cAux := cFormTmp // Inicializa com conteúdo atual da fórmula
 	if nOpc == 1 .or. nOpc == 3				// Adicionar
-		cVar     := fGetVar(2)[aScan( fGetVar(2), {|x| AllTrim(x[1]) == cCboVar } )][02]
+		cVar     := fGetVar(2, @cCboVar )[aScan( fGetVar(2, @cCboVar ), {|x| AllTrim(x[1]) == cCboVar } )][02]
 		cAux += iif( !Empty( cAux ), CSEPARA, "" ) + iif( !Empty( cOpc ), cOpc, cVar ) 
 	ElseIf nOpc == 2						// Remover
 		if !Empty( cAux )
@@ -5162,8 +5243,16 @@ Static Function fManFor( nOpc, cOpc, cGetFor )
 	EndIf
 	
 	cFormTmp := cAux
-	cAux := fLoadCri( cAux )
-	
+	cAux := fLoadCri( cAux, Nil, @cCboVar )
+	if lMVC
+		oModel := FWModelActive()
+		// Checa operação para saber se deve atualizar o conteúdo da variável ou não
+		if oModel:GetOperation() == MODEL_OPERATION_INSERT .or. oModel:GetOperation() == MODEL_OPERATION_UPDATE
+			oMaster := oModel:GetModel( cZBM +'MASTER' )
+			oMaster:SetValue( cZBM +'_FORMUL', cFormTmp )
+		endif
+	endif
+
 Return ( cAux )
 
 /*/{Protheus.doc} fLoadCri
@@ -5175,7 +5264,7 @@ Função de leitura e interpretação da fórmula de cálculo de necessidade de compra
 @param cCodCri, character, formula existente
 @return character, cReturn
 /*/
-Static Function fLoadCri( cCodCri, lVar )
+Static Function fLoadCri( cCodCri, lVar, cCboVar )
 	
 	Local cRet   := ""
 	Local aItens := ""
@@ -5189,7 +5278,7 @@ Static Function fLoadCri( cCodCri, lVar )
 	if ! Empty( cCodCri )
 		
 		aItens := StrTokArr( AllTrim( cCodCri ), CSEPARA )
-		aVar   := fGetVar(2)
+		aVar   := fGetVar(2, @cCboVar )
 		
 		if Len( aItens ) > 0
 			cRet := ""
@@ -5218,7 +5307,7 @@ Return ( cRet )
 | 2=Variáveis Disponíveis                                                                         |
 +-------------------------------------------------------------------------------------------------+  
 */
-Static Function fGetVar( nOpc )
+Static Function fGetVar( nOpc, cCboVar )
 	
 	Local aVar := {}
 	Local aCbo := {}
@@ -5588,7 +5677,7 @@ Static Function fGrvPed( oCbo, aCbo, cCbo, cFornece, cLoja )
 			For nX := 1 to Len( aCol )
 				
 				if !aCol[nX][Len(aHea)+1]
-					
+
 					aAdd( aLin, { "C7_PRODUTO", aCol[nX][nPrd], Nil } )
 					aAdd( aLin, { "C7_DESCRI" , aCol[nX][nDes], Nil } )
 					aAdd( aLin, { "C7_UM"     , aCol[nX][nUnM], Nil } )
@@ -9933,3 +10022,49 @@ static function mrpRemove( cProduto )
 
 	SetFunName( cFunOld )
 return lSuccess
+
+/*/{Protheus.doc} updProFor
+Função de atualização do vínculo entre produto e fornecedor
+@type function
+@version 1.0
+@author Jean Carlos Pandolfo Saggin
+@since 2/25/2025
+@param cProduto, character, ID do produto
+@param cFornece, character, ID do fornecedor
+@param cLoja, character, Loja do fornecedor
+/*/
+static function updProFor( cProduto, cFornece, cLoja )
+	
+	if aConfig[22] == '1'		// Fabricante
+		
+		// Atualiza vínculo de produto com o fabricante
+		DBSelectArea( 'SB1' )
+		SB1->( DBSetOrder( 1 ) )		// Filial + Cod
+		if SB1->( DBSeek( FWxFilial( 'SB1' ) + cProduto ) )
+			if SB1->B1_PROC != cFornece .or. SB1->B1_LOJPROC != cLoja
+				RecLock( 'SB1', .F. )
+				SB1->B1_PROC := cFornece
+				SB1->B1_LOJPROC := cLoja
+				SB1->( MsUnlock() )
+			endif
+		endif
+
+	else	// Produto x Fornecedor ou histórico
+
+		DBSelectArea( 'SA5' )
+		SA5->( DBSetOrder( 1 ) )	// Filial + Fornece + Loja + Produto
+		if ! SA5->( DBSeek( FWxFilial( 'SA5' ) + cFornece + cLoja + cProduto ) )
+			RecLock( 'SA5', .T. )
+			SA5->A5_FILIAL  := FWxFilial( 'SA5' )
+			SA5->A5_FORNECE := cFornece
+			SA5->A5_LOJA    := cLoja
+			SA5->A5_NOMEFOR := RetField( "SA2", 1, FWxFilial( 'SA2' ) + cFornece + cLoja, 'A2_NOME' )
+			SA5->A5_PRODUTO := cProduto
+			SA5->A5_NOMPROD := RetField( "SB1", 1, FWxFilial( 'SB1' ) + cProduto, 'B1_DESC' )
+			SA5->A5_CHAVE   := newKey()
+			SA5->( MsUnlock() )
+		endif
+
+	endif
+
+return Nil

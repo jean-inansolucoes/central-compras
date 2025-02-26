@@ -75,7 +75,9 @@ user function JSDETVER()
     aAdd( aDetVer, { '12','0009','21/02/2025', 'Ajuste de espaçamento no código do fornecedor na função de importação da relação de produto versus fornecedor' } )
     aAdd( aDetVer, { '12','0010','22/02/2025', 'Alteração para que, quando o produto for colocado no carrinho por meio do alt+x, a linha do grid de produtos seja atualizada' } )
     aAdd( aDetVer, { '12','0011','22/02/2025', 'Permitir alterar a quantidade diretamente no campo do browse do produto quando não for utilizado compra multi-filial' } )
-    // aAdd( aDetVer, { '13','0001','21/02/2025', 'Implementação do conceito de perfis de cálculo' } )
+    aAdd( aDetVer, { '13','0001','21/02/2025', 'Implementação do conceito de perfis de cálculo' } )
+    aAdd( aDetVer, { '13','0002','25/02/2025', 'Vínculo de perfil de cálculo com o produto para recálculos via JOB' } )
+    aAdd( aDetVer, { '13','0003','25/02/2025', 'Vínculo automático de produto versus fornecedor ao informar fornecedor e loja na linha do produto' } )
 
 return aDetVer
 

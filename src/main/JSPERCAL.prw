@@ -13,9 +13,6 @@ user function JSPERCAL()
 
     local oBrowse as object
     local cAlias    := AllTrim( SuperGetMv( 'MV_X_PNC16',,'' ) )
-    local cID       := "" as character
-
-    local cFrmlDef  := ALlTrim( SuperGetMv( 'MV_X_PNC01',,'' ) ) 
 
     // Valiada se o alias da tabela de perfis de cálculo está configurado no parâmetro
     if Empty( cAlias )
@@ -24,17 +21,9 @@ user function JSPERCAL()
         return Nil
     endif
 
-    cID := StrZero( 1, TAMSX3( cAlias + '_ID' )[1] )
-    DBSelectArea( cAlias )
-    ( cAlias )->( DBSetOrder( 1 ) )     // FILIAL + ID
-    if ! ( cAlias )->( DBSeek( FWxFilial( cAlias ) + cID ) )
-        RecLock( cAlias, .T. )
-        ( cAlias )->( FieldPut( FieldPos( cAlias +'_FILIAL' ), FWxFilial( cAlias ) ) )
-        ( cAlias )->( FieldPut( FieldPos( cAlias +'_ID' ), cID ) )
-        ( cAlias )->( FieldPut( FieldPos( cAlias +'_DESC' ), 'Consumo Médio' ) )
-        ( cAlias )->( FieldPut( FieldPos( cAlias +'_MSBLQL' ), '2' ) )
-        ( cAlias )->( FieldPut( FieldPos( cAlias +'_FORMUL' ), cFrmlDef ) )
-        ( cALias )->( MsUnlock() )
+    // Função que força a criação do registro default de cálculo de compra
+    if !U_JSPERCHK()
+        Return Nil
     endif
 
     // Cria um browse para a rotina
@@ -76,12 +65,16 @@ static function ViewDef()
     local oModel   := FWLoadModel( 'JSPERCAL' )
     local oStruct  := FWFormStruct( 2, cMVPNC16, {|cField| ! AllTrim( cField ) == cMVPNC16 +'_FORMUL' } )
     local oView    as object
+    local bActivate := {|oPanel| U_JSDoFrml( nil, oPanel ) }
 
     oView := FWFormView():New()
     oView:SetModel( oModel )
     oView:AddField( cMVPNC16 +'VIEW', oStruct, cMVPNC16+'MASTER' )
-    oView:CreateHorizontalBox( 'GERAL', 100 )
-    oView:SetOwnerView( cMVPNC16 +'VIEW', 'GERAL' )
+    oView:CreateHorizontalBox( 'H_TOP_BOX', 50 )
+    oView:CreateHorizontalBox( 'H_DOWN_BOX', 50 )
+    oView:SetOwnerView( cMVPNC16 +'VIEW', 'H_TOP_BOX' )
+    oView:AddOtherObject( 'OTHER', bActivate )
+    oView:SetOwnerView( 'OTHER', 'H_DOWN_BOX' )
     oView:EnableTitleView( cMVPNC16 +'VIEW' )
 
 return oView
@@ -98,7 +91,7 @@ static function ModelDef()
 
     local oModel    as object
     local cMVPNC16  := AllTrim( SuperGetMv( 'MV_X_PNC16',,'' ) )
-    local oStruct   := FWFormStruct( 1, cMVPNC16, {|cField| ! AllTrim( cField ) == cMVPNC16 +'_FORMUL' } )
+    local oStruct   := FWFormStruct( 1, cMVPNC16 )
 
     oModel := MPFormModel():New( 'JSPERMOD' ) 
     oModel:AddFields( cMVPNC16+'MASTER', , oStruct )
@@ -149,3 +142,107 @@ user function JSIDPERF()
     local cMVPNC16  := AllTrim( SuperGetMv( 'MV_X_PNC16',,'' ) )
     local cID := GetSXENUM( cMVPNC16, cMVPNC16 +'_ID' )
 return cID
+
+/*/{Protheus.doc} JSPERCHK
+Função responsável pela checagem e criação do registro com ID 01, contendo a fórmula de cálculo padrão da rotina
+@type function
+@version 1.0
+@author Jean Carlos Pandolfo Saggin
+@since 2/23/2025
+@return logical, lChecked
+/*/
+user function JSPERCHK()
+
+    local lChecked := .F. as logical
+    local cAlias   := GetMv( 'MV_X_PNC16' )
+    local cID      := "" as character
+    local cFrmlDef := ALlTrim( SuperGetMv( 'MV_X_PNC01',,'' ) ) 
+
+    // Valida existência de função que checa e cria 
+	if FindFunction( 'U_JSZBMF3' )
+		U_JSZBMF3()
+	endif
+
+    cID := StrZero( 1, TAMSX3( cAlias + '_ID' )[1] )
+    DBSelectArea( cAlias )
+    ( cAlias )->( DBSetOrder( 1 ) )     // FILIAL + ID
+    if ! ( cAlias )->( DBSeek( FWxFilial( cAlias ) + cID ) )
+        RecLock( cAlias, .T. )
+        ( cAlias )->( FieldPut( FieldPos( cAlias +'_FILIAL' ), FWxFilial( cAlias ) ) )
+        ( cAlias )->( FieldPut( FieldPos( cAlias +'_ID' ), cID ) )
+        ( cAlias )->( FieldPut( FieldPos( cAlias +'_DESC' ), 'Consumo Médio' ) )
+        ( cAlias )->( FieldPut( FieldPos( cAlias +'_MSBLQL' ), '2' ) )
+        ( cAlias )->( FieldPut( FieldPos( cAlias +'_FORMUL' ), cFrmlDef ) )
+        ( cALias )->( MsUnlock() )
+        lChecked := .T.
+    else
+        lChecked := .T.
+    endif
+
+    // Valida existência do campo no cadastro do produto
+    lChecked := SB1->( FieldPos( 'B1_X_PERCA' ) ) > 0
+    if ! lChecked
+        Hlp( 'B1_X_PERCA',;
+             'Campo Perfil de Cálculo não identificado na tabela de produtos',;
+             'Aplique a última atualização do dicionário de dados da rotina Painel de Compras e tente novamente.' )
+    endif
+
+return lChecked
+
+/*/{Protheus.doc} JSZBMF3
+Faz checagem da existência da consulta padrão 
+@type function
+@version 1.0
+@author Jean Carlos Pandolfo Saggin
+@since 2/24/2025
+@return logical, lExist
+/*/
+User Function JSZBMF3()
+    
+    local lExist  := .T. as logical
+    local cSXB    := "SXB"
+    local cSX3    := "SX3" 
+    local aXB     := {} as array
+    local cAlias  := AllTrim( GetMV( 'MV_X_PNC16' ) )
+    local lInc    := .F. as logical
+    local nX      := 0 as numeric
+    local nField  := 0 as numeric
+    local aFields := { "XB_ALIAS", "XB_TIPO", "XB_SEQ", "XB_COLUNA", "XB_DESCRI", "XB_DESCSPA", "XB_DESCENG", "XB_CONTEM" }
+
+    // Cria vetor contendo os dados da consulta padrão
+    aAdd( aXB, { PADR( cAlias, 6, ' ' ), '1', '01', 'DB', 'Perfis de Calculo   ', 'Perfis de Calculo   ', 'Perfis de Calculo   ', cAlias } )
+    aAdd( aXB, { PADR( cAlias, 6, ' ' ), '2', '01', '01', 'Id do Perfil        ', 'Id do Perfil        ', 'Id do Perfil        ', "" } )
+    aAdd( aXB, { PADR( cAlias, 6, ' ' ), '3', '01', '01', 'Cadastra Novo       ', 'Incluye Nuevo       ', 'Add New             ', "01" } )
+    aAdd( aXB, { PADR( cAlias, 6, ' ' ), '4', '01', '01', 'ID do Perfil        ', 'ID do Perfil        ', 'ID do Perfil        ', cAlias +'_ID' } )
+    aAdd( aXB, { PADR( cAlias, 6, ' ' ), '4', '01', '02', 'Descrição           ', 'Descrição           ', 'Descrição           ', cAlias +'_DESC' } )
+    aAdd( aXB, { PADR( cAlias, 6, ' ' ), '5', '01', '  ', '                    ', '                    ', '                    ', cAlias +'->'+ cAlias +'_ID' } )
+
+    DBSelectArea( cSXB )
+    ( cSXB )->( DBSetOrder( 1 ) )       // Alias + Tipo + Seq + Coluna
+    for nX := 1 to len( aXB )
+        lInc := !( cSXB )->( DBSeek( aXB[nX][1] + aXB[nX][2] + aXB[nX][3] + aXB[nX][4] ) )
+        RecLock( cSXB, lInc )
+        for nField := 1 to len( aFields )
+            ( cSXB )->( FieldPut( FieldPos( aFields[nField] ), aXB[nX][nField] ) )
+        next nField
+        ( cSXB )->( MsUnlock() )
+    next nX
+
+    // Checagem para ver se todos os registros existem
+    for nX := 1 to len( aXB )
+        lExist := lExist .and. ( cSXB )->( DBSeek( aXB[nX][1] + aXB[nX][2] + aXB[nX][3] + aXB[nX][4] ) )
+    next nX
+
+    if lExist
+        // Ajusta configuração do campo, se necessário
+        DBSelectArea( cSX3 )
+        (cSX3)->( DBSetOrder( 2 ) )
+        if ( cSX3 )->( DBSeek( 'B1_X_PERCA' ) ) .and. Empty( ( cSX3 )->X3_F3 )
+            RecLock( cSX3, .F. )
+            ( cSX3 )->( FieldPut( FieldPos( 'X3_F3' ), cAlias ) )
+            ( cSX3 )->( MsUnlock() )
+        endif
+
+    endif
+
+return lExist
