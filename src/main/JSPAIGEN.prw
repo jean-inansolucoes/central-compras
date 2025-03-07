@@ -79,6 +79,17 @@ user function JSDETVER()
     aAdd( aDetVer, { '13','0002','25/02/2025', 'Vínculo de perfil de cálculo com o produto para recálculos via JOB' } )
     aAdd( aDetVer, { '13','0003','25/02/2025', 'Vínculo automático de produto versus fornecedor ao informar fornecedor e loja na linha do produto' } )
     aAdd( aDetVer, { '13','0004','26/02/2025', 'Ajuste para corrigir error-log durante recálculo de índices por produto através de JOB' } )
+    aAdd( aDetVer, { '13','0006','27/02/2025', 'Correção do cálculo de dias úteis para elaboração da média diária de compras' } )
+    aAdd( aDetVer, { '14','0001','27/02/2025', 'Configuração para eliminação automática do histórico de cálculo de compras por produto' } )
+    aAdd( aDetVer, { '14','0002','27/02/2025', 'Permitir informar observações por item no pedido de compras, trazer condição de pagamento pré-definida para o fornecedor' } )
+    aAdd( aDetVer, { '14','0003','27/02/2025', 'Adicionados dois novos pontos de entrada que permitem manipular o aCols e o aHeader do carrinho de compras' } )
+    aAdd( aDetVer, { '14','0004','27/02/2025', 'Ajustado funções internas de cálculo para considerar a variável Estoque Mínimo nos cálculos de duranção do estoque' } )
+    aAdd( aDetVer, { '14','0005','27/02/2025', 'Trazer preço de tabela, quando o produto estiver em uma tabela de preços do fornecedor' } )
+    aAdd( aDetVer, { '14','0006','02/03/2025', 'Removido validação de resolução de tela após reprogramação do dimensionamento de objetos' } )
+    aAdd( aDetVer, { '14','0007','04/03/2025', 'Permitir alteração da quantidade para itens com pedidos bloqueados para análise' } )
+    aAdd( aDetVer, { '14','0008','06/03/2025', 'Implementado rastreio de posicionamento de colunas de modo dinâmico para vetores do carrinho de compras' } )
+    aAdd( aDetVer, { '14','0009','06/03/2025', 'Permitir informar quantidade zerada no campo de quantidade bloqueada.' } )
+    aAdd( aDetVer, { '14','0010','06/03/2025', 'Ajuste de dimensionamento dos componentes da tela do carrinho de compras' } )
 
 return aDetVer
 
@@ -404,7 +415,7 @@ user function JSQRYINF( aConf, aFilters )
     else
         cQuery += ") AS TEMP " + CEOL
     endif
-    cQuery += "ORDER BY TEMP.FILIAL, TEMP.B1_COD, TEMP.B1_DESC "	+ CEOL
+    cQuery += "ORDER BY TEMP.B1_COD, TEMP.B1_DESC, TEMP.FILIAL "	+ CEOL
 
     // Devolve posicionamento na filial de origem
     cFilAnt := cFilHist
