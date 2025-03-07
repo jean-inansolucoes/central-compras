@@ -2506,7 +2506,10 @@ Static Function fPedFor( nOpc )
     
     ACTIVATE MSDIALOG oDlgPed CENTERED ON INIT ;
 	Processa( {|| fPedPen( .F./*lNoInt*/, nOpc, aColPro[ oBrwPro:nAt ][ nPosPrd ] /*cProd*/ ) }, 'Aguarde!','Buscando pedidos não atendidos!' )
-	
+
+	SetKey( VK_F5, {|| Processa( {|| fLoadInf() }, 'Aguarde!','Analisando dados do MRP...' ) } )
+	SetKey( VK_F12, {|| fManPar() } )
+
 Return ( Nil )
 
 /*/{Protheus.doc} orderDel
@@ -5521,7 +5524,7 @@ Static Function fCarCom( cFor, cLoj )
 						   oGetMai:CtrlRefresh(),;
 						   oContat:CtrlRefresh() }
 	nCol += nWidth*0.1
-    @ nLin, nCol MSGET oGetLoj VAR cGetLoj SIZE nWidth*0.04, 011 OF oDlgCar COLORS 0, 16777215 WHEN .F. PIXEL
+    @ nLin, nCol MSGET oGetLoj VAR cGetLoj SIZE nWidth*0.04, 011 OF oDlgCar COLORS 0, 16777215 VALID fValFor() PIXEL
 	nCol += nWidth*0.05
     @ nLin, nCol MSGET oGetMai VAR cGetMai SIZE nWidth*0.16, 011 OF oDlgCar COLORS 0, 16777215 VALID fMailFor() WHEN .T. PIXEL
 	nCol += nWidth*0.17
@@ -7218,25 +7221,40 @@ Static Function fValPed()
 	
 Return ( lRet )
 
-/*
-+-----------------+-------------------------+---------------------------------+-------------------+
-| Fonte: GMPAICOM | Funcao:  fValFor        | Autor: Jean Carlos P. Saggin    |  Data: 30.07.2019 |
-+-----------------+-------------------------+---------------------------------+-------------------+
-| Descricao: Função para validar condição de pagamento informada                                  |
-+-------------------------------------------------------------------------------------------------+
-| Parametros recebidos: Nil                                                                       |
-+-------------------------------------------------------------------------------------------------+
-| Retorno da funcao: Nil                                                                          |
-+-------------------------------------------------------------------------------------------------+  
-*/
+/*/{Protheus.doc} fValFor
+Função para validar dados do fornecedor (codigo e loja)
+@type function
+@version 1.0
+@author Jean Carlos Pandolfo Saggin
+@since 3/7/2025
+@return logical, lRet
+/*/
 Static Function fValFor()
 	
-	Local lRet := ExistCpo( 'SA2', M->cGetFor + iif( M->cGetLoj != Nil, M->cGetLoj, '' ), 1 )
+	local cReadVar := ReadVar()
+	Local lRet := .T. as logical
+	local cFornece := "" as character
+	local cLoja    := "" as character
+
+	if 'CGETFOR' $ Upper( cReadVar )
+		cFornece := &( cReadVar )
+	else
+		cFornece := cGetFor
+	endif
+
+	if 'CGETLOJ' $ Upper( cReadVar )
+		cLoja := &( cReadVar )
+	else
+		cLoja := AllTrim( cGetLoj )
+	endif
+
+	// Valida se existe o cadastro e se não está inativo
+	lRet := ExistCpo( 'SA2', cFornece + cLoja, 1 )
 	
 	if lRet 
-		cGetMai := RetField( 'SA2', 1, xFilial( 'SA2' ) + M->cGetFor + iif( M->cGetLoj != Nil, M->cGetLoj, '' ), 'A2_EMAIL' )
-		cContat := RetField( 'SA2', 1, xFilial( 'SA2' ) + M->cGetFor + iif( M->cGetLoj != Nil, M->cGetLoj, '' ), 'A2_CONTATO' )
-		oDlgCar:CCAPTION := "CARRINHO DE COMPRAS" + " - " + AllTrim( RetField( 'SA2', 1, xFilial( 'SA2' ) + M->cGetFor + iif( M->cGetLoj != Nil, M->cGetLoj, '' ), 'A2_NOME' ) )
+		cGetMai := RetField( 'SA2', 1, xFilial( 'SA2' ) + cFornece + cLoja, 'A2_EMAIL' )
+		cContat := RetField( 'SA2', 1, xFilial( 'SA2' ) + cFornece + cLoja, 'A2_CONTATO' )
+		oDlgCar:CCAPTION := "CARRINHO DE COMPRAS" + " - " + AllTrim( RetField( 'SA2', 1, xFilial( 'SA2' ) + cFornece + cLoja, 'A2_NOME' ) )
 	EndIf
 	
 Return ( lRet )
@@ -9550,7 +9568,7 @@ static function dataProdUpd( oBrw, cCbo )
 
 			// Soma quantidade geral por produto a ser comprado
 			nQuant := 0
-			aEval( _aProdFil, {|x| iif( x[3] == aCols[nX][carPos('C7_PRODUTO')], nQuant += x[6], Nil ) } )	// @qui
+			aEval( _aProdFil, {|x| iif( x[3] == aCols[nX][carPos('C7_PRODUTO')], nQuant += x[6], Nil ) } )
 
 			// Verifica se consegue encontrar o produto no vetor de produtos
 			nAux := aScan( aColPro, {|x| x[nPosPrd] == aCols[nX][carPos('C7_PRODUTO')] } )

@@ -90,6 +90,8 @@ user function JSDETVER()
     aAdd( aDetVer, { '14','0008','06/03/2025', 'Implementado rastreio de posicionamento de colunas de modo dinâmico para vetores do carrinho de compras' } )
     aAdd( aDetVer, { '14','0009','06/03/2025', 'Permitir informar quantidade zerada no campo de quantidade bloqueada.' } )
     aAdd( aDetVer, { '14','0010','06/03/2025', 'Ajuste de dimensionamento dos componentes da tela do carrinho de compras' } )
+    aAdd( aDetVer, { '14','0011','07/03/2025', 'Correção de falha no momento da troca de fornecedor do carrinho em que o sistema não substitui o campo da loja' } )
+    aAdd( aDetVer, { '14','0012','07/03/2025', 'Restauração de atalhos da tela principal após acessar tela de pedidos em aberto' } )
 
 return aDetVer
 
