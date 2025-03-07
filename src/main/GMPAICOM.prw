@@ -350,7 +350,7 @@ User Function GMPAICOM()
 			 'A T E N Ç Ã O ! Foi constatado que o agendamento de recálculo dos índices individuais dos produtos '+;
 			 iif( Empty( cLastRun ), 'nunca foi executado!', 'não é executado desde '+ cLastRun ) +'.',;
 			 'Verifique juntamente com a equipe responsável pelo Protheus se o agendamento foi configurado corretamente pois a defasagem nos cálulos dos índices '+;
-			 'pode gerar falhas no processo de análise de compras e, consequentemente, rupturas indesejadas de estoque.' )
+			 'pode gerar falhas no processo de análise de compras e, consequentsemente, rupturas indesejadas de estoque.' )
 	endif
 
 	DEFINE MSDIALOG oDlgCom TITLE AllTrim( SM0->M0_FILIAL ) +" | Painel de Compra - "+ U_JSGETVER() FROM 000, 000  TO aSize[06], aSize[05] COLORS 0, 16777215 PIXEL
@@ -9242,32 +9242,6 @@ user function PCOMPRE(oBrw, oCol, cPre )
 					endif
 				next nX		
 			endif
-			
-			// aAdd( _aProdFil,{ nIndGir,;
-			// aScan( aCarCom, {|x| x[1] == PRDTMP->B1_COD .and. x[13] == cFornece .and. x[14] == cLoja } ) > 0,;
-			// PRDTMP->B1_COD,;
-			// PRDTMP->B1_DESC,;
-			// PRDTMP->B1_UM,;
-			// nQtdCom /*Necessidade de compra*/,;
-			// PRDTMP->QTDBLOQ /*Ped. Compra Bloq.*/,;
-			// nPrice /*Preço negociado*/,;
-			// nPrice /*Ultimo Preço*/,; 
-			// PRDTMP->( FieldGet( FieldPos( cZB3 +'_CONMED' ) ) ) /*Consumo Medio*/,;
-			// nPrjEst /*Duracao Estimada*/,;
-			// nDurPrv /*Duracao Prev.*/,;
-			// PRDTMP->ESTOQUE /*Em Estoque*/,;
-			// PRDTMP->EMPENHO /*Empenho*/,; 
-			// PRDTMP->QTDCOMP /*Quantidade já Comprada*/,;
-			// nLeadTime /*Lead Time Médio do Produto*/,;
-			// cLeadTime /*Tipo Lead-Time*/,;
-			// StoD( PRDTMP->PRVENT ) /*Prev. Entrega*/,;
-			// PRDTMP->B1_LM /*Lote Mínimo*/,;
-			// PRDTMP->B1_QE /*Quantidade da Embalagem*/,;
-			// PRDTMP->B1_LE /*Lote Econômico*/,;
-			// PRDTMP->B1_EMIN /* Estoque Minimo (Estoque Segurança) */,;
-			// cFornece /*Fornecedor*/,;
-			// cLoja /*Loja do Fornecedor*/,;
-			// PRDTMP->FILIAL /* Filial */ } )
 
 			aAdd( aColumns, FWBrwColumn():New() )
 			aColumns[len(aColumns)]:SetTitle( 'Filial' )
@@ -9369,32 +9343,6 @@ static function updCarCom( cProduto )
 
 	if len( _aFil ) > 0
 		for nFil := 1 to len( _aFil )
-
-			// aAdd( _aProdFil,{ nIndGir,;																									// 1. Indice de giro do produto na filial
-			// 					aScan( aCarCom, {|x| x[1] == PRDTMP->B1_COD .and. x[13] == cFornece .and. x[14] == cLoja } ) > 0,;			// 2. Indica se o produto está no carrinho .T. ou .F.
-			// 					PRDTMP->B1_COD,;																							// 3. Codigo do produto
-			// 					PRDTMP->B1_DESC,;																							// 4. Descrição do produto
-			// 					PRDTMP->B1_UM,;																								// 5. Unidade de Medida
-			// 					nQtdCom /*Necessidade de compra*/,;																			// 6. Quantidade a ser comprada
-			// 					PRDTMP->QTDBLOQ /*Ped. Compra Bloq.*/,;																		// 7. Quantidade em pedidos aguradando aprovação
-			// 					nPrice /*Preço negociado*/,;																				// 8. Preço negociado
-			// 					nPrice /*Ultimo Preço*/,; 																					// 9. Ultimo Preço
-			// 					PRDTMP->( FieldGet( FieldPos( cZB3 +'_CONMED' ) ) ) /*Consumo Medio*/,;										// 10. Consumo médio/Dia
-			// 					nPrjEst /*Duracao Estimada*/,;																				// 11. Duração Estimada menos o tempo de entrega
-			// 					nDurPrv /*Duracao Prev.*/,;																					// 12. Duração Prevista 
-			// 					PRDTMP->ESTOQUE /*Em Estoque*/,;																			// 13. Quantidade em estoque
-			// 					PRDTMP->EMPENHO /*Empenho*/,; 																				// 14. Empenhado
-			// 					PRDTMP->QTDCOMP /*Quantidade já Comprada*/,;																// 15. Quantidade em carteira com fornecedor
-			// 					nLeadTime /*Lead Time Médio do Produto*/,;																	// 16. Tempo de entrega
-			// 					cLeadTime /*Tipo Lead-Time*/,;																				// 17. Tipo de Lead-Time			
-			// 					StoD( PRDTMP->PRVENT ) /*Prev. Entrega*/,;																	// 18. Previsão de entrega dos pedidos em carteira
-			// 					PRDTMP->B1_LM /*Lote Mínimo*/,;																				// 19. Lote Mínimo
-			// 					PRDTMP->B1_QE /*Quantidade da Embalagem*/,;																	// 20. Quantidade da Embalagem
-			// 					PRDTMP->B1_LE /*Lote Econômico*/,;																			// 21. Lote Econômico
-			// 					PRDTMP->B1_EMIN /* Estoque Minimo (Estoque Segurança) */,;													// 22. Estoque mínimo (segurança)
-			// 					cFornece /*Fornecedor*/,;																					// 23. Fornecedor
-			// 					cLoja /*Loja do Fornecedor*/,;																				// 24. Loja Fornecedor
-			// 					PRDTMP->FILIAL /* Filial */ } )																				// 25. Filial
 
 			nAux   := aScan( _aProdFil, {|x| x[3] == cProduto .and. x[25] == _aFil[nFil] } )
 			nQuant := _aProdFil[nAux][6]
