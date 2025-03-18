@@ -92,6 +92,9 @@ user function JSDETVER()
     aAdd( aDetVer, { '14','0010','06/03/2025', 'Ajuste de dimensionamento dos componentes da tela do carrinho de compras' } )
     aAdd( aDetVer, { '14','0011','07/03/2025', 'Correção de falha no momento da troca de fornecedor do carrinho em que o sistema não substitui o campo da loja' } )
     aAdd( aDetVer, { '14','0012','07/03/2025', 'Restauração de atalhos da tela principal após acessar tela de pedidos em aberto' } )
+    aAdd( aDetVer, { '14','0013','07/03/2025', 'Abertura de Ponto de Entrada para gravação de campos adicionais no pedido de compra' } )
+    aAdd( aDetVer, { '14','0014','14/03/2025', 'Abertura de Ponto de entrada para manipulação do saldo atual de estoque e ajustes pontuais para utilização da segunda unidade de medida no carrinho de compra' } )
+    aAdd( aDetVer, { '14','0015','17/03/2025', 'Correção de denominação de alíases em cláusulas SQL em brancos SQLServer' } )
 
 return aDetVer
 
@@ -412,7 +415,7 @@ user function JSQRYINF( aConf, aFilters )
         endif
     next nFil
 
-    if cDB $ "ORACLE"
+    if cDB $ "ORACLE|SQLSERVER"
         cQuery += ") TEMP " + CEOL
     else
         cQuery += ") AS TEMP " + CEOL
@@ -422,7 +425,7 @@ user function JSQRYINF( aConf, aFilters )
     // Devolve posicionamento na filial de origem
     cFilAnt := cFilHist
 
-    ConOut( cQuery )
+    // ConOut( cQuery )
 return cQuery
 
 /*/{Protheus.doc} hlp
@@ -616,14 +619,14 @@ user function JSQRYSAI( cProduto, dDe, dAte, _aFil )
         cQuery += "UNION ALL "+ CEOL
 
         cQuery += "SELECT " + CEOL
-        cQuery += "  'P' AS TIPO, D3.D3_FILIAL D2_FILIAL, D3.D3_COD D2_COD, C2.C2_NUM D2_DOC, '"+ Space( TAMSX3('D2_SERIE')[1] ) +"' AS D2_SERIE, D3.D3_EMISSAO D2_EMISSAO, "
+        cQuery += "  'P' AS TIPO, D3.D3_FILIAL D2_FILIAL, D3.D3_COD D2_COD, COALESCE(C2.C2_NUM,D3.D3_DOCUMEN) D2_DOC, '"+ Space( TAMSX3('D2_SERIE')[1] ) +"' AS D2_SERIE, D3.D3_EMISSAO D2_EMISSAO, "
         cQuery += "  COALESCE( C6.C6_CLI,'"+ Space( TamSX3('D2_CLIENTE')[1] ) +"' ) D2_CLIENTE, "
         cQuery += "  COALESCE( C6.C6_LOJA, '"+ Space( TamSX3('D2_LOJA')[1] ) +"' ) D2_LOJA, "
         cQuery += "  COALESCE( A1.A1_NOME, '"+ Space( TamSX3('A1_NOME')[1] ) +"' ) A1_NOME, "
         cQuery += "  D3.D3_LOCAL AS D2_LOCAL, D3.D3_QUANT AS D2_QUANT " + CEOL
         cQuery += "FROM "+ RetSqlName( 'SD3' ) +" D3 " + CEOL
 
-        cQuery += "INNER JOIN "+ RetSqlname('SC2'  ) +" C2 " + CEOL
+        cQuery += "LEFT JOIN "+ RetSqlname('SC2'  ) +" C2 " + CEOL
         cQuery += " ON C2.C2_FILIAL = '"+ FWxFilial( 'SC2' ) +"' " + CEOL
         if cDB == 'ORACLE'
             cQuery += "AND C2.C2_NUM || C2.C2_ITEM || C2.C2_SEQUEN = D3.D3_OP " + CEOL
@@ -650,7 +653,7 @@ user function JSQRYSAI( cProduto, dDe, dAte, _aFil )
         endif
         cQuery += "  AND D3.D3_EMISSAO BETWEEN '"+ DtoS( dDe ) +"' AND '"+ DtoS( dAte ) +"' " + CEOL
         cQuery += "  AND D3.D3_TM     >= '500' " + CEOL
-        cQuery += "  AND D3.D3_OP     <> '"+ Space( TAMSX3('D3_OP')[1] ) +"' " + CEOL
+        cQuery += "  AND ( D3.D3_OP     <> '"+ Space( TAMSX3('D3_OP')[1] ) +"' OR D3.D3_CF = 'RE0' ) " + CEOL
         cQuery += "  AND D3.D3_ESTORNO = ' ' " + CEOL
         cQuery += "  AND D3.D_E_L_E_T_ = ' ' " + CEOL
 
