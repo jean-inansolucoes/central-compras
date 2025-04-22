@@ -95,6 +95,22 @@ user function JSDETVER()
     aAdd( aDetVer, { '14','0013','07/03/2025', 'Abertura de Ponto de Entrada para gravação de campos adicionais no pedido de compra' } )
     aAdd( aDetVer, { '14','0014','14/03/2025', 'Abertura de Ponto de entrada para manipulação do saldo atual de estoque e ajustes pontuais para utilização da segunda unidade de medida no carrinho de compra' } )
     aAdd( aDetVer, { '14','0015','17/03/2025', 'Correção de denominação de alíases em cláusulas SQL em brancos SQLServer' } )
+    aAdd( aDetVer, { '14','0016','18/03/2025', 'Permitir edição de campos de valor unitário e quantidade na segunda unidade de medido por meio do carrinho de compras' } )
+    aAdd( aDetVer, { '14','0017','20/03/2025', 'Ajuste na regra para exibir apenas produtos com risco de ruptura e inclusão de totalizadores quantitativos pela primeira e segunda unidade de medida no carrinho.' } )
+    aAdd( aDetVer, { '14','0018','20/03/2025', 'Correção de falha na execauto do pedido de compra' } )
+    aAdd( aDetVer, { '14','0019','20/03/2025', 'Correção de error-log ao alterar o índice de IPI do produto no carrinho' } )
+    aAdd( aDetVer, { '14','0020','20/03/2025', 'Permitir consultar fornecedores ligados ao produto' } )
+    aAdd( aDetVer, { '14','0021','26/03/2025', 'Validações para evitar error-log ao tentar acessar funções auxiliares sem produtos carregados no browse' } )
+    aAdd( aDetVer, { '14','0022','26/03/2025', 'Correção de error-log ao acessar rotina de consulta de empenhos' } )
+    aAdd( aDetVer, { '14','0023','29/03/2025', 'Ajuste na função de replicação de dados do carrinho para que o sistema atualize os demais campos além dos que estão sendo replicados' } )
+    aAdd( aDetVer, { '15','0001','03/04/2025', 'Ajuste da forma de leitura do frete complementar dos documentos de entrada e também valor financeiro adicional agregado ao custo do produto' } )
+    aAdd( aDetVer, { '15','0002','08/04/2025', 'Ajustes na função de replicação de dados por meio do atalho CTRL_R para que todos os gatilhos do carrinho de compras sejam disparados, '+;
+                                               'Ajuste do processo de vínculo de produto com fornecedor para ignorar quando uma das informações (fornecedor ou loja estiverem vazios), '+;
+                                               'Força escolha de um fornecedor quando usuário tentar adicionar ao carrinho um produto sem fornecedor, ' +;
+                                               'Permite remover vínculo de produto x fornecedor através da tela de seleção de fornecedor.' } )
+    aAdd( aDetVer, { '16','0001','12/04/2025', 'Adequado rotina para ser possível gerar solicitação de compras a partir do painel.' } )
+    aAdd( aDetVer, { '16','0002','16/04/2025', 'Criado tela para consulta de solicitações pendentes' } )
+    aAdd( aDetVer, { '16','0003','22/04/2025', 'Inclusão de gatilho no campo de alteração de fornecedor para atualizar preço de compra sugerido' } )
 
 return aDetVer
 
@@ -234,9 +250,10 @@ Função para montagem de query de análise do MRP para Painel de Compras
 @since 11/21/2024
 @param aConf, array, vetor de configurações do painel
 @param aFilters, array, vetor de filtros aplicados na pesquisa dos produtos a serem calculados
+@param cPedSol, character, Indica o tipo de pedido que vai ser gerado 1-Pedido ou 2-Solicitacao
 @return character, cQuery
 /*/
-user function JSQRYINF( aConf, aFilters )
+user function JSQRYINF( aConf, aFilters, cPedSol )
     
     Local cTmp     := Upper( AllTrim( aFilters[1] ) )
 	Local aTmp     := StrTokArr( cTmp, ' ' )
@@ -256,6 +273,7 @@ user function JSQRYINF( aConf, aFilters )
 
     default aConf := {}
     default aFilters := {}
+    default cPedSol  := '1'
 
     // Quando não vier parâmetros, retorna query vazia
     if !len( aConf ) > 0 .and. !len( aFilters ) > 0
@@ -340,12 +358,20 @@ user function JSQRYINF( aConf, aFilters )
         cQuery += "  AND C7COMP.C7_CONAPRO <> 'B' " + CEOL						// Pedidos em carteira sem bloqueio
         cQuery += "  AND C7COMP.D_E_L_E_T_ = ' ' ), '"+ Space(8) +"' ) PRVENT, " + CEOL
 
+        cQuery += "COALESCE( ( SELECT SUM( C1.C1_QUANT ) FROM "+ RetSqlName( 'SC1' ) +" C1 " + CEOL
+        cQuery += "WHERE C1.C1_FILIAL  = '"+ FWxFilial( 'SC1' ) +"' " + CEOL
+        cQuery += "  AND C1.C1_PRODUTO = B1.B1_COD " + CEOL
+        cQuery += "  AND C1.C1_PEDIDO  = '"+ Space( TAMSX3( 'C1_PEDIDO' )[1] ) +"' " + CEOL
+        cQuery += "  AND C1.C1_RESIDUO = ' ' " + CEOL
+        cQuery += "  AND C1.D_E_L_E_T_ = ' ' " + CEOL
+        cQuery += " ),0 ) QTDSOL, " + CEOL        // Quantidade em solicitação de compra
+
         cQuery += "COALESCE("+ cZB3 +"_CONMED,0.0001) "+ cZB3 +"_CONMED, " + CEOL
         cQuery += "COALESCE("+ cZB3 +"_INDINC,0) "+ cZB3 +"_INDINC " + CEOL
 
         cQuery += "FROM "+ RetSqlName( 'SB1' ) +" B1 " + CEOL
         
-        if ! Empty( aFilters[3] ) .and. ! aConf[22] == '1'     // 2=Prod.x Fornecedor ou 3=Hist.Compras
+        if ! Empty( aFilters[3] ) .and. ! aConf[22] == '1'   // 2=Prod.x Fornecedor ou 3=Hist.Compras
             
             // Se o fornecedor for informado, o join é exato, do contrário, apresenta os produtos sem fornecedor
             cQuery += iif( Empty(aFilters[3]) .and. aConf[22] == '1', "LEFT", "INNER" )
@@ -365,7 +391,7 @@ user function JSQRYINF( aConf, aFilters )
         cQuery += "AND "+ cZB3 +"."+ cZB3 +"_DATA   = '"+ DtoS( dDtCalc ) +"' " + CEOL
         cQuery += "AND "+ cZB3 +".D_E_L_E_T_ = ' ' " + CEOL
         
-        if ! Empty( aFilters[3] )       // Faz join com tabela de fornecedores apenas quando codigo do fornecedor for informado
+        if ! Empty( aFilters[3] )      // Faz join com tabela de fornecedores apenas quando codigo do fornecedor for informado
             // Se o fornecedor for informado, o join é exato, do contrário, apresenta os produtos sem fornecedor
             cQuery += iif( Empty( aFilters[3] ) .and. aConf[22] == '1', "LEFT", "INNER" )
             cQuery += " JOIN "+ RetSqlName( 'SA2' ) +" A2 "+ CEOL
@@ -619,7 +645,7 @@ user function JSQRYSAI( cProduto, dDe, dAte, _aFil )
         cQuery += "UNION ALL "+ CEOL
 
         cQuery += "SELECT " + CEOL
-        cQuery += "  'P' AS TIPO, D3.D3_FILIAL D2_FILIAL, D3.D3_COD D2_COD, COALESCE(C2.C2_NUM,D3.D3_DOCUMEN) D2_DOC, '"+ Space( TAMSX3('D2_SERIE')[1] ) +"' AS D2_SERIE, D3.D3_EMISSAO D2_EMISSAO, "
+        cQuery += "  'P' AS TIPO, D3.D3_FILIAL D2_FILIAL, D3.D3_COD D2_COD, COALESCE(C2.C2_NUM,D3.D3_DOC) D2_DOC, '"+ Space( TAMSX3('D2_SERIE')[1] ) +"' AS D2_SERIE, D3.D3_EMISSAO D2_EMISSAO, "
         cQuery += "  COALESCE( C6.C6_CLI,'"+ Space( TamSX3('D2_CLIENTE')[1] ) +"' ) D2_CLIENTE, "
         cQuery += "  COALESCE( C6.C6_LOJA, '"+ Space( TamSX3('D2_LOJA')[1] ) +"' ) D2_LOJA, "
         cQuery += "  COALESCE( A1.A1_NOME, '"+ Space( TamSX3('A1_NOME')[1] ) +"' ) A1_NOME, "

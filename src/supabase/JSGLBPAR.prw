@@ -20,7 +20,6 @@ User Function JSGLBPAR( lCheck )
     Local oPgAtu   as object
     local lChecked := .F. as logical
 
-    Private aMiddle   := {} as array
     Private oIntAct   as object
     Private oContract as object
     Private oContType as object
@@ -28,6 +27,8 @@ User Function JSGLBPAR( lCheck )
     Private aContract := {} as array
     Private lSupabase := .F. as logical
     Private nCustomer := 0 as numeric
+    Private aTab      := {} as array
+    Private oBrowse   as object
    
     default lCheck := .F.
 
@@ -72,29 +73,38 @@ User Function JSGLBPAR( lCheck )
     oPgAtu:SetStepDescription( 'Status do banco web' )
     oPgAtu:SetConstruction( {|oPanel| buildPanel( 1 /* nPage */, oPanel) } )
     oPgAtu:SetNextAction( {|| nextPage( 1 /* nPageAtu */) } )
-    oPgAtu:SetCancelAction( {|| MsgYesNo( 'Está certo de que gostaria de sair do do assistente?', 'Tem certeza?' ), oDlgConf:DeActivate() } )
+    oPgAtu:SetCancelAction( {|| iif( MsgYesNo( 'Está certo de que gostaria de sair do do assistente?', 'Tem certeza?' ), oDlgConf:DeActivate(), .F. ) } )
 
-    // Página 2 - Dados do conrtato
+    // Página 2 - Dados do Contrato
     oPgAtu := oWiz:AddStep("2", {|oPanel| buildPanel( 2 /* nPage */, oPanel) } )
     oPgAtu:SetStepDescription( 'Status do Contrato' )
     oPgAtu:SetNextAction( {|| nextPage( 2 /* nPageAtu */) } )
     oPgAtu:SetPrevAction( {|| .T. } )
     oPgAtu:SetPrevTitle( "Status de Conexão" )
-    oPgAtu:SetCancelAction( {|| MsgYesNo( 'Está certo de que gostaria de sair do do assistente?', 'Tem certeza?' ), oDlgConf:DeActivate() } )
+    oPgAtu:SetCancelAction( {|| iif( MsgYesNo( 'Está certo de que gostaria de sair do do assistente?', 'Tem certeza?' ), oDlgConf:DeActivate(), .F. ) } )
 
-    // Página 3 - Finalização
     oPgAtu := oWiz:AddStep("3", {|oPanel| buildPanel( 3 /* nPage */, oPanel) } )
+    oPgAtu:SetStepDescription( 'Dicionário de Dados' )
+    oPgAtu:SetNextAction( {|| nextPage(3) } )
+    oPgAtu:SetPrevAction( {|| .T. } )
+    oPgAtu:SetPrevTitle( "Contrato" )
+    oPgAtu:SetCancelAction( {|| iif( MsgYesNo( 'Está certo de que gostaria de sair do do assistente?', 'Tem certeza?' ), oDlgConf:DeActivate(), .F. ) } )
+
+    // Página 4 - Finalização
+    oPgAtu := oWiz:AddStep("4", {|oPanel| buildPanel( 4 /* nPage */, oPanel) } )
     oPgAtu:SetStepDescription( 'Finalização' )
     oPgAtu:SetNextAction( {|| oDlgConf:DeActivate() } )
     oPgAtu:SetPrevAction( {|| .T. } )
-    oPgAtu:SetPrevTitle( "Contrato" )
+    oPgAtu:SetPrevTitle( "Dicionário" )
     oPgAtu:SetCancelAction( {|| oDlgConf:DeActivate() } )
     oPgAtu:SetCancelWhen( { || .F. } )
 
     oWiz:Activate()
 
     oDlgConf:Activate()
+    
     oWiz:Destroy()
+
 
 return lChecked
 
@@ -117,6 +127,7 @@ Static Function buildPanel( nPage, oPanel )
     local bContType := {|| 'Status Licenciamento....: '+ contractType() }
     local bDataExp  := {|| 'Data de expiração.......: '+ DtoC( iif( lSupabase, aContract[3], StoD(" ") ) ) }
     local cMessage  := "" as character
+    local aColumns  := {} as array
 
     default nPage := 1
 
@@ -141,8 +152,56 @@ Static Function buildPanel( nPage, oPanel )
         oDataExp := TSay():New( nLine*nLnSize, 30, bDataExp, oPanel,,oFont,,,,.T.,CLR_GRAY,CLR_WHITE,400,20)
         oDataExp:CtrlRefresh()
 
+    elseif nPage == 3       // Dicionário de dados
 
-    elseif nPage == 3       // Finalização
+        aTab := {}
+        aAdd( aTab, { "01", "PNC_CONFIG_"+ cEmpAnt, "" } )
+        // aAdd( aTab, { "02", "PNC_CALC_PROD_"+ cEmpAnt, "" } )
+        // aAdd( aTab, { "03", "PNC_ITENS_DESC_"+ cEmpAnt, "" } )
+        // aAdd( aTab, { "04", "PNC_TAGS_"+ cEmpAnt, "" } )
+        // aAdd( aTab, { "05", "PNC_ALERTAS_"+ cEmpAnt, "" } )
+        // aAdd( aTab, { "06", "PNC_ALERTAS_ENV_"+ cEmpAnt, "" } )
+        // aAdd( aTab, { "07", "PNC_PERFIS_"+ cEmpAnt, "" } )
+
+        // Faz a checagem de status das tabelas 
+        aEval( aTab, {|x| x[3] := U_JSTBLCHK( x[2] ) } )
+        
+        aAdd( aColumns, FWBrwColumn():New() )
+        aColumns[len(aColumns)]:SetTitle( 'ID' )
+        aColumns[len(aColumns)]:SetType( 'C' )
+        aColumns[len(aColumns)]:SetSize( 2 )
+        aColumns[len(aColumns)]:SetDecimal( 0 )
+        aColumns[len(aColumns)]:SetPicture( "@!" )
+        aColumns[len(aColumns)]:SetData( {|oBrw| aTab[oBrw:At()][1] } )
+        
+        aAdd( aColumns, FWBrwColumn():New() )
+        aColumns[len(aColumns)]:SetTitle( 'Tabela' )
+        aColumns[len(aColumns)]:SetType( 'C' )
+        aColumns[len(aColumns)]:SetSize( 30 )
+        aColumns[len(aColumns)]:SetDecimal( 0 )
+        aColumns[len(aColumns)]:SetPicture( "@!" )
+        aColumns[len(aColumns)]:SetData( {|oBrw| aTab[oBrw:At()][2] } )
+
+        aAdd( aColumns, FWBrwColumn():New() )
+        aColumns[len(aColumns)]:SetTitle( 'Status' )
+        aColumns[len(aColumns)]:SetType( 'C' )
+        aColumns[len(aColumns)]:SetSize( 20 )
+        aColumns[len(aColumns)]:SetDecimal( 0 )
+        aColumns[len(aColumns)]:SetPicture( "@x" )
+        aColumns[len(aColumns)]:SetData( {|oBrw| iif( aTab[oBrw:At()][3] == 'I', "Tabela inexistente",;
+                                                 iif( aTab[oBrw:At()][3] == 'U', "Tabela desatualizada", "Ok" ))    } )
+
+        oBrowse := FWBrowse():New( oPanel )
+        oBrowse:SetDataArray()
+        oBrowse:SetArray( aTab )
+        oBrowse:AddStatusColumn( {|| iif( aTab[oBrowse:At()][3] == 'I', "BR_VERMELHO",;
+                                     iif( aTab[oBrowse:At()][3] == 'U', "BR_AMARELO", "BR_VERDE" ) ) }, Nil )
+        oBrowse:SetColumns( aColumns )
+        oBrowse:DisableConfig()
+        oBrowse:DisableReport()
+        oBrowse:Activate()
+
+    elseif nPage == 4       // Finalização
         nLine := 2
         cMessage := "A checagem do PlugIn Painel de Compras foi finalizada"
         if Date() > aContract[3]
@@ -194,6 +253,13 @@ Função executada ao clicar sobre o botão next do wizard
 Static Function nextPage( nAtual )
     
     Local lSuccess := .T. as logical
+    local nX       := 0 as numeric
+    local aIndex   := {} as array
+    local cAlias   := "" as character
+    local aOldStr  := {} as array
+    local aStruct  := {} as array
+    local nTopErr  := 0 as numeric
+    local nIndex   := 0 as numeric
 
     if nAtual == 1      // Configurações do supabase
 
@@ -204,7 +270,129 @@ Static Function nextPage( nAtual )
                  'Tente novamente em alguns minutos' )
         endif
 
-    elseif nAtual == 2  // Fim
+    // elseif nAtual == 2  // Status do Contrato
+
+    elseif nAtual == 3  // Dicionário
+
+        if len( aTab ) > 0
+            
+            for nX := 1 to len( aTab )
+                aIndex := U_JSTBLIDX( aTab[nX][2] )
+                if aTab[nX][3] == "U"         // Tabelas que precisam de update
+                    
+                    // Obtem um nome de alias temporário
+                    cAlias := GetNextAlias()
+                    DBUseArea( .F., 'TOPCONN', aTab[nX][2], (cAlias), .F., .F. )
+                    // Obtem a estrutura da tabela para eviar junto da função TCAlter
+                    aOldStr := ( cAlias )->( DBStruct() )
+                    ( cAlias )->( DBCloseArea() )
+
+                    // Obtem a nova estrutura
+                    aStruct := U_JSGETSTR( aTab[nX][2] /* cTable */ )
+
+                    if len( aStruct ) > 0
+
+                        // Chama função padrão do TopConnect para alterar a tabela intermediária
+                        lSuccess := TCAlter( aTab[nX][2], aOldStr, aStruct, @nTopErr )
+                        if ! lSuccess
+                            Hlp( 'Falha na Alteração',;
+                                    'Falha durante a tentativa de alterar estrutura da tabela '+ aTab[nX][2],;
+                                    TcSQLError() )
+                        else
+                            if len( aIndex ) > 0
+                                for nIndex := 1 to len( aIndex )
+                                    if ! TCCanOpen( aTab[nX][2], aIndex[nIndex][1] )
+                                        
+                                        cAlias := GetNextAlias()
+                                        DBUseArea( .F., 'TOPCONN', aTab[nX][2], (cAlias), .F., .F. )
+                                        ( cAlias )->( DBCreateIndex( aIndex[nIndex][1], aIndex[nIndex][2], aIndex[nIndex][3] ) )
+                                        ( cAlias )->( DBClearIndex() )
+                                        ( cAlias )->( DBSetIndex( aIndex[nIndex][1] ) )
+                                        ( cAlias )->( DBCloseArea() )
+                                        lSuccess := TCCanOpen( aTab[nX][2], aIndex[nIndex][1] )
+
+                                    endif
+                                    if ! lSuccess
+                                        Hlp( 'Falha na Criação do Índice',; 
+                                                'O índice '+ aIndex[nIndex][1] +' da tabela ' + aTab[nX][2] +' não pode ser criado!' )
+                                        Exit
+                                    endif
+                                next nIndex
+                            endif
+                            if lSuccess
+                                aTab[nX][3] := "O"
+                                oBrowse:GoTo( nX, .T. /* lRefresh */ )
+                                oBrowse:UpdateBrowse( .T. /* lResetSeed */)
+                            endif
+                        endif
+                    else
+                        lSuccess := .F.
+                        Hlp( 'Sem Estrutura',;
+                                'A tabela '+ aTab[nX][2] +' não possui estrutura definida!',;
+                                'Defina uma estrutura por meio da função JSGETSTR e tente novamente.' )
+                    endif
+
+                elseif aTab[nX][3] == "I"     // Tabelas que não estão criadas
+                    
+                    // Obtem estrutura da tabela
+                    aStruct := U_JSGETSTR( aTab[nX][2] /* cTable */ )
+                    aIndex  := U_JSTBLIDX( aTab[nX][2] )
+                    
+                    // Verifica se a tabela tem estrutura
+                    if len( aStruct ) > 0
+                        
+                        // Função do DbAccess para criar a tabela de acordo com a estrutura enviada por parâmetro
+                        DBCreate( aTab[nX][2], aStruct, 'TOPCONN' )
+                        
+                        // Tenta abrir a tabela depois de criada
+                        lSuccess := TcCanOpen( aTab[nX][2] )
+                        if ! lSuccess
+                            Hlp( aTab[nX][2],;
+                                    'A tabela '+ aTab[nX][2] +' não pode ser criada!',;
+                                    'Falha durante processo de criação da tabela' )
+                        else
+                            if len( aIndex ) > 0
+                                for nIndex := 1 to len( aIndex )
+                                    if ! TCCanOpen( aTab[nX][2], aIndex[nIndex][1] )
+                                        
+                                        cAlias := GetNextAlias()
+                                        DBUseArea( .F., 'TOPCONN', aTab[nX][2], (cAlias), .F., .F. )
+                                        ( cAlias )->( DBCreateIndex( aIndex[nIndex][1], aIndex[nIndex][2], aIndex[nIndex][3] ) )
+                                        ( cAlias )->( DBClearIndex() )
+                                        ( cAlias )->( DBSetIndex( aIndex[nIndex][1] ) )
+                                        ( cAlias )->( DBCloseArea() )
+                                        lSuccess := TCCanOpen( aTab[nX][2], aIndex[nIndex][1] )
+
+                                    endif
+                                    if ! lSuccess
+                                        Hlp( 'Falha na Criação do Índice',;
+                                                'O índice '+ aIndex[nIndex][1] +' da tabela ' + aTab[nX][2] +' não pode ser criado!' )
+                                        Exit
+                                    endif
+                                next nIndex
+                            endif
+                            if lSuccess
+                                aTab[nX][3] := "O"
+                                oBrowse:GoTo( nX, .T. /* lRefresh */ )
+                                oBrowse:UpdateBrowse( .T. /* lResetSeed */)
+                            endif
+                        endif
+                    else
+                        lSuccess := .F.
+                        Hlp( 'Sem Estrutura',;
+                                'A tabela '+ aTab[nX][2] +' não possui estrutura definida!',;
+                                'Defina uma estrutura por meio da função JSGETSTR e tente novamente.' )
+                    endif
+
+                endif
+                if ! lSuccess
+                    Exit
+                endif
+            next nX
+        endif
+
+
+    elseif nAtual == 4  // Fim
         lSuccess := .T.
     endif
 
