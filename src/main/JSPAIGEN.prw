@@ -111,8 +111,124 @@ user function JSDETVER()
     aAdd( aDetVer, { '16','0001','12/04/2025', 'Adequado rotina para ser possível gerar solicitação de compras a partir do painel.' } )
     aAdd( aDetVer, { '16','0002','16/04/2025', 'Criado tela para consulta de solicitações pendentes' } )
     aAdd( aDetVer, { '16','0003','22/04/2025', 'Inclusão de gatilho no campo de alteração de fornecedor para atualizar preço de compra sugerido' } )
+    aAdd( aDetVer, { '16','0004','25/04/2025', 'Ajuste da formulação da rotina de formação de preços para considerar o percentual de acréscimo financeiro apenas após todos os outros custos' } )
+    aAdd( aDetVer, { '16','0005','05/05/2025', 'Ajuste para permitir usuário informar comprador no momento da inclusão da solicitação de compra' } )
+    aAdd( aDetVer, { '16','0006','05/05/2025', 'Ajustado para permitir informar desconto no pedido de compras' } )
+    aAdd( aDetVer, { '16','0007','06/05/2025', 'Adição regra para disparo de workflow ao comprador quando ocorrer inclusão de solicitação com comprador já definido' } )
+    aAdd( aDetVer, { '16','0008','07/05/2025', 'Ajuste de algoritmo para definir melhor fornecedor quando usuário pesquisar por um fornecedor em específico' } )
+    aAdd( aDetVer, { '16','0009','10/05/2025', 'Ajuste de falha no somatório do estoque quando compra multi-filial' } )
+    aAdd( aDetVer, { '16','0010','11/05/2025', 'Permitir excluir pedidos de filial diferente da que o usuário estiver posicionado' } )
+    aAdd( aDetVer, { '16','0011','12/05/2025', 'Adicionar configuração para usuário poder informar transportadora ou fornecedor atrelado ao frete no pedido de compra' } )
+    aAdd( aDetVer, { '16','0012','13/05/2025', 'Ajustado tratativa de geracão do pedido para que o mesmo seja sempre gerado na filial em que o usuário está posicionado, porém, com entrega na filial de destino quando a compra é multi-filial' } )
+    aAdd( aDetVer, { '16','0013','14/05/2025', 'Adição de somatório totalizador na tela de edição de quantidades quando a compra for multi-filial' } )
+    aAdd( aDetVer, { '16','0014','15/05/2025', 'Ajuste do cálculo do ICMS na formação de preço, redistribuição dos componentes da tela de formação de preço com FWDefSize' } )
+    aAdd( aDetVer, { '16','0015','16/05/2025', 'Alteração de sinal (positivo/negativo) quando houver crédito de imposto na entrada (formação de preços)' } )
+    aAdd( aDetVer, { '16','0016','16/05/2025', 'Adição do ponto de entrada PEPNC05 para permitir manipular as colunas do browse de produtos' } )
+    aAdd( aDetVer, { '16','0017','04/08/2025', 'Ajuste no recálculo de índices por produto para evitar falha quando término do cálculo ocorre no dia seguinte' } )
 
 return aDetVer
+
+/*/{Protheus.doc} JSWFSOL
+Função para criação automática da estrutura do workflow para disparo automático de e-mail ao comprador
+@type function
+@version 1.0
+@author Jean Carlos Pandolfo Saggin
+@since 5/5/2025
+@return logical, lSuccess
+/*/
+user function JSWFSOL()
+
+    local lSuccess := .T. as logical
+	local oFile    as object
+	local cPath    := "/workflow/"
+	local cFileWF  := "painel_compras_solicitacao_v01.html"
+	local cWF      := "" as character
+
+	lSuccess := File( cPath + cFileWF )
+	if ! lSuccess
+		cWF := solicWF()
+		oFile := FWFileWriter():New( cPath + cFileWF )
+		if oFile:Create()
+			oFile:Write( cWF )
+			oFile:Close()
+		endif
+        lSuccess := File( cPath + cFileWF )
+	endif
+
+return { lSuccess, iif( lSuccess, cPath + cFileWF, "" ) }
+
+/*/{Protheus.doc} solicWF
+Workflow de nova solicitação 
+@type function
+@version 1.0
+@author Jean Carlos Pandolfo Saggin
+@since 5/5/2025
+@return character, cWF
+/*/
+static function solicWF()
+    
+    local cWF := "" as character
+
+    cWF := "<!DOCTYPE html>" + CEOL
+    cWF += " <html>" + CEOL
+
+    cWF += "	<head>" + CEOL
+    cWF += '		<meta http-equiv="Content-Language" content="en-us">' + CEOL
+    cWF += '		<meta http-equiv="Content-Type" content="text/html; charset=windows-1252">' + CEOL
+    cWF += '		<title>Workflow %EMPRESA%</title>' + CEOL
+    cWF += '	</head>' + CEOL
+    cWF += '	<body style="font-family: Arial, Tahoma, Calibri, sans-serif; font-size:14px; font-weight: normal; " >' + CEOL
+    cWF += '		<p style="color: #ff8000; font-weight: bold">%TITULOMSG%</p>' + CEOL
+    cWF += '		<p> ' + CEOL
+    cWF += '			<b> A T E N Ç Ã O </b>, ' + CEOL
+    cWF += '		</p>' + CEOL
+
+    cWF += '		<p style="text-align: justify" >Solicitação de compra ' + CEOL
+    cWF += '			<b> %SOLICITACAO%</b> gerada pelo usuário ' + CEOL
+    cWF += '			<b> %USUARIO%</b> em ' + CEOL
+    cWF += ' 			<b> %DATAHORA%</b> ' + CEOL
+    cWF += '			. Abaixo estão listados os produtos solicitados, são eles: ' + CEOL
+    cWF += '		</p>' + CEOL
+
+    cWF += '		<table style="width:100%; border-collapse: collapse">' + CEOL
+    cWF += '			<tr>' + CEOL
+    cWF += '				<td style="border-spacing: 5px; padding: 10px; background: linear-gradient(to bottom, rgb(240, 128, 24) 0%,rgb(204, 109, 20) 100%); color:white; border-top-left-radius: 5px;" align="center"> Produto </td>' + CEOL
+    cWF += '				<td style="border-spacing: 5px; padding: 10px; background: linear-gradient(to bottom, rgb(240, 128, 24) 0%,rgb(204, 109, 20) 100%); color:white; " align="center"> Descrição </td>' + CEOL
+    cWF += '				<td style="border-spacing: 5px; padding: 10px; background: linear-gradient(to bottom, rgb(240, 128, 24) 0%,rgb(204, 109, 20) 100%); color:white; " align="center"> Un.Med. </td>' + CEOL
+    cWF += '				<td style="border-spacing: 5px; padding: 10px; background: linear-gradient(to bottom, rgb(240, 128, 24) 0%,rgb(204, 109, 20) 100%); color:white; " align="center"> Nec. Compra </td>' + CEOL
+    cWF += '			</tr>' + CEOL
+    cWF += '		<tr>' + CEOL
+    cWF += '				<td style="border-left: 1px solid rgb(204, 109, 20); background-color: %it.clproduto%" align="left">' + CEOL
+    cWF += '					<font size="2">%IT.PRODUTO% </font></td>' + CEOL
+    cWF += '				<td style="border-collapse: collapse; border-spacing: 5px; padding: 10px; background-color: %it.cldescricao%" align="left">' + CEOL
+    cWF += '					<font size="2">%IT.DESCRICAO% </font></td>' + CEOL
+    cWF += '				<td style="border-collapse: collapse; border-spacing: 5px; padding: 10px; background-color: %it.clunimed%" align="center">' + CEOL
+    cWF += '					<font size="2">%IT.UNIMED% </font></td>' + CEOL
+    cWF += '				<td style="border-collapse: collapse; border-spacing: 5px; padding: 10px; background-color: %it.clnecessidade%" align="right">' + CEOL
+    cWF += '					<font size="2">%IT.NECESSIDADE% </font></td>' + CEOL
+    cWF += '			</tr>' + CEOL
+    cWF += '			<tr>' + CEOL
+    cWF += '				 <td style="border-spacing: 5px; padding: 10px; background: linear-gradient(to bottom, rgb(240, 128, 24) 0%,rgb(204, 109, 20) 100%); border-bottom-left-radius: 5px; " ></td>' + CEOL
+    cWF += '				 <td style="border-spacing: 5px; padding: 10px; background: linear-gradient(to bottom, rgb(240, 128, 24) 0%,rgb(204, 109, 20) 100%); color: white"></td>' + CEOL
+    cWF += '				 <td style="border-spacing: 5px; padding: 10px; background: linear-gradient(to bottom, rgb(240, 128, 24) 0%,rgb(204, 109, 20) 100%); color: white"></td>' + CEOL
+    cWF += '				 <td style="border-spacing: 5px; padding: 10px; background: linear-gradient(to bottom, rgb(240, 128, 24) 0%,rgb(204, 109, 20) 100%); border-bottom-right-radius: 5px; color: white" align="right" ></td>' + CEOL
+    cWF += '			</tr>' + CEOL
+    cWF += '		</table>' + CEOL
+    cWF += '		</br>' + CEOL
+
+    cWF += '		<span style="font-family:  Tahoma, Calibri, sans-serif; color:#FF8000;"><font size="1">' + CEOL
+    cWF += '			</br>' + CEOL
+    cWF += '			<hr noshade color="#FF8000" size="0.5px">' + CEOL
+    cWF += '				<p align="left">' + CEOL
+    cWF += '					<b>Esta mensagem foi enviada de maneira automática pelos nossos sitemas, portanto, não há necessidade de resposta.</b>' + CEOL
+    cWF += '				</p>' + CEOL
+    cWF += ' 			</hr>' + CEOL
+
+    cWF += '		</span>' + CEOL
+    cWF += '	</body>' + CEOL
+    cWF += '</html>'  + CEOL
+
+return cWF
 
 /*/{Protheus.doc} JSFILIAL
 Função para retornar expressão de filial conforme configurações de cada tabela.
@@ -264,7 +380,7 @@ user function JSQRYINF( aConf, aFilters, cPedSol )
     local cTypes   := "" as character
     local aAux     := {} as array
     local y        := 0  as numeric
-    local dDtCalc  := CtoD( SubStr( SuperGetMv( 'MV_X_PNC12',,DtoC(date()) ), 01, 10 ) )
+    local dDtCalc  := CtoD( SubStr( GetMv( 'MV_X_PNC12',,DtoC(date()) ), 01, 10 ) )
     local lLike    := At( '*', aFilters[5] ) > 0
     local cFilHist := cFilAnt
     local nFil     := 0 as numeric
@@ -371,17 +487,47 @@ user function JSQRYINF( aConf, aFilters, cPedSol )
 
         cQuery += "FROM "+ RetSqlName( 'SB1' ) +" B1 " + CEOL
         
-        if ! Empty( aFilters[3] ) .and. ! aConf[22] == '1'   // 2=Prod.x Fornecedor ou 3=Hist.Compras
+        if ! Empty( aFilters[3] )   
             
-            // Se o fornecedor for informado, o join é exato, do contrário, apresenta os produtos sem fornecedor
-            cQuery += iif( Empty(aFilters[3]) .and. aConf[22] == '1', "LEFT", "INNER" )
-            cQuery += " JOIN "+ RetSqlName( 'SA5' ) +" A5 " + CEOL
-            cQuery += " ON A5.A5_FILIAL = '"+ FWxFilial( 'SA5' ) +"' "+ CEOL
-            cQuery += "AND A5.A5_PRODUTO = B1.B1_COD " + CEOL
-            if ! Empty( aFilters[3] )      // Quando fornecedor é informado, faz join com a tabela de fornecedores para filtrar apenas os produtos do fornecedor informado
-                cQuery += "AND A5.A5_FORNECE = '"+ aFilters[3] +"' " + CEOL
+            if aConf[22] $ '2|3'    // 2=Prod.x Fornecedor ou 3=Hist.Compras 
+                
+                // Se o fornecedor for informado, o join é exato, do contrário, apresenta os produtos sem fornecedor
+                cQuery += "INNER JOIN "+ RetSqlName( 'SA5' ) +" A5 " + CEOL
+                cQuery += " ON A5.A5_FILIAL = '"+ FWxFilial( 'SA5' ) +"' "+ CEOL
+                cQuery += "AND A5.A5_PRODUTO = B1.B1_COD " + CEOL
+                if ! Empty( aFilters[3] )      // Quando fornecedor é informado, faz join com a tabela de fornecedores para filtrar apenas os produtos do fornecedor informado
+                    cQuery += "AND A5.A5_FORNECE = '"+ aFilters[3] +"' " + CEOL
+                endif
+                if ! Empty( aFilters[6] )   // Quando loja é informada, utiliza também no filtro
+                    cQuery += "AND A5.A5_LOJA = '"+ aFilters[6] +"' " + CEOL
+                endif
+                cQuery += "AND A5.D_E_L_E_T_ = ' ' " + CEOL
+
+                // Se o fornecedor for informado, o join é exato, do contrário, apresenta os produtos sem fornecedor
+                cQuery += "INNER JOIN "+ RetSqlName( 'SA2' ) +" A2 "+ CEOL
+                cQuery += " ON A2.A2_FILIAL  = '"+ FWxFilial( 'SA2' ) +"' "+ CEOL    
+                cQuery += "AND A2.A2_COD     = A5.A5_FORNECE " + CEOL
+                cQuery += "AND A2.A2_LOJA    = A5.A5_LOJA " + CEOL
+                cQuery += "AND A2.A2_MSBLQL  <> '1' "+ CEOL
+                cQuery += "AND A2.D_E_L_E_T_ = ' ' "+ CEOL
+
+            else
+
+                // Se o fornecedor for informado, o join é exato, do contrário, apresenta os produtos sem fornecedor
+                cQuery += "INNER JOIN "+ RetSqlName( 'SA2' ) +" A2 "+ CEOL
+                cQuery += " ON A2.A2_FILIAL  = '"+ FWxFilial( 'SA2' ) +"' "+ CEOL    
+                cQuery += "AND A2.A2_COD     = B1.B1_PROC "+ CEOL
+                cQuery += "AND A2.A2_LOJA    = B1.B1_LOJPROC "+ CEOL
+                if ! Empty( aFilters[3] )      // Quando fornecedor é informado, faz join com a tabela de fornecedores para filtrar apenas o fornecedor informado
+                    cQuery += "AND A2.A2_COD = '"+ aFilters[3] +"' " + CEOL
+                endif
+                if ! Empty( aFilters[6] )       // Quando a loja do fornecedor for informada, utiliza no filtro
+                    cQuery += "AND A2.A2_LOJA = '"+ aFilters[6] +"' " + CEOL
+                endif
+                cQuery += "AND A2.A2_MSBLQL   <> '1' "+ CEOL
+                cQuery += "AND A2.D_E_L_E_T_  = ' ' "+ CEOL
+
             endif
-            cQuery += "AND A5.D_E_L_E_T_ = ' ' " + CEOL
 
         endif
 
@@ -390,25 +536,6 @@ user function JSQRYINF( aConf, aFilters, cPedSol )
         cQuery += "AND "+ cZB3 +"."+ cZB3 +"_PROD   = B1.B1_COD " + CEOL
         cQuery += "AND "+ cZB3 +"."+ cZB3 +"_DATA   = '"+ DtoS( dDtCalc ) +"' " + CEOL
         cQuery += "AND "+ cZB3 +".D_E_L_E_T_ = ' ' " + CEOL
-        
-        if ! Empty( aFilters[3] )      // Faz join com tabela de fornecedores apenas quando codigo do fornecedor for informado
-            // Se o fornecedor for informado, o join é exato, do contrário, apresenta os produtos sem fornecedor
-            cQuery += iif( Empty( aFilters[3] ) .and. aConf[22] == '1', "LEFT", "INNER" )
-            cQuery += " JOIN "+ RetSqlName( 'SA2' ) +" A2 "+ CEOL
-            cQuery += " ON A2.A2_FILIAL = '"+ FWxFilial( 'SA2' ) +"' "+ CEOL
-            if aConf[22] == '1'     // Fabricante
-                cQuery += "AND A2.A2_COD     = B1.B1_PROC "+ CEOL
-                cQuery += "AND A2.A2_LOJA    = B1.B1_LOJPROC "+ CEOL
-            else
-                cQuery += "AND A2.A2_COD     = A5.A5_FORNECE "+ CEOL
-                cQuery += "AND A2.A2_LOJA    = A5.A5_LOJA "+ CEOL
-            endif
-            if ! Empty( aFilters[3] )      // Quando fornecedor é informado, faz join com a tabela de fornecedores para filtrar apenas o fornecedor informado
-                cQuery += "AND A2.A2_COD = '"+ aFilters[3] +"' " + CEOL
-            endif
-            cQuery += "AND A2.A2_MSBLQL  <> '1' "+ CEOL
-            cQuery += "AND A2.D_E_L_E_T_ = ' ' "+ CEOL
-        endif
 
         cQuery += "WHERE B1.B1_FILIAL  = '"+ FWxFilial( 'SB1' ) +"' "+ CEOL 
         if ! Empty( aFilters[5] )
@@ -418,7 +545,7 @@ user function JSQRYINF( aConf, aFilters, cPedSol )
         cQuery += "  AND B1.B1_TIPO IN ( "+ cTypes +" ) " + CEOL	// Desconsidera produtos acabado e serviços da análise do MRP
         cQuery += "  AND B1.B1_MRP     = 'S' " + CEOL				// Apenas os produtos que devem entrar no MRP
         
-        if Len( aTmp ) > 0
+        if ValType( aTmp ) == 'A' .and. Len( aTmp ) > 0
             For nX := 1 to Len( aTmp )
                 cQuery += "  AND B1.B1_DESC LIKE '%"+ aTmp[nX] +"%' " + CEOL
             Next nX 
@@ -430,7 +557,7 @@ user function JSQRYINF( aConf, aFilters, cPedSol )
         endif
 
         // Tratativa de segurança para evitar filtro vazio quando usuário apertar botão de cancelar
-        if aFilters[6]
+        if aFilters[len(aFilters)]
             cQuery += "  AND 0=1 " + CEOL
         endif
         
@@ -451,7 +578,7 @@ user function JSQRYINF( aConf, aFilters, cPedSol )
     // Devolve posicionamento na filial de origem
     cFilAnt := cFilHist
 
-    // ConOut( cQuery )
+    ConOut( cQuery )
 return cQuery
 
 /*/{Protheus.doc} hlp
