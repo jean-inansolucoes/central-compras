@@ -125,6 +125,7 @@ user function JSDETVER()
     aAdd( aDetVer, { '16','0015','16/05/2025', 'Alteração de sinal (positivo/negativo) quando houver crédito de imposto na entrada (formação de preços)' } )
     aAdd( aDetVer, { '16','0016','16/05/2025', 'Adição do ponto de entrada PEPNC05 para permitir manipular as colunas do browse de produtos' } )
     aAdd( aDetVer, { '16','0017','04/08/2025', 'Ajuste no recálculo de índices por produto para evitar falha quando término do cálculo ocorre no dia seguinte' } )
+    aAdd( aDetVer, { '16','0018','19/08/2025', 'Novos campos na tabela de empenhos do produto' } )
 
 return aDetVer
 
@@ -369,7 +370,7 @@ Função para montagem de query de análise do MRP para Painel de Compras
 @param cPedSol, character, Indica o tipo de pedido que vai ser gerado 1-Pedido ou 2-Solicitacao
 @return character, cQuery
 /*/
-user function JSQRYINF( aConf, aFilters, cPedSol )
+user function JSQRYINF( aConf, aFilters, cPedSol, aCustom )
     
     Local cTmp     := Upper( AllTrim( aFilters[1] ) )
 	Local aTmp     := StrTokArr( cTmp, ' ' )
@@ -387,9 +388,10 @@ user function JSQRYINF( aConf, aFilters, cPedSol )
     local cDB      := TCGetDB()
     local cFdGroup := AllTrim( SuperGetMv( 'MV_X_PNC13',,'B1_GRUPO' ) )
 
-    default aConf := {}
+    default aConf    := {}
     default aFilters := {}
     default cPedSol  := '1'
+    default aCustom  := {}
 
     // Quando não vier parâmetros, retorna query vazia
     if !len( aConf ) > 0 .and. !len( aFilters ) > 0
@@ -484,6 +486,12 @@ user function JSQRYINF( aConf, aFilters, cPedSol )
 
         cQuery += "COALESCE("+ cZB3 +"_CONMED,0.0001) "+ cZB3 +"_CONMED, " + CEOL
         cQuery += "COALESCE("+ cZB3 +"_INDINC,0) "+ cZB3 +"_INDINC " + CEOL
+
+        // Adiciona os campos customizados à query de captura dos dados
+        if len(aCustom) > 0
+            aEval( aCustom, {|x| cQuery += ", "+ x } )
+            cQuery += " "
+        endif
 
         cQuery += "FROM "+ RetSqlName( 'SB1' ) +" B1 " + CEOL
         

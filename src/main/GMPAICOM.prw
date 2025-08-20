@@ -55,7 +55,6 @@ User Function GMPAICOM()
 	Local aCabFor  := {}															// Cabeçalho do browse do grid de fornecedores
 	Local aStrFor  := {} 
 	Local oGir001, oGir002, oGir003, oGir004, oGir005/* , oGir006 */ := Nil
-	Local aHeaPro  := {}
 	local aFields  := {"B1_COD","B1_DESC","B1_UM","NECCOMP","QTDBLOQ","PRCNEGOC","ULTPRECO","CONSMED","DURACAO","DURAPRV","ESTOQUE","EMPENHO","QTDSOL","QTDCOMP","LEADTIME","TPLDTIME","PREVENT","B1_LM","B1_QE","B1_LE","B1_EMIN","A5_FORNECE","A5_LOJA"} 
 	Local aAlter   := {"NECCOMP","QTDBLOQ","PRCNEGOC","B1_LM", "B1_QE", "B1_LE", "A5_FORNECE", "B1_UM", "LEADTIME", "B1_DESC", "B1_EMIN" }
 	Local oPanAna  := Nil
@@ -78,6 +77,7 @@ User Function GMPAICOM()
 	local aAuxHea  := doHeadCar()
 	local oAliSol   as object
 	
+	Private aHeaPro   := {}
 	Private aHeaSol   := {} as array
 	Private _nQtBlq   := 0 as numeric
 	Private aHeaCar   := aClone( aAuxHea[1] )		// Header do grid do carrinho de compras
@@ -154,6 +154,7 @@ User Function GMPAICOM()
 	Private aMrkFor    := {} as array
 	Private aFullPro   := {} as array
 	Private _cPedSol   := "" as character
+	private aPEPNC05   := {} as array
 
 	// Atualiza variável que indica se a conexão com supabase está ativa
 	lSupabase := U_JSGLBPAR( .T. /* lCheck */ )
@@ -267,32 +268,40 @@ User Function GMPAICOM()
 
 	// Cria o alias temporário das solicitações
 	oAliSol := doAliSol()
+	
+	// Ponto de entrada para adição de campos customizados ao grid
+	if ExistBlock( 'PEPNC05' )
+		aPEPNC05 := ExecBlock( 'PEPNC05', .F., .F., { aFields, 1 } )
+		if ValType( aPEPNC05 ) == 'A' .and. len( aPEPNC05 ) > 0
+			aEval( aPEPNC05, {|x| aAdd( aFields, x ) } )
+		endif
+	endif
 
 	aHeaPro := getColPro( aFields, aAlter )							
 	// Guarda o posicionamento dos campos para posteriormente utilizá-los ao longo do fonte
-	nPosPrd := aScan( aHeaPro, {|x| AllTrim(x[17]) == "B1_COD"     } )+2 
-	nPosDes := aScan( aHeaPro, {|x| AllTrim(x[17]) == "B1_DESC"    } )+2
-	nPosUnM := aScan( aHeaPro, {|x| AllTrim(x[17]) == "B1_UM"      } )+2
-	nPosLtM := aScan( aHeaPro, {|x| AllTrim(x[17]) == "B1_LM"      } )+2
-	nPosFor := aScan( aHeaPro, {|x| AllTrim(x[17]) == "A5_FORNECE" } )+2
-	nPosLoj := aScan( aHeaPro, {|x| AllTrim(x[17]) == "A5_LOJA"    } )+2
-	nPosNec := aScan( aHeaPro, {|x| AllTrim(x[17]) == "NECCOMP"    } )+2
-	nPosNeg := aScan( aHeaPro, {|x| AllTrim(x[17]) == "PRCNEGOC"   } )+2
-	nPosUlt := aScan( aHeaPro, {|x| AllTrim(x[17]) == "ULTPRECO"   } )+2
-	nPosCon := aScan( aHeaPro, {|x| AllTrim(x[17]) == "CONSMED"    } )+2
-	nPosDur := aScan( aHeaPro, {|x| AllTrim(x[17]) == "DURACAO"    } )+2
-	nPosDuP := aScan( aHeaPro, {|x| AllTrim(x[17]) == "DURAPRV"    } )+2
-	nPosEmE := aScan( aHeaPro, {|x| AllTrim(x[17]) == "ESTOQUE"    } )+2
-	nPosVen := aScan( aHeaPro, {|x| AllTrim(x[17]) == "EMPENHO"    } )+2
-	nPosSol := aScan( aHeaPro, {|x| AllTrim(x[17]) == "QTDSOL"     } )+2
-	nPosQtd := aScan( aHeaPro, {|x| AllTrim(x[17]) == "QTDCOMP"    } )+2
-	nPosPrv := aScan( aHeaPro, {|x| AllTrim(x[17]) == "PREVENT"    } )+2
-	nPosLdT := aScan( aHeaPro, {|x| AllTrim(x[17]) == "LEADTIME"   } )+2
-	nPosTLT := aScan( aHeaPro, {|x| AllTrim(x[17]) == "TPLDTIME"   } )+2		// Tipo do Lead-Time (C=Calculado P=Produto ou F=Fornecedor)
-	nPosBlq := aScan( aHeaPro, {|x| AllTrim(x[17]) == "QTDBLOQ"    } )+2
-	nPosQtE := aScan( aHeaPro, {|x| AllTrim(x[17]) == "B1_QE"      } )+2
-	nPosLtE := aScan( aHeaPro, {|x| AllTrim(x[17]) == "B1_LE"      } )+2
-	nPosEMi := aScan( aHeaPro, {|x| AllTrim(x[17]) == "B1_EMIN"    } )+2
+	nPosPrd := gtMain("B1_COD")
+	nPosDes := gtMain("B1_DESC")
+	nPosUnM := gtMain("B1_UM")
+	nPosLtM := gtMain("B1_LM")
+	nPosFor := gtMain("A5_FORNECE")
+	nPosLoj := gtMain("A5_LOJA")
+	nPosNec := gtMain("NECCOMP")
+	nPosNeg := gtMain("PRCNEGOC")
+	nPosUlt := gtMain("ULTPRECO")
+	nPosCon := gtMain("CONSMED")
+	nPosDur := gtMain("DURACAO")
+	nPosDuP := gtMain("DURAPRV")
+	nPosEmE := gtMain("ESTOQUE")
+	nPosVen := gtMain("EMPENHO")
+	nPosSol := gtMain("QTDSOL")
+	nPosQtd := gtMain("QTDCOMP")
+	nPosPrv := gtMain("PREVENT")
+	nPosLdT := gtMain("LEADTIME")
+	nPosTLT := gtMain("TPLDTIME")		// Tipo do Lead-Time (C=Calculado P=Produto ou F=Fornecedor)
+	nPosBlq := gtMain("QTDBLOQ")
+	nPosQtE := gtMain("B1_QE")
+	nPosLtE := gtMain("B1_LE")
+	nPosEMi := gtMain("B1_EMIN")
 	nPosInc := 1
 	nPosChk := 2
 	
@@ -3145,8 +3154,8 @@ Static Function fLoadInf()
 	local nEstoque  := 0  as numeric
 	local lPEPNC04  := ExistBlock( 'PEPNC04' )
 	local lRisk     := .F. as logical
-	local lPEPNC05  := ExistBLock( 'PEPNC05' )
-	local aPEPNC05  := {} as array
+	local aLinPro   := {} as array
+	local nLinPro   := 0 as numeric
 	
 	Default lNoInt := .F.								// Default é rodar "Com Interface"
 	
@@ -3184,7 +3193,7 @@ Static Function fLoadInf()
 		if Len( aGiros ) > 0
 			
 			// Consulta todos os produtos para exibí-los no grid
-			cQuery := U_JSQRYINF( aConfig, _aFilters, _cPedSol )		
+			cQuery := U_JSQRYINF( aConfig, _aFilters, _cPedSol, aPEPNC05 )		
 			
 			// CopyToClipBoard( cQuery )
 			// MsgInfo( 'Query copiada!', 'SQL' )
@@ -3335,33 +3344,41 @@ Static Function fLoadInf()
 					nPrice  := priceSupplier( PRDTMP->B1_COD, cFornece, cLoja )
 					
 					// Antes de adicionar o produto ao vetor, verifica se o mesmo já não está listado para esta filial
-					if len( _aProdFil ) == 0 .or. aScan( _aProdFil, {|x| x[3] == PRDTMP->B1_COD .and. x[25] == PRDTMP->FILIAL } ) == 0
-						aAdd( _aProdFil,{ nIndGir,;
-										aScan( aCarCom, {|x| x[carPos('C7_PRODUTO')] == PRDTMP->B1_COD .and. x[carPos('C7_FORNECE')] == cFornece .and. x[carPos('C7_LOJA')] == cLoja } ) > 0,;
-										PRDTMP->B1_COD,;
-										PRDTMP->B1_DESC,;
-										PRDTMP->B1_UM,;
-										nQtdCom /*Necessidade de compra*/,; 
-										PRDTMP->QTDBLOQ /*Ped. Compra Bloq.*/,;
-										nPrice /*Preço negociado*/,;
-										nPrice /*Ultimo Preço*/,; 
-										PRDTMP->( FieldGet( FieldPos( cZB3 +'_CONMED' ) ) ) /*Consumo Medio*/,;
-										nPrjEst /*Duracao Estimada*/,;
-										nDurPrv /*Duracao Prev.*/,;
-										nEstoque /*Em Estoque*/,; 
-										PRDTMP->EMPENHO /*Empenho*/,; 
-										PRDTMP->QTDCOMP /*Quantidade já Comprada*/,;
-										nLeadTime /*Lead Time Médio do Produto*/,;
-										cLeadTime /*Tipo Lead-Time*/,;
-										StoD( PRDTMP->PRVENT ) /*Prev. Entrega*/,;
-										PRDTMP->B1_LM /*Lote Mínimo*/,;
-										PRDTMP->B1_QE /*Quantidade da Embalagem*/,;
-										PRDTMP->B1_LE /*Lote Econômico*/,;
-										PRDTMP->B1_EMIN /* Estoque Minimo (Estoque Segurança) */,;
-										cFornece /*Fornecedor*/,;
-										cLoja /*Loja do Fornecedor*/,;
-										PRDTMP->FILIAL /* Filial */,;
-										PRDTMP->QTDSOL /*Quantidade Solicitada*/ } )
+					if len( _aProdFil ) == 0 .or. aScan( _aProdFil, {|x| x[nPosPrd] == PRDTMP->B1_COD .and. x[25] == PRDTMP->FILIAL } ) == 0
+						
+						aLinPro := Array(len(aHeaPro)+3)
+						aLinPro[nPosInc] := nIndGir
+						aLinPro[nPosChk] := aScan( aCarCom, {|x| x[carPos('C7_PRODUTO')] == PRDTMP->B1_COD .and. x[carPos('C7_FORNECE')] == cFornece .and. x[carPos('C7_LOJA')] == cLoja } ) > 0
+						aLinPro[nPosPrd] := PRDTMP->B1_COD
+						aLinPro[nPosDes] := PRDTMP->B1_DESC
+						aLinPro[nPosUnM] := PRDTMP->B1_UM
+						aLinPro[nPosNec] := nQtdCom
+						aLinPro[nPosBlq] := PRDTMP->QTDBLOQ
+						aLinPro[nPosNeg] := nPrice
+						aLinPro[nPosUlt] := nPrice
+						aLinPro[nPosCon] := PRDTMP->( FieldGet( FieldPos( cZB3 +'_CONMED' ) ) )
+						aLinPro[nPosDur] := nPrjEst
+						aLinPro[nPosDuP] := nDurPrv
+						aLinPro[nPosEmE] := nEstoque
+						aLinPro[nPosVen] := PRDTMP->EMPENHO
+						aLinPro[nPosQtd] := PRDTMP->QTDCOMP
+						aLinPro[nPosLdT] := nLeadTime
+						aLinPro[nPosTLT] := cLeadTime
+						aLinPro[nPosPrv] := StoD( PRDTMP->PRVENT )
+						aLinPro[nPosLtM] := PRDTMP->B1_LM
+						aLinPro[nPosQtE] := PRDTMP->B1_QE
+						aLinPro[nPosLtE] := PRDTMP->B1_LE
+						aLinPro[nPosEMi] := PRDTMP->B1_EMIN
+						aLinPro[nPosFor] := cFornece
+						aLinPro[nPosLoj] := cLoja
+						aLinPro[nPosSol] := PRDTMP->QTDSOL
+						if len( aPEPNC05 ) > 0
+							aEval( aPEPNC05, {|x| aLinPro[gtMain(x)] := PRDTMP->( FieldGet( FieldPos( x ) ) ) } )
+						endif
+						aLinPro[len(aLinPro)] := PRDTMP->FILIAL
+						aAdd( _aProdFil, aClone( aLinPro ) )
+						aLinPro := {}
+
 					endif
 					
 					PRDTMP->( DbSkip() )
@@ -3372,90 +3389,64 @@ Static Function fLoadInf()
 			
 		EndIf
 		
+		aLinPro := {}
 		for nX := 1 to len( _aProdFil )
 			
-			if ! _aProdFil[nX][3] == cProdAnt
+			if ! _aProdFil[nX][nPosPrd] == cProdAnt
 				nIndGir := 0
 			endif
 
 			// Define a importância do produto conforme a unidade em que o mesmo tem um melhor índice de giro
 			nIndGir  := Max(_aProdFil[nX][1], nIndGir )
-			cProdAnt := _aProdFil[nX][3]
+			cProdAnt := _aProdFil[nX][nPosPrd]
 
 			// Obtém a classificação de giro do produto
 			nGiro   := aScan( aGiros, {|x| nIndGir >= x[1] .and. nIndGir <= x[2] } )
 			if nGiro > 0	// Se a classificação de giro não puder ser identificada, não exibe o produto
-				if aScan( aColPro, {|x| x[nPosPrd] == _aProdFil[nX][3] } ) == 0
-					aAdd( aColPro, { nIndGir,; 
-									_aProdFil[nX][2],;
-									_aProdFil[nX][3],;
-									_aProdFil[nX][4],;
-									_aProdFil[nX][5],;
-									_aProdFil[nX][6],;
-									_aProdFil[nX][7],;
-									_aProdFil[nX][8],;
-									_aProdFil[nX][9],;
-									_aProdFil[nX][10],;
-									_aProdFil[nX][11],;
-									_aProdFil[nX][12],;
-									_aProdFil[nX][13],;
-									_aProdFil[nX][14],;
-									_aProdFil[nX][26],;
-									_aProdFil[nX][15],;
-									_aProdFil[nX][16],;
-									_aProdFil[nX][17],;
-									_aProdFil[nX][18],;
-									_aProdFil[nX][19],;
-									_aProdFil[nX][20],;
-									_aProdFil[nX][21],;
-									_aProdFil[nX][22],;
-									_aProdFil[nX][23],;
-									_aProdFil[nX][24] } )
-					
-					// Ponto de entrada que permite adicionar informações ao browse de produtos
-					if lPEPNC05
-						aPEPNC05 := ExecBlock( 'PEPNC05',.F.,.F., { aClone(aColPro[len(aColPro)]), 2 /* nLocal 1=Montagem do Header ou 2=Montagem do aCols*/ } )
-						if ValType( aPEPNC05 ) == 'A' .and. len( aPEPNC05 ) > 0
-							aColPro[len(aColPro)] := aClone( aPEPNC05 )
-						endif
-					endif
+				if aScan( aColPro, {|x| x[nPosPrd] == _aProdFil[nX][nPosPrd] } ) == 0
+					aAdd( aLinPro, nIndGir )
+					for nLinPro := 2 to len(_aProdFil[nX])-1
+						aAdd( aLinPro, _aProdFil[nX][nLinPro] )
+					next nLinPro
+					aAdd( aColPro, aClone( aLinPro ) )
+					aLinPro := {}
 
 				else
 					
-					aColPro[aScan( aColPro, {|x| x[nPosPrd] == _aProdFil[nX][3] } )][nPosInc] := nIndGir
-					aColPro[aScan( aColPro, {|x| x[nPosPrd] == _aProdFil[nX][3] } )][nPosNec] += _aProdFil[nX][6]			// Necessidade de Compra
-					aColPro[aScan( aColPro, {|x| x[nPosPrd] == _aProdFil[nX][3] } )][nPosBlq] += _aProdFil[nX][7]			// Ped. Compra Bloq.
-					aColPro[aScan( aColPro, {|x| x[nPosPrd] == _aProdFil[nX][3] } )][nPosQtd] += _aProdFil[nX][15]		// Quantidade Comprada
-					aColPro[aScan( aColPro, {|x| x[nPosPrd] == _aProdFil[nX][3] } )][nPosSol] += _aProdFil[nX][26]		// Quantidade Solicitada
-					aColPro[aScan( aColPro, {|x| x[nPosPrd] == _aProdFil[nX][3] } )][nPosEmE] += _aProdFil[nX][13]		// Quantidade de estoque atual
-					aColPro[aScan( aColPro, {|x| x[nPosPrd] == _aProdFil[nX][3] } )][nPosCon] += _aProdFil[nX][10]		// Consumo médio
-					aColPro[aScan( aColPro, {|x| x[nPosPrd] == _aProdFil[nX][3] } )][nPosEMi] += _aProdFil[nX][22]		// Estoque mínimo
+					aColPro[aScan( aColPro, {|x| x[nPosPrd] == _aProdFil[nX][nPosPrd] } )][nPosInc] := nIndGir
+					aColPro[aScan( aColPro, {|x| x[nPosPrd] == _aProdFil[nX][nPosPrd] } )][nPosNec] += _aProdFil[nX][nPosNec]		// Necessidade de Compra
+					aColPro[aScan( aColPro, {|x| x[nPosPrd] == _aProdFil[nX][nPosPrd] } )][nPosBlq] += _aProdFil[nX][nPosBlq]		// Ped. Compra Bloq.
+					aColPro[aScan( aColPro, {|x| x[nPosPrd] == _aProdFil[nX][nPosPrd] } )][nPosQtd] += _aProdFil[nX][nPosQtd]		// Quantidade Comprada
+					aColPro[aScan( aColPro, {|x| x[nPosPrd] == _aProdFil[nX][nPosPrd] } )][nPosSol] += _aProdFil[nX][nPosSol]		// Quantidade Solicitada
+					aColPro[aScan( aColPro, {|x| x[nPosPrd] == _aProdFil[nX][nPosPrd] } )][nPosEmE] += _aProdFil[nX][nPosEmE]		// Quantidade de estoque atual
+					aColPro[aScan( aColPro, {|x| x[nPosPrd] == _aProdFil[nX][nPosPrd] } )][nPosCon] += _aProdFil[nX][nPosCon]		// Consumo médio
+					aColPro[aScan( aColPro, {|x| x[nPosPrd] == _aProdFil[nX][nPosPrd] } )][nPosEMi] += _aProdFil[nX][nPosEMi]		// Estoque mínimo
 
 					// Cálculo da duração do estoque com os pedidos de compra aprovados
-					nPrjEst   := Round( ( aColPro[aScan( aColPro, {|x| x[nPosPrd] == _aProdFil[nX][3] } )][nPosEmE] -; 
-										  aColPro[aScan( aColPro, {|x| x[nPosPrd] == _aProdFil[nX][3] } )][nPosEMi] +; 
-										  aColPro[aScan( aColPro, {|x| x[nPosPrd] == _aProdFil[nX][3] } )][nPosQtd] ) /; 
-										  aColPro[aScan( aColPro, {|x| x[nPosPrd] == _aProdFil[nX][3] } )][nPosCon], 0 )
+					nPrjEst   := Round( ( aColPro[aScan( aColPro, {|x| x[nPosPrd] == _aProdFil[nX][nPosPrd] } )][nPosEmE] -; 
+										  aColPro[aScan( aColPro, {|x| x[nPosPrd] == _aProdFil[nX][nPosEMi] } )][nPosEMi] +; 
+										  aColPro[aScan( aColPro, {|x| x[nPosPrd] == _aProdFil[nX][nPosQtd] } )][nPosQtd] ) /; 
+										  aColPro[aScan( aColPro, {|x| x[nPosPrd] == _aProdFil[nX][nPosCon] } )][nPosCon], 0 )
 					if nPrjEst > 999   
 						nPrjEst := 999
 					elseif nPrjEst < 0
 						nPrjEst := 0
 					EndIf
 
-					aColPro[aScan( aColPro, {|x| x[nPosPrd] == _aProdFil[nX][3] } )][nPosDur] := nPrjEst					// Duração do estoque e da qtde comprada
+					aColPro[aScan( aColPro, {|x| x[nPosPrd] == _aProdFil[nX][nPosPrd] } )][nPosDur] := nPrjEst					// Duração do estoque e da qtde comprada
 
 					// Cálculo da duração prevista quando as quantidades bloqueadas forem liberadas
-					nDurPrv := Round( ( aColPro[aScan( aColPro, {|x| x[nPosPrd] == _aProdFil[nX][3] } )][nPosEmE] +; 
-									    aColPro[aScan( aColPro, {|x| x[nPosPrd] == _aProdFil[nX][3] } )][nPosQtd] +; 
-										aColPro[aScan( aColPro, {|x| x[nPosPrd] == _aProdFil[nX][3] } )][nPosBlq] )/; 
-										aColPro[aScan( aColPro, {|x| x[nPosPrd] == _aProdFil[nX][3] } )][nPosCon], 0 ) - _aProdFil[nX][16]
+					nDurPrv := Round( ( aColPro[aScan( aColPro, {|x| x[nPosPrd] == _aProdFil[nX][nPosPrd] } )][nPosEmE] +; 
+									    aColPro[aScan( aColPro, {|x| x[nPosPrd] == _aProdFil[nX][nPosPrd] } )][nPosQtd] +; 
+										aColPro[aScan( aColPro, {|x| x[nPosPrd] == _aProdFil[nX][nPosPrd] } )][nPosBlq] )/; 
+										aColPro[aScan( aColPro, {|x| x[nPosPrd] == _aProdFil[nX][nPosPrd] } )][nPosCon], 0 ) - _aProdFil[nX][nPosLdT]
 					if nDurPrv > 999 
 						nDurPrv := 999
 					elseif nDurPrv < 0
 						nDurPrv := 0
 					EndIf
 
-					aColPro[aScan( aColPro, {|x| x[nPosPrd] == _aProdFil[nX][3] } )][nPosDuP] := nDurPrv					// Duração prevista (tira leadtime e soma quantidade bloqueada)
+					aColPro[aScan( aColPro, {|x| x[nPosPrd] == _aProdFil[nX][nPosPrd] } )][nPosDuP] := nDurPrv					// Duração prevista (tira leadtime e soma quantidade bloqueada)
 
 				endif
 				
@@ -3470,9 +3461,8 @@ Static Function fLoadInf()
 	// Devolve o posicionamento do fornecedor
 	// FORTMP->( DbGoTo( nRecFor ) )
 	aFullPro := aClone( aColPro )
-	oBrwPro:SetArray(aColPro)
+	oBrwPro:SetArray(aColPro) 
 	oBrwPro:UpdateBrowse()
-	
 	// Apenas atualiza o browse de fornecedores quando a alteração não partir dele mesmo
 	if !isInCallStack( 'A2LTMCHG' )
 		oBrwFor:Refresh(.T. /* lGoTop */)
@@ -3484,6 +3474,19 @@ Static Function fLoadInf()
 	// RestArea( aArea )
 	
 Return ( Nil )
+
+/*/{Protheus.doc} gtMain
+Função para obter posição de um campo no grid principal (produtos)
+@type function
+@version 12.1.2410
+@author Jean Carlos Pandolfo Saggin
+@since 18/08/2025
+@param cField, character, ID do campo
+@return numeric, nFieldPos
+/*/
+static function gtMain( cField )
+return aScan( aHeaPro, {|x| AllTrim(x[17]) == cField } )+2
+
 
 /*/{Protheus.doc} betterSupplier
 Função para identificar o melhor fornecedor com base no critério configurado
@@ -3925,10 +3928,10 @@ Static Function fMarkPro()
 			// Prepara vetores para carrinho de compra por produto e por filial
 			for nFil := 1 to len( _aFil )
 				cFilAnt := _aFil[nFil]
-				nProdFil := aScan( _aProdFil, {|x| x[3] == aLinCar[carPos('C7_PRODUTO')] .and. x[25] == AllTrim(_aFil[nFil]) } )
-				if nProdFil > 0 .and. _aProdFil[nProdFil][6] > 0
+				nProdFil := aScan( _aProdFil, {|x| x[nPosPrd] == aLinCar[carPos('C7_PRODUTO')] .and. x[len(x)] == AllTrim(_aFil[nFil]) } )
+				if nProdFil > 0 .and. _aProdFil[nProdFil][nPosNec] > 0
 					aLinFil     := aClone( aLinCar )
-					aLinFil[carPos('QUANT')]  := _aProdFil[nProdFil][6]
+					aLinFil[carPos('QUANT')]  := _aProdFil[nProdFil][nPosNec]
 					aLinFil[carPos('TOTAL')]  := aLinFil[carPos('QUANT')] * aLinFil[carPos('PRECO')]
 					aLinFil[carPos('C7_LOCAL')]  := iif( !Empty( aConfig[26] ), aConfig[26], RetField( 'SB1', 1, FWxFilial( 'SB1' ) + aLinFil[carPos('C7_PRODUTO')], 'B1_LOCPAD' ) )
 					nQtdSeg     := ConvUM( aColPro[oBrwPro:nAt][nPosPrd],; 
@@ -4136,17 +4139,17 @@ User Function PCOMVLD()
 						aCarCom[ aScan( aCarCom, {|x| AllTrim( x[carPos('C7_PRODUTO')] ) == AllTrim( aColPro[ oBrwPro:nAt ][ nPosPrd ] ) } ) ][ carPos('TOTAL') ] := aColPro[oBrwPro:At()][nPosNec] * aColPro[oBrwPro:nAt][nPosNeg]
 					endif
 					for nX := 1 to len( _aFil )
-						nAux := aScan(_aProdFil,{|x| x[3] == aColPro[ oBrwPro:nAt ][ nPosPrd ] .and. x[25] == _aFil[nX] })
-						_aProdFil[ nAux ][8] := aColPro[oBrwPro:At()][nPosNeg]
-						_aProdFil[ nAux ][9] := aColPro[oBrwPro:At()][nPosUlt]
+						nAux := aScan(_aProdFil,{|x| x[nPosPrd] == aColPro[ oBrwPro:nAt ][ nPosPrd ] .and. x[len(x)] == _aFil[nX] })
+						_aProdFil[ nAux ][nPosNeg] := aColPro[oBrwPro:At()][nPosNeg]
+						_aProdFil[ nAux ][nPosUlt] := aColPro[oBrwPro:At()][nPosUlt]
 					next nX
 
 					for nX := 1 to len( _aFil )
-						nAux := aScan(_aProdFil,{|x| x[3] == aColPro[ oBrwPro:nAt ][ nPosPrd ] .and. x[25] == _aFil[nX] })
+						nAux := aScan(_aProdFil,{|x| x[nPosPrd] == aColPro[ oBrwPro:nAt ][ nPosPrd ] .and. x[len(x)] == _aFil[nX] })
 						if aScan( aCarFil, {|x| x[carPos('C7_PRODUTO')] == aColPro[ oBrwPro:nAt ][ nPosPrd ] .and. x[len(x)] == _aFil[nX] } ) > 0
-							aCarFil[ aScan( aCarFil, {|x| x[carPos('C7_PRODUTO')] == aColPro[ oBrwPro:nAt ][ nPosPrd ] .and. x[len(x)] == _aFil[nX] } ) ][carPos('PRECO')] := _aProdFil[nAux][8]
+							aCarFil[ aScan( aCarFil, {|x| x[carPos('C7_PRODUTO')] == aColPro[ oBrwPro:nAt ][ nPosPrd ] .and. x[len(x)] == _aFil[nX] } ) ][carPos('PRECO')] := _aProdFil[nAux][nPosNeg]
 							aCarFil[ aScan( aCarFil, {|x| x[carPos('C7_PRODUTO')] == aColPro[ oBrwPro:nAt ][ nPosPrd ] .and. x[len(x)] == _aFil[nX] } ) ][carPos('TOTAL')] := ;
-								aCarFil[ aScan( aCarFil, {|x| x[carPos('C7_PRODUTO')] == aColPro[oBrwPro:nAt][nPosPrd] .and. x[len(x)] == _aFil[nX] } ) ][carPos('PRECO')] * _aProdFil[nAux][carPos('TOTAL')]
+								aCarFil[ aScan( aCarFil, {|x| x[carPos('C7_PRODUTO')] == aColPro[oBrwPro:nAt][nPosPrd] .and. x[len(x)] == _aFil[nX] } ) ][carPos('PRECO')] * aCarFil[nAux][carPos('QUANT')]
 						endif
 					next nX
 
@@ -4163,8 +4166,8 @@ User Function PCOMVLD()
 				// Quando a compra não for multi-filial, foi permitida a edição diretamente no grid principal
 				if len( _aFil ) == 1 .and. _aFil[1] == cFilAnt
 					// Valida se quantidade do browse de produtos é diferente da quantidade do vetor x filial
-					if aColPro[oBrwPro:At()][nPosNec] != _aProdFil[aScan(_aProdFil,{|x| x[3] == aColPro[oBrwPro:At()][nPosPrd] .and. x[25] == _aFil[1] })][6]
-						_aProdFil[aScan(_aProdFil,{|x| x[3] == aColPro[oBrwPro:At()][nPosPrd] .and. x[25] == _aFil[1] })][6] := aColPro[oBrwPro:At()][nPosNec]
+					if aColPro[oBrwPro:At()][nPosNec] != _aProdFil[aScan(_aProdFil,{|x| x[nPosPrd] == aColPro[oBrwPro:At()][nPosPrd] .and. x[len(x)] == _aFil[1] })][nPosNec]
+						_aProdFil[aScan(_aProdFil,{|x| x[nPosPrd] == aColPro[oBrwPro:At()][nPosPrd] .and. x[len(x)] == _aFil[1] })][nPosNec] := aColPro[oBrwPro:At()][nPosNec]
 					endif
 				endif
 				
@@ -4172,15 +4175,15 @@ User Function PCOMVLD()
 				aCarCom[ aScan( aCarCom, {|x| AllTrim( x[carPos('C7_PRODUTO')] ) == AllTrim( aColPro[ oBrwPro:nAt ][ nPosPrd ] ) } ) ][ carPos('TOTAL') ] := aColPro[oBrwPro:At()][nPosNec] * aColPro[oBrwPro:nAt][nPosNeg]
 				
 				for nX := 1 to len( _aFil )
-					nAux := aScan(_aProdFil,{|x| x[3] == aColPro[ oBrwPro:nAt ][ nPosPrd ] .and. x[25] == _aFil[nX] .and. x[23] == aColPro[ oBrwPro:nAt ][ nPosFor ] .and. x[24] == aColPro[ oBrwPro:nAt ][ nPosLoj ] })
-					_aProdFil[ nAux ][6] := aColPro[oBrwPro:At()][nPosNec]
+					nAux := aScan(_aProdFil,{|x| x[nPosPrd] == aColPro[ oBrwPro:nAt ][ nPosPrd ] .and. x[len(x)] == _aFil[nX] .and. x[nPosFor] == aColPro[ oBrwPro:nAt ][ nPosFor ] .and. x[nPosLoj] == aColPro[ oBrwPro:nAt ][ nPosLoj ] })
+					_aProdFil[ nAux ][nPosNec] := aColPro[oBrwPro:At()][nPosNec]
 				next nX
 
 				for nX := 1 to len( _aFil )
-					nAux := aScan(_aProdFil,{|x| x[3] == aColPro[ oBrwPro:nAt ][ nPosPrd ] .and. x[25] == _aFil[nX] })
+					nAux := aScan(_aProdFil,{|x| x[nPosPrd] == aColPro[ oBrwPro:nAt ][ nPosPrd ] .and. x[len(x)] == _aFil[nX] })
 					if aScan( aCarFil, {|x| x[carPos('C7_PRODUTO')] == aColPro[ oBrwPro:nAt ][ nPosPrd ] .and. x[len(x)] == _aFil[nX] } ) > 0
-						aCarFil[ aScan( aCarFil, {|x| x[carPos('C7_PRODUTO')] == aColPro[ oBrwPro:nAt ][ nPosPrd ] .and. x[len(x)] == _aFil[nX] } ) ][carPos('QUANT')] := _aProdFil[nAux][6]
-						aCarFil[ aScan( aCarFil, {|x| x[carPos('C7_PRODUTO')] == aColPro[ oBrwPro:nAt ][ nPosPrd ] .and. x[len(x)] == _aFil[nX] } ) ][carPos('TOTAL')] := aCarFil[ aScan( aCarFil, {|x| x[carPos('C7_PRODUTO')] == aColPro[oBrwPro:nAt][nPosPrd] .and. x[len(x)] == _aFil[nX] } ) ][carPos('PRECO')] * _aProdFil[nAux][carPos('TOTAL')]
+						aCarFil[ aScan( aCarFil, {|x| x[carPos('C7_PRODUTO')] == aColPro[ oBrwPro:nAt ][ nPosPrd ] .and. x[len(x)] == _aFil[nX] } ) ][carPos('QUANT')] := _aProdFil[nAux][nPosNec]
+						aCarFil[ aScan( aCarFil, {|x| x[carPos('C7_PRODUTO')] == aColPro[ oBrwPro:nAt ][ nPosPrd ] .and. x[len(x)] == _aFil[nX] } ) ][carPos('TOTAL')] := aCarFil[ aScan( aCarFil, {|x| x[carPos('C7_PRODUTO')] == aColPro[oBrwPro:nAt][nPosPrd] .and. x[len(x)] == _aFil[nX] } ) ][carPos('PRECO')] * _aProdFil[nAux][nPosNec]
 					endif
 				next nX
 
@@ -4191,8 +4194,8 @@ User Function PCOMVLD()
 				// Quando a compra não for multi-filial, foi permitida a edição diretamente no grid principal
 				if len( _aFil ) == 1 .and. _aFil[1] == cFilAnt
 					// Valida se quantidade do browse de produtos é diferente da quantidade do vetor x filial
-					if aColPro[oBrwPro:At()][nPosNec] != _aProdFil[aScan(_aProdFil,{|x| x[3] == aColPro[oBrwPro:At()][nPosPrd] .and. x[25] == _aFil[1] })][6]
-						_aProdFil[aScan(_aProdFil,{|x| x[3] == aColPro[oBrwPro:At()][nPosPrd] .and. x[25] == _aFil[1] })][6] := aColPro[oBrwPro:At()][nPosNec]
+					if aColPro[oBrwPro:At()][nPosNec] != _aProdFil[aScan(_aProdFil,{|x| x[nPosPrd] == aColPro[oBrwPro:At()][nPosPrd] .and. x[len(x)] == _aFil[1] })][nPosNec]
+						_aProdFil[aScan(_aProdFil,{|x| x[nPosPrd] == aColPro[oBrwPro:At()][nPosPrd] .and. x[len(x)] == _aFil[1] })][nPosNec] := aColPro[oBrwPro:At()][nPosNec]
 					endif
 				endif
 			EndIf
@@ -4204,15 +4207,15 @@ User Function PCOMVLD()
 				aCarCom[ aScan( aCarCom, {|x| AllTrim( x[carPos('C7_PRODUTO')] ) == AllTrim( aColPro[ oBrwPro:nAt ][ nPosPrd ] ) } ) ][ carPos('TOTAL') ] := aColPro[oBrwPro:nAt][nPosNec] * aColPro[oBrwPro:nAt][nPosNeg]
 
 				for nX := 1 to len( _aFil )
-					nAux := aScan(_aProdFil,{|x| x[3] == aColPro[ oBrwPro:nAt ][ nPosPrd ] .and. x[25] == _aFil[nX] .and. x[23] == aColPro[ oBrwPro:nAt ][ nPosFor ] .and. x[24] == aColPro[ oBrwPro:nAt ][ nPosLoj ] })
-					_aProdFil[ nAux ][8] := aColPro[oBrwPro:At()][nPosNeg]
+					nAux := aScan(_aProdFil,{|x| x[nPosPrd] == aColPro[ oBrwPro:nAt ][ nPosPrd ] .and. x[len(x)] == _aFil[nX] .and. x[nPosFor] == aColPro[ oBrwPro:nAt ][ nPosFor ] .and. x[nPosLoj] == aColPro[ oBrwPro:nAt ][ nPosLoj ] })
+					_aProdFil[ nAux ][nPosNeg] := aColPro[oBrwPro:At()][nPosNeg]
 				next nX
 
 				for nX := 1 to len( _aFil )
-					nAux := aScan(_aProdFil,{|x| x[3] == aColPro[ oBrwPro:nAt ][ nPosPrd ] .and. x[25] == _aFil[nX] })	
+					nAux := aScan(_aProdFil,{|x| x[nPosPrd] == aColPro[ oBrwPro:nAt ][ nPosPrd ] .and. x[len(x)] == _aFil[nX] })	
 					if aScan( aCarFil, {|x| x[carPos('C7_PRODUTO')] == aColPro[ oBrwPro:nAt ][ nPosPrd ] .and. x[len(x)] == _aFil[nX] } ) > 0 
 						aCarFil[ aScan( aCarFil, {|x| x[carPos('C7_PRODUTO')] == aColPro[ oBrwPro:nAt ][ nPosPrd ] .and. x[len(x)] == _aFil[nX] } ) ][carPos('PRECO')] := aColPro[oBrwPro:nAt][nPosNeg] 
-						aCarFil[ aScan( aCarFil, {|x| x[carPos('C7_PRODUTO')] == aColPro[ oBrwPro:nAt ][ nPosPrd ] .and. x[len(x)] == _aFil[nX] } ) ][carPos('TOTAL')] := aColPro[oBrwPro:nAt][nPosNeg] * _aProdFil[nAux][6]
+						aCarFil[ aScan( aCarFil, {|x| x[carPos('C7_PRODUTO')] == aColPro[ oBrwPro:nAt ][ nPosPrd ] .and. x[len(x)] == _aFil[nX] } ) ][carPos('TOTAL')] := aColPro[oBrwPro:nAt][nPosNeg] * _aProdFil[nAux][nPosNec]
 					endif
 				next nX
 
@@ -4319,8 +4322,8 @@ User Function PCOMVLD()
 			// Quando a compra não for multi-filial, foi permitida a edição diretamente no grid principal
 			if len( _aFil ) == 1 .and. _aFil[1] == cFilAnt
 				// Valida se quantidade do browse de produtos é diferente da quantidade do vetor x filial
-				if aColPro[oBrwPro:At()][nPosBlq] != _aProdFil[aScan(_aProdFil,{|x| x[3] == aColPro[oBrwPro:At()][nPosPrd] .and. x[25] == _aFil[1] })][7]
-					_aProdFil[aScan(_aProdFil,{|x| x[3] == aColPro[oBrwPro:At()][nPosPrd] .and. x[25] == _aFil[1] })][7] := aColPro[oBrwPro:At()][nPosBlq]
+				if aColPro[oBrwPro:At()][nPosBlq] != _aProdFil[aScan(_aProdFil,{|x| x[nPosPrd] == aColPro[oBrwPro:At()][nPosPrd] .and. x[len(x)] == _aFil[1] })][nPosBlq]
+					_aProdFil[aScan(_aProdFil,{|x| x[nPosPrd] == aColPro[oBrwPro:At()][nPosPrd] .and. x[len(x)] == _aFil[1] })][nPosBlq] := aColPro[oBrwPro:At()][nPosBlq]
 				endif
 			endif
 			
@@ -6156,8 +6159,8 @@ Static Function fReplica( aCbo, cCbo )
 												x[nPosFor] == oBrwCar:aCols[nX][carPos('C7_FORNECE')] .and.;
 												x[nPosLoj] == oBrwCar:aCols[nX][carPos('C7_LOJA')] })
 					
-					nProFil := aScan( _aProdFil, {|x| x[3] == oBrwCar:aCols[nX][carPos('C7_PRODUTO')] .and.;
-													  x[25] == SubStr(aCbo[nCbo],1,len(cFilAnt)) } )
+					nProFil := aScan( _aProdFil, {|x| x[nPosPrd] == oBrwCar:aCols[nX][carPos('C7_PRODUTO')] .and.;
+													  x[len(x)] == SubStr(aCbo[nCbo],1,len(cFilAnt)) } )
 
 					if cField == "QUANT"
 						
@@ -6165,9 +6168,9 @@ Static Function fReplica( aCbo, cCbo )
 						oBrwCar:aCols[nX][ carPos( 'QTSEGUM' ) ] := ConvUM( oBrwCar:aCols[nX][carPos('C7_PRODUTO')], xInfo, 0, 2 )
 						aCarFil[nLin][ carPos( 'QUANT' ) ] := xInfo
 						aCarFil[nLin][ carPos( 'TOTAL' ) ] := oBrwCar:aCols[nX][ carPos( 'TOTAL' ) ]
-						_aProdFil[nProFil][6] := xInfo
+						_aProdFil[nProFil][nPosNec] := xInfo
 						nQtdPro := 0
-						aEval( _aProdFil, {|x| nQtdPro += iif( x[3] == oBrwCar:aCols[nX][carPos('C7_PRODUTO')], x[6], 0 ) } )
+						aEval( _aProdFil, {|x| nQtdPro += iif( x[nPosPrd] == oBrwCar:aCols[nX][carPos('C7_PRODUTO')], x[nPosNec], 0 ) } )
 						aColPro[nPosNec] := nQtdPro
 
 					elseif cField == 'PRECO'
@@ -6176,7 +6179,7 @@ Static Function fReplica( aCbo, cCbo )
 						oBrwCar:aCols[nX][ carPos( 'VALSEGUM' ) ] := iif( oBrwCar:aCols[nX][ carPos( 'QTSEGUM' ) ] > 0, oBrwCar:aCols[nX][ carPos( 'TOTAL' ) ] / oBrwCar:aCols[nX][ carPos( 'QTSEGUM' ) ], 0 )
 						aCarFil[nLin][ carPos( 'PRECO' ) ] := xInfo
 						aCarFil[nLin][ carPos( 'TOTAL' ) ] := oBrwCar:aCols[nX][ carPos( 'TOTAL' ) ]
-						_aProdFil[nProFil][8] := xInfo
+						_aProdFil[nProFil][nPosNeg] := xInfo
 						aColPro[nLinPro][nPosNeg] := xInfo
 
 					elseif cField == 'TOTAL'
@@ -6184,7 +6187,7 @@ Static Function fReplica( aCbo, cCbo )
 						oBrwCar:aCols[nX][ carPos( 'VALSEGUM' ) ] := iif( oBrwCar:aCols[nX][ carPos( 'QTSEGUM' ) ] > 0, xInfo / oBrwCar:aCols[nX][ carPos( 'QTSEGUM' ) ], 0 )
 						aCarFil[nLin][ carPos( 'TOTAL' ) ] := xInfo
 						aCarFil[nLin][ carPos( 'PRECO' ) ] := oBrwCar:aCols[nX][ carPos( 'PRECO' ) ]
-						_aProdFil[nProFil][8] := oBrwCar:aCols[nX][ carPos( 'PRECO' ) ]
+						_aProdFil[nProFil][nPosNeg] := oBrwCar:aCols[nX][ carPos( 'PRECO' ) ]
 						aColPro[nLinPro][nPosNeg] := oBrwCar:aCols[nX][ carPos( 'PRECO' ) ]
 
 					elseif cField == 'VALSEGUM'
@@ -6192,7 +6195,7 @@ Static Function fReplica( aCbo, cCbo )
 						oBrwCar:aCols[nX][ colPos( 'PRECO' ) ] := oBrwCar:aCols[nX][ colPos( 'TOTAL' ) ] / oBrwCar:aCols[nX][ carPos( 'QUANT' ) ]
 						aCarFil[nLin][ carPos( 'TOTAL' ) ] := oBrwCar:aCols[nX][ colPos( 'TOTAL' ) ]
 						aCarFil[nLin][ carPos( 'PRECO' ) ] := oBrwCar:aCols[nX][ colPos( 'PRECO' ) ]
-						_aProdFil[nProFil][8] := oBrwCar:aCols[nX][ carPos( 'PRECO' ) ]
+						_aProdFil[nProFil][nPosNeg] := oBrwCar:aCols[nX][ carPos( 'PRECO' ) ]
 						aColPro[nLinPro][nPosNeg] := oBrwCar:aCols[nX][ carPos( 'PRECO' ) ]
 
 					elseif cField == 'QTSEGUM'
@@ -6200,9 +6203,9 @@ Static Function fReplica( aCbo, cCbo )
 						oBrwCar:aCols[nX][ colPos( 'QUANT' ) ] := oBrwCar:aCols[nX][ colPos( 'TOTAL' ) ] / oBrwCar:aCols[nX][ carPos( 'VALSEGUM' ) ]
 						aCarFil[nLin][ colPos( 'TOTAL' ) ] := oBrwCar:aCols[nX][ colPos( 'TOTAL' ) ]
 						aCarFil[nLin][ colPos( 'QUANT' ) ] := oBrwCar:aCols[nX][ colPos( 'QUANT' ) ]
-						_aProdFil[nProFil][6] := oBrwCar:aCols[nX][ colPos( 'QUANT' ) ]
+						_aProdFil[nProFil][nPosNec] := oBrwCar:aCols[nX][ colPos( 'QUANT' ) ]
 						nQtdPro := 0
-						aEval( _aProdFil, {|x| nQtdPro += iif( x[3] == oBrwCar:aCols[nX][carPos('C7_PRODUTO')], x[6], 0 ) } )
+						aEval( _aProdFil, {|x| nQtdPro += iif( x[nPosPrd] == oBrwCar:aCols[nX][carPos('C7_PRODUTO')], x[6], 0 ) } )
 						aColPro[nPosNec] := nQtdPro
 
 					endif
@@ -7027,6 +7030,27 @@ Static Function fShowEm( cProduto )
 		aColumns[len(aColumns)]:SetData( {|| QRYEMP->ENDERECO } )
 	endif
 
+	aAdd( aColumns, FWBrwColumn():New() )
+	aColumns[len(aColumns)]:SetTitle( 'Data Empenho' )
+	aColumns[len(aColumns)]:SetSize( TAMSX3( 'C9_DATALIB' )[1] )
+	aColumns[len(aColumns)]:SetType( 'D' )
+	aColumns[len(aColumns)]:SetPicture( '@D' )
+	aColumns[len(aColumns)]:SetData( {|| StoD(QRYEMP->DATAEMP) } )
+
+	aAdd( aColumns, FWBrwColumn():New() )
+	aColumns[len(aColumns)]:SetTitle( 'Produto Pai' )
+	aColumns[len(aColumns)]:SetSize( TAMSX3( 'C2_PRODUTO' )[1] )
+	aColumns[len(aColumns)]:SetType( 'C' )
+	aColumns[len(aColumns)]:SetPicture( '@!' )
+	aColumns[len(aColumns)]:SetData( {|| QRYEMP->PRODPAI } )
+
+	aAdd( aColumns, FWBrwColumn():New() )
+	aColumns[len(aColumns)]:SetTitle( 'Desc.Pr.Pai' )
+	aColumns[len(aColumns)]:SetSize( TAMSX3( 'B1_DESC' )[1] )
+	aColumns[len(aColumns)]:SetType( 'C' )
+	aColumns[len(aColumns)]:SetPicture( '@!' )
+	aColumns[len(aColumns)]:SetData( {|| AllTrim( QRYEMP->DESCRICAO ) } )
+
 	// Configura browse para exibição dos dados
 	oBrowse := FWBrowse():New( oDlgEmp )
 	oBrowse:SetAlias( 'QRYEMP' )
@@ -7057,22 +7081,69 @@ static function getQrEmp( cProduto, lEndereco )
 	if lEndereco
 		// Busca empenhos do produto quando utiliza controle de endereço
 		cQuery := "SELECT DC_PEDIDO NUMERO, DC_ITEM ITEM, DC_QUANT QUANT, CASE DC_ORIGEM WHEN 'SC6' THEN '1' ELSE '2' END TIPO, "
-		cQuery += "       DC_LOCAL ARMAZEM, DC_LOCALIZ ENDERECO FROM "+ RetSqlName( 'SDC' ) +" DC "
+		cQuery += "       DC_LOCAL ARMAZEM, DC_LOCALIZ ENDERECO, COALESCE( C2.C2_EMISSAO, C9.C9_DATALIB ) DATAEMP, "
+		cQuery += "       COALESCE( C2.C2_PRODUTO, '"+ Space( TAMSX3('C2_PRODUTO')[1] ) +"' ) PRODPAI, "
+		cQuery += "       COALESCE( B1.B1_DESC, '"+ Space( TAMSX3( 'B1_DESC' )[1] ) +"' ) DESCRICAO "
+		cQuery += "FROM "+ RetSqlName( 'SDC' ) +" DC "
+		
+		// Liga com tabela de OPs
+		cQuery += "LEFT JOIN "+ RetSqlName( 'SC2' ) +" C2 "
+		cQuery += " ON C2.C2_FILIAL = '"+ FWxFilial( 'SC2' ) +"' "
+		// Quando for Oracle, utiliza | para concatenar
+		if TCGetDB() == 'ORACLE'
+			cQuery += "AND C2.C2_NUM || C2.C2_ITEM || C2.C2_SEQUEN = DC.DC_OP "
+		else
+			cQuery += "AND CONCAT(C2.C2_NUM, C2.C2_ITEM, C2.C2_SEQUEN ) = DC.DC_OP "
+		endif
+		cQuery += "AND C2.D_E_L_E_T_ = ' ' "
+
+		cQuery += "LEFT JOIN "+ RetSqlName( 'SB1' ) +" B1 "
+		cQuery += " ON B1.B1_FILIAL  = '"+ FWxFilial( 'SB1' ) +"' "
+		cQuery += "AND B1.B1_COD     = C2.C2_PRODUTO "
+		cQuery += "AND B1.D_E_L_E_T_ = ' ' "
+
+		// Liga com SC9
+		cQuery += "LEFT JOIN "+ RetSqlName( 'SC9' ) +" C9 "
+		cQuery += " ON C9.C9_FILIAL  = '"+ FWxFilial( 'SC9' ) +"' "
+		cQuery += "AND C9.C9_PEDIDO  = DC.DC_PEDIDO "
+		cQuery += "AND C9.C9_ITEM    = DC.DC_ITEM "
+		cQuery += "AND C9.C9_PRODUTO = DC.DC_PRODUTO "
+		cQuery += "AND C9.D_E_L_E_T_ = ' ' "
+
 		cQuery += "WHERE DC.DC_FILIAL  = '"+ FWxFilial( 'SDC' ) +"' "
 		cQuery += "  AND DC.DC_PRODUTO = '"+ cProduto +"' "
 		cQuery += "  AND DC.D_E_L_E_T_ = ' ' "
+
 	else
 		// Query para buscar empenhos do produto quando não há controle de endereçamento
 		cQuery := "SELECT C9.C9_PEDIDO NUMERO, C9.C9_ITEM ITEM, C9.C9_QTDLIB QUANT, '1' TIPO, C9.C9_LOCAL ARMAZEM, "
-		cQuery += "       ' ' ENDERECO FROM "+ RetSqlName( 'SC9' ) +" C9 "
+		cQuery += "       '"+ Space( TAMSX3( 'DC_LOCALIZ' )[1] ) +"' ENDERECO, C9.C9_DATALIB DATAEMP, "
+		cQuery += "       '"+ Space( TAMSX3( 'C2_PRODUTO' )[1] ) +"' PRODPAI, '"+ Space( TAMSX3( 'B1_DESC' )[1] ) +"' DESCRICAO "
+		cQuery += "FROM "+ RetSqlName( 'SC9' ) +" C9 "
 		cQuery += "WHERE C9.C9_FILIAL   = '"+ FWxFilial( 'SC9' ) +"' "
 		cQuery += "  AND C9.C9_PRODUTO  = '"+ cProduto +"' "
 		cQuery += "  AND C9.C9_BLEST    = '  ' "
 		cQuery += "  AND C9.C9_BLCRED   = '  ' "
 		cQuery += "  AND C9.D_E_L_E_T_  = ' ' "
 		cQuery += "UNION ALL "
-		cQuery += "SELECT LEFT(D4_OP,6) NUMERO, RIGHT(LEFT(D4_OP,8),2) ITEM, D4_QUANT QUANT, '2' TIPO, D4_LOCAL ARMAZEM, ' ' ENDERECO "
+		cQuery += "SELECT LEFT(D4_OP,6) NUMERO, RIGHT(LEFT(D4_OP,8),2) ITEM, D4_QUANT QUANT, '2' TIPO, D4_LOCAL ARMAZEM, ' ' ENDERECO, "
+		cQuery += "       D4.D4_DATA DATAEMP, C2.C2_PRODUTO PRODPAI, B1.B1_DESC DESCRICAO "
 		cQuery += "FROM "+ RetSqlName( 'SD4' ) +" D4 "
+		cQuery += "INNER JOIN "+ RetSqlName( 'SC2' ) +" C2 "
+		cQuery += " ON C2.C2_FILIAL  = '"+ FWxFilial( 'SC2' ) +"' "
+		if TCGetDB() == 'ORACLE'	// Quando for Oracle, utiliza | para concatenar
+			cQuery += "AND C2.C2_NUM || C2.C2_ITEM || C2.C2_SEQUEN = D4.D4_OP "
+		else
+			cQuery += "AND CONCAT(C2.C2_NUM, C2.C2_ITEM, C2.C2_SEQUEN ) = D4.D4_OP "
+		endif
+		cQuery += "AND C2.D_E_L_E_T_ = ' ' "
+
+		// Cadastro de produtos
+		cQuery += "INNER JOIN "+ RetSqlName( 'SB1' ) +" B1 "
+		cQuery += " ON B1.B1_FILIAL  = '"+ FWxFilial( 'SB1' ) +"' "
+		cQuery += "AND B1.B1_COD     = C2.C2_PRODUTO "
+		cQuery += "AND B1.D_E_L_E_T_ = ' ' "
+
 		cQuery += "WHERE D4.D4_FILIAL  = '"+ FWxFilial( 'SD4' ) +"' "
 		cQuery += "  AND D4.D4_COD     = '"+ cProduto +"' "
 		cQuery += "  AND D4.D4_QUANT   > 0 "
@@ -8176,8 +8247,6 @@ static function getColPro( aFields, aAlter )
 	local aAux     := {} as array
 	local cType    := "" as character
 	local nPropor  := 0.6 
-	local lPEPNC05 := ExistBlock( 'PEPNC05' )
-	local aPEPNC05 := {} as array
 
 	for nX := 1 to len( aFields )
 		DBSelectArea( 'SB1' )
@@ -8190,11 +8259,11 @@ static function getColPro( aFields, aAlter )
 			endif
 			aAdd(aColumns, {;
 							AllTrim(GetSX3Cache( aFields[nX], 'X3_TITULO' )),;                     	// [n][01] Título da coluna
-							&("{|oBrw| aColPro[oBrw:At()]["+ cValToChar(nX+2) +"] }"),; 				// [n][02] Code-Block de carga dos dados
+							&("{|oBrw| aColPro[oBrw:At()]["+ cValToChar(nX+2) +"] }"),; 			// [n][02] Code-Block de carga dos dados
 							StrTran(GetSX3Cache( aFields[nX], 'X3_TIPO' ),'M','C'),;                // [n][03] Tipo de dados
 							AllTrim(GetSX3Cache( aFields[nX], 'X3_PICTURE' )),;                     // [n][04] Máscara
 							iif( cType == "C", 1, iif( cType == "N", 2, 0 )),;                      // [n][05] Alinhamento (0=Centralizado, 1=Esquerda ou 2=Direita)
-							GetSX3Cache( aFields[nX], 'X3_TAMANHO' )*nPropor,;                             	// [n][06] Tamanho
+							GetSX3Cache( aFields[nX], 'X3_TAMANHO' )*nPropor,;                      // [n][06] Tamanho
 							GetSX3Cache( aFields[nX], 'X3_DECIMAL' ),;                              // [n][07] Decimal
 							aScan( aAlter, {|x| AllTrim(x) == aFields[nX] } ) > 0,;                 // [n][08] Indica se permite a edição
 							{|| AlwaysTrue() },;                          							// [n][09] Code-Block de validação da coluna após a edição
@@ -8476,14 +8545,6 @@ static function getColPro( aFields, aAlter )
 		endif
 	next nX
 
-	if lPEPNC05
-		// Permite manipular o vetor de colunas do browse de produtos
-		aPEPNC05 := ExecBlock( 'PEPNC05', .F., .F., { aClone(aColumns), 1 /* nLocal 1=aHeader ou 2=aCols */ } )
-		if ValType( aPEPNC05 ) == 'A' .and. len( aPEPNC05 ) > 0
-			aColumns := aClone( aPEPNC05 )
-		endif
-	endif
-
 return aColumns
 
 /*/{Protheus.doc} writeWF
@@ -8699,7 +8760,7 @@ user function PCOMPRE(oBrw, oCol, cPre )
 	local lCanEdit := .T. as logical
 	local oQtdFil         as object
 	local nAux     := 0 as numeric
-	local bOk      := {|| nAux := 0, aEval( _aProdFil, {|x| iif( x[3] == cProduto, nAux+= x[6], nil ) } ),;
+	local bOk      := {|| nAux := 0, aEval( _aProdFil, {|x| iif( x[nPosPrd] == cProduto, nAux+= x[nPosNec], nil ) } ),;
 						  aColPro[aScan(aColPro, {|x| x[nPosPrd] == cProduto })][nPosNec] := nAux,;
 						  updCarCom( cProduto ),;
 						  oBrwPro:UpdateBrowse(),;
@@ -8727,9 +8788,9 @@ user function PCOMPRE(oBrw, oCol, cPre )
 	local nGetMed  := 0 as numeric
 	local nGetCom  := 0 as numeric
 	local oGetCom  as object
-	local bVldCell := {|| _aProdFil[ aScan( _aProdFil, {|x| x[25]+x[3] == aProFil[oProFil:At()][25]+aProFil[oProFil:At()][3] } ) ] := aProFil[oProFil:At()],;
+	local bVldCell := {|| _aProdFil[ aScan( _aProdFil, {|x| x[len(x)]+x[nPosPrd] == aProFil[oProFil:At()][len(aProFil[oProFil:At()])]+aProFil[oProFil:At()][nPosPrd] } ) ] := aProFil[oProFil:At()],;
 						 nAux := 0,;
-						 aEval( _aProdFil, {|x| iif( x[3] == cProduto, nAux+= x[6], nil ) } ),;
+						 aEval( _aProdFil, {|x| iif( x[nPosPrd] == cProduto, nAux+= x[nPosNec], nil ) } ),;
 						 nGetNec := nAux,;
 						 oGetNec:CtrlRefresh(),;
 						 .T. }
@@ -8746,11 +8807,11 @@ user function PCOMPRE(oBrw, oCol, cPre )
 			// Cria subvetor editável apenas com o produto selecionado
 			if len( _aProdFil ) > 0
 				for nX := 1 to len( _aProdFil )
-					cFil := _aProdFil[nX][25]		// Filial
+					cFil := _aProdFil[nX][len(_aProdFil[nX])]		// Filial
 					// Executa verificação apenas quando o produto for referente a linha selecionada
-					if _aProdFil[nX][3]	== cProduto .and. _aProdFil[nX][23] == cFornece .and. _aProdFil[nX][24] == cLoja
+					if _aProdFil[nX][nPosPrd]	== cProduto .and. _aProdFil[nX][nPosFor] == cFornece .and. _aProdFil[nX][nPosLoj] == cLoja
 						// Verifica se o produto já não foi adicionado anteriormente.
-						if len( aProFil ) == 0 .or. aScan( aProFil, {|x| x[3] == cProduto .and. x[23] == cFornece .and. x[24] == cLoja .and. x[25] == cFil } ) == 0
+						if len( aProFil ) == 0 .or. aScan( aProFil, {|x| x[nPosPrd] == cProduto .and. x[nPosFor] == cFornece .and. x[nPosLoj] == cLoja .and. x[len(x)] == cFil } ) == 0
 							aAdd( aProFil, aClone( _aProdFil[nX] ) )
 						endif
 
@@ -8759,11 +8820,11 @@ user function PCOMPRE(oBrw, oCol, cPre )
 			endif
 
 			// Inicializa variáveis dos gets
-			aEval( _aProdFil, {|x| iif( x[3] == cProduto, nGetMed+= x[10], nil ) } )
-			aEval( _aProdFil, {|x| iif( x[3] == cProduto, nGetQtd+= x[13], nil ) } )
-			aEval( _aProdFil, {|x| iif( x[3] == cProduto, nGetEmp+= x[14], nil ) } )
-			aEval( _aProdFil, {|x| iif( x[3] == cProduto, nGetNec+= x[06], nil ) } )
-			aEval( _aProdFil, {|x| iif( x[3] == cProduto, nGetCom+= x[15], nil ) } )
+			aEval( _aProdFil, {|x| iif( x[nPosPrd] == cProduto, nGetMed+= x[nPosCon], nil ) } )
+			aEval( _aProdFil, {|x| iif( x[nPosPrd] == cProduto, nGetQtd+= x[nPosEmE], nil ) } )
+			aEval( _aProdFil, {|x| iif( x[nPosPrd] == cProduto, nGetEmp+= x[nPosVen], nil ) } )
+			aEval( _aProdFil, {|x| iif( x[nPosPrd] == cProduto, nGetNec+= x[nPosNec], nil ) } )
+			aEval( _aProdFil, {|x| iif( x[nPosPrd] == cProduto, nGetCom+= x[nPosQtd], nil ) } )
 
 			aAdd( aColumns, FWBrwColumn():New() )
 			aColumns[len(aColumns)]:SetTitle( 'Filial' )
@@ -8939,8 +9000,8 @@ static function updCarCom( cProduto )
 	if len( _aFil ) > 0
 		for nFil := 1 to len( _aFil )
 
-			nAux   := aScan( _aProdFil, {|x| x[3] == cProduto .and. x[25] == _aFil[nFil] } )
-			nQuant := _aProdFil[nAux][6]
+			nAux   := aScan( _aProdFil, {|x| x[nPosPrd] == cProduto .and. x[len(x)] == _aFil[nFil] } )
+			nQuant := _aProdFil[nAux][nPosNec]
 
 			// Valida se o produto já está no carrinho
 			if aScan( aCarFil, {|x| x[carPos('C7_PRODUTO')] == cProduto .and. x[len(x)] == _aFil[nFil] } ) > 0
@@ -9119,15 +9180,15 @@ static function dataProdUpd( oBrw, cCbo )
 			endif
 
 			// Ajusta o vetor que armazena dados do produto x filial
-			nAux := aScan( _aProdFil, {|x| x[3] == aCols[nX][carPos('C7_PRODUTO')] .and. x[25] == cCbo } )
+			nAux := aScan( _aProdFil, {|x| x[nPosPrd] == aCols[nX][carPos('C7_PRODUTO')] .and. x[len(x)] == cCbo } )
 			if nAux > 0 
-				_aProdFil[nAux][6] := nQuant		
-				_aProdFil[nAux][8] := nValue
+				_aProdFil[nAux][nPosNec] := nQuant		
+				_aProdFil[nAux][nPosNeg] := nValue
 			endif
 
 			// Soma quantidade geral por produto a ser comprado
 			nQuant := 0
-			aEval( _aProdFil, {|x| iif( x[3] == aCols[nX][carPos('C7_PRODUTO')], nQuant += x[6], Nil ) } )
+			aEval( _aProdFil, {|x| iif( x[nPosPrd] == aCols[nX][carPos('C7_PRODUTO')], nQuant += x[nPosNec], Nil ) } )
 
 			// Verifica se consegue encontrar o produto no vetor de produtos
 			nAux := aScan( aColPro, {|x| x[nPosPrd] == aCols[nX][carPos('C7_PRODUTO')] } )
@@ -9975,9 +10036,9 @@ static function supplyerChoice( lForce )
 		aColPro[oBrwPro:At()][nPosFor] := SubStr( xRet, 1, TAMSX3('A2_COD')[1] )
 		aColPro[oBrwPro:At()][nPosLoj] := SubStr( xRet, TAMSX3('A2_COD')[1]+1, TAMSX3('A2_LOJA')[1] )
 		for nX := 1 to len( _aProdFil )
-			if _aProdFil[nX][3] == aColPro[oBrwPro:At()][nPosPrd] 
-				_aProdFil[nX][23] := aColPro[oBrwPro:At()][nPosFor] 
-				_aProdFil[nX][24] := aColPro[oBrwPro:At()][nPosLoj] 
+			if _aProdFil[nX][nPosPrd] == aColPro[oBrwPro:At()][nPosPrd] 
+				_aProdFil[nX][nPosFor] := aColPro[oBrwPro:At()][nPosFor] 
+				_aProdFil[nX][nPosLoj] := aColPro[oBrwPro:At()][nPosLoj] 
 			endif
 		next nX
 		aFullPro[aScan( aFullPro, {|x| x[nPosPrd] == aColPro[oBrwPro:At()][nPosPrd] } )] := aClone( aColPro[oBrwPro:At()] )
@@ -9995,17 +10056,17 @@ static function supplyerChoice( lForce )
 				aCarCom[ aScan( aCarCom, {|x| AllTrim( x[carPos('C7_PRODUTO')] ) == AllTrim( aColPro[ oBrwPro:nAt ][ nPosPrd ] ) } ) ][ carPos('TOTAL') ] := aColPro[oBrwPro:At()][nPosNec] * aColPro[oBrwPro:nAt][nPosNeg]
 			endif
 			for nX := 1 to len( _aFil )
-				nAux := aScan(_aProdFil,{|x| x[3] == aColPro[ oBrwPro:nAt ][ nPosPrd ] .and. x[25] == _aFil[nX] .and. x[23] == aColPro[ oBrwPro:nAt ][ nPosFor ] .and. x[24] == aColPro[ oBrwPro:nAt ][ nPosLoj ] })
-				_aProdFil[ nAux ][8] := aColPro[oBrwPro:At()][nPosNeg]
-				_aProdFil[ nAux ][9] := aColPro[oBrwPro:At()][nPosUlt]
+				nAux := aScan(_aProdFil,{|x| x[nPosPrd] == aColPro[ oBrwPro:nAt ][ nPosPrd ] .and. x[len(x)] == _aFil[nX] .and. x[nPosFor] == aColPro[ oBrwPro:nAt ][ nPosFor ] .and. x[nPosLoj] == aColPro[ oBrwPro:nAt ][ nPosLoj ] })
+				_aProdFil[ nAux ][nPosNeg] := aColPro[oBrwPro:At()][nPosNeg]
+				_aProdFil[ nAux ][nPosUlt] := aColPro[oBrwPro:At()][nPosUlt]
 			next nX
 
 			for nX := 1 to len( _aFil )
-				nAux := aScan(_aProdFil,{|x| x[3] == aColPro[ oBrwPro:nAt ][ nPosPrd ] .and. x[25] == _aFil[nX] })
+				nAux := aScan(_aProdFil,{|x| x[nPosPrd] == aColPro[ oBrwPro:nAt ][ nPosPrd ] .and. x[len(x)] == _aFil[nX] })
 				if aScan( aCarFil, {|x| x[carPos('C7_PRODUTO')] == aColPro[ oBrwPro:nAt ][ nPosPrd ] .and. x[len(x)] == _aFil[nX] } ) > 0
-					aCarFil[ aScan( aCarFil, {|x| x[carPos('C7_PRODUTO')] == aColPro[ oBrwPro:nAt ][ nPosPrd ] .and. x[len(x)] == _aFil[nX] } ) ][carPos('PRECO')] := _aProdFil[nAux][8]
+					aCarFil[ aScan( aCarFil, {|x| x[carPos('C7_PRODUTO')] == aColPro[ oBrwPro:nAt ][ nPosPrd ] .and. x[len(x)] == _aFil[nX] } ) ][carPos('PRECO')] := _aProdFil[nAux][nPosNeg]
 					aCarFil[ aScan( aCarFil, {|x| x[carPos('C7_PRODUTO')] == aColPro[ oBrwPro:nAt ][ nPosPrd ] .and. x[len(x)] == _aFil[nX] } ) ][carPos('TOTAL')] := ;
-						aCarFil[ aScan( aCarFil, {|x| x[carPos('C7_PRODUTO')] == aColPro[oBrwPro:nAt][nPosPrd] .and. x[len(x)] == _aFil[nX] } ) ][carPos('PRECO')] * _aProdFil[nAux][carPos('TOTAL')]
+						aCarFil[ aScan( aCarFil, {|x| x[carPos('C7_PRODUTO')] == aColPro[oBrwPro:nAt][nPosPrd] .and. x[len(x)] == _aFil[nX] } ) ][carPos('PRECO')] * aCarFil[nAux][carPos('QUANT')]
 				endif
 			next nX
 		
