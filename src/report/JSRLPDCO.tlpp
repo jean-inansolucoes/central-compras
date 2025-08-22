@@ -1,0 +1,822 @@
+#include 'totvs.ch'
+#include 'topconn.ch'
+#include "colors.ch"
+#include "rptdef.ch"
+#include "FWPrintSetup.ch"
+
+#define N_HEIGHT        15      // Altura da linha em pixels
+#define N_MAX_LINES     35      // Quantidade máxima de linhas do relatório
+#define ALIGN_LEFT      0       // Alinhamento à esquerda - horizontal
+#define ALIGN_RIGHT     1       // Alinhamento à direita - horizontal
+#define ALIGN_H_CENTER  2       // Alinhamento ao centro - horizontal
+#define ALIGN_JUSTIFIED 3       // Alinhamento justificado - horizontal
+#define ALIGN_TOP       1       // Alinhamento para o alto na vertical
+#define ALIGN_BUTTON    2       // Alinhamento para baixo na vertical
+#define ALIGN_V_CENTER  0       // Alinhamento ao centro na vertical
+
+/*/{Protheus.doc} JSRLPDCO
+Função para gerar relatório de pedido de compras customizado
+@type function
+@version 1.0
+@author Jean Carlos Pandolfo Saggin
+@since 20/08/2025
+@param nRec, numeric, ID do registro do pedido a ser impresso(opcional) Default: registro posicionado na tabela SC7
+/*/
+user function JSRLPDCO( nRec )
+
+	local aArea       := getArea()
+	local lSuccess    := .T. as logical
+	Private cPathLogo := getLogo()
+
+	default nRec := SC7->( Recno() )
+
+	// Valida se o atendimento veio preenchido
+	if nRec <= 0
+		Hlp( 'JSRLPDCO.1',;
+			'O ID do pedido não está correto',;
+			'Parâmetros nRecno inválido! Verifique com a equipe técnica responsável pela rotina' )
+		restArea( aArea )
+		Return Nil
+	endif
+
+	// Recurso do RPO para arquivo local (foto da logo)
+	if !File( cPathLogo )
+		Hlp( 'JSRLPDCO.2',;
+			'O arquivo da logo necessário para impressão do documento não está disponível',;
+			'Verifique as configurações do ambiente para utilização de uma logo que esteja dentro dos padrões de documentos emitidos pela empresa.' )
+		restArea( aArea )
+		return Nil
+	endif
+
+	DBSelectArea( 'SC7' )
+	SC7->( DBGoTo( nRec ) )
+	if nRec == SC7->( Recno() )
+		Processa( {|| lSuccess := printPDF() }, "Aguarde!", "Gerando Pedido de Compras...",.F. /* lCanCanc */)
+	else
+		Hlp( 'JSRLPDCO.3',;
+			'O ID do registro do pedido recebido ('+ cValToChar(nRec) +') não é válido',;
+			'Solicite apoio técnico enviando imagem desta mensagem de erro, aguarde retorno e tente novamente.' )
+		restArea( aArea )
+		return Nil
+	endif
+
+	RestArea(aArea)
+return lSuccess
+
+/*/{Protheus.doc} printPDF
+Função para gerar a impressão do documento em PDF
+@type function
+@version 1.0
+@author Jean Carlos Pandolfo Saggin
+@since 24/01/2025
+@return logical, lSuccess
+/*/
+static function printPDF()
+
+	local lSuccess  := .T. as logical
+	local cFilPed   := SC7->C7_FILIAL
+	local cNumPed   := SC7->C7_NUM
+	Local cArqDest  := cNumPed       	// Nome do arquivo DOCUMENTO a ser gerado
+	local cExtDest  := ".pdf" 			// Extensão do arquivo
+	Local cPathEst  := AllTrim(GetTempPath())+"protheus\" // Pasta na estação local onde será gerado o DOCUMENTO
+	Local oPDF             as object
+	local aData     := {} as array
+	local aLine     := {} as array
+	local aCab      := {} as array
+
+	private cFilSC7     := "" as character
+	Private cFilePrint  := "" as character
+	Private nLine       := 0 as numeric
+	Private nValTotSC7  := 0
+
+	default lEnd := .F.
+
+	// Valida o caminho na estação, caso não exista cria diretório
+	if ! ExistDir( cPathEst )
+		MakeDir(cPathEst)
+		if ! ExistDir( cPathEst )
+			Hlp( 'JSRLPDCO.4',;
+				'Não foi possível criar o diretório temporário para salvar o PDF',;
+				'Verifique as permissões de escrita no diretório temporário '+ AllTrim(GetTempPath()) )
+			lSuccess := .F.
+			return lSuccess
+		endif
+	endif
+
+	// Verifica a existência do arquivo antes de gerar outro
+	if File( cPathEst + cArqDest + cExtDest )
+		FErase( cPathEst + cArqDest + cExtDest )
+	endif
+
+	// Verifica a existência do arquivo temporário .rel de relatórios anteriores
+	cFilePrint := cArqDest +'.rel'
+	if File( '/spool/'+ cFilePrint )
+		fErase( '/spool/'+ cFilePrint )
+	endif
+
+	cPathTmp := AllTrim( cGetFile( 'Arquivos PDF | *.pdf' /* cMask */,;
+		'Selecione um local para salvar o PDF' /* cTitle */,;
+		0,;
+		'' /* cDirInit */,;
+		.T. /* lSave */,;
+		GETF_LOCALHARD+GETF_RETDIRECTORY,;
+		.F. /* lServer */,;
+		.T. /* lCaseSensitive */  ) )
+
+	if ! Empty( cPathTmp ) .and. ExistDir( cPathTmp )
+		cPathEst := cPathTmp
+	endif
+
+	cFilePDF := cPathEst + StrTran( cFilePrint, '.rel', '.pdf' )
+	// Instancia um objeto fwmsprinter para realizar a impressão dos dados
+	oPDF := FWMsPrinter():New( cFilePrint, IMP_PDF, .F. /* lAdjustToLegacy */, '/spool/', .T. /* lDisableSetup */,;
+		Nil /* lTReport */, Nil, "PDF" /* cPrinter */, .F. /* lServer */, .T., .F. /* lRow */,;
+		.T. /* lViewPDF */, 1 /* nQtdCopy */  )
+	oPDF:SetResolution(72)
+	oPDF:SetPortrait()
+	oPDF:SetPaperSize( DMPAPER_A4 )
+	oPDF:SetMargin( 60, 60, 60, 60 )
+	oPDF:cPathPDF := cPathEst
+	oPDF:SetParm( "-RFS" )
+
+	// Gera cabeçalho do relatório
+	printData( /* xData */, 'cabecalho' /* cType */, oPDF, Nil /* lEndPage */ )
+	printData( { {{ "DADOS DO FORNECEDOR", 100 }}, {} }, 'quadro_itens' /* cType */, oPDF, Nil /* lEndPage */, .T. /* lBold */ )
+
+	aCab := {}
+	aCab := { { 'Label 1', 12 },;
+		{ 'Data 1', 21 },;
+		{ 'Label 2', 12 },;
+		{ 'Data 2', 21 },;
+		{ 'Label 3', 12 },;
+		{ 'Data 3', 22 } }
+
+	aLine := {}
+	aData := {}
+	DBSelectArea( 'SA2' )
+	SA2->( DBSetOrder( 1 ) )    // FILIAL + COD + LOJA
+	SA2->( DBSeek( FWxFilial( 'SA2' ) + SC7->C7_FORNECE + SC7->C7_LOJA ) )
+	aLine := { 'Fornecedor', AllTrim( SC7->C7_FORNECE ) +'/'+ AllTrim( SC7->C7_LOJA ),;
+		'Razão Social', AllTrim( SA2->A2_NOME ),;
+		'Fantasia', AllTrim( SA2->A2_NREDUZ ) }
+	aAdd( aData, aClone( aLine ) )
+	printData( { aCab, aData }, 'quadro_cab', oPDF, Nil )
+
+	nLine -= 1
+	aData := {}
+	aCab := { { 'Label 1', 10 },;
+		{ 'Data 1', 30 },;
+		{ 'Label 2', 10 },;
+		{ 'Data 2', 20 },;
+		{ 'Label 3', 10 },;
+		{ 'Data 3', 20 } }
+	aLine := { 'Endereço', AllTrim( SA2->A2_END ),;
+		'Inscrição Estadual', AllTrim( SA2->A2_INSCR ),;
+		'CGC/CPF', AllTrim( Transform( SA2->A2_CGC, iif( SA2->A2_TIPO=='F', "@R 999.999.999-99", "@R 99.999.999/9999-99" ) ) ) }
+	aAdd( aData, aClone( aLine ) )
+	aLine := {}
+	printData( { aCab, aData }, 'quadro_cab', oPDF, Nil )
+	
+	nLine -= 1
+	aData := {}
+	aCab := { { 'Label 1', 10 },;
+				{ 'Data 1', 15 },;
+				{ 'Label 2', 15 },;
+				{ 'Data 2', 30 },;
+				{ 'Label 3', 10 },;
+				{ 'Data 3', 20 } }
+				
+	aLine := {  'Bairro', AllTrim( SA2->A2_BAIRRO ),;
+				'Município/UF', AllTrim( SA2->A2_MUN ) +' - '+ SA2->A2_EST,;
+				'Telefone', iif( ! Empty( SA2->A2_DDD ), "("+AllTrim(SA2->A2_DDD)+")", "" ) +;
+							iif( ! Empty( SA2->A2_TEL ), " "+AllTrim(SA2->A2_TEL), "" ) }
+	aAdd( aData, aClone( aLine ) )
+	aLine := {}
+	printData( { aCab, aData }, 'quadro_cab', oPDF, Nil )
+
+	printData( { {{ "PEDIDO", 100 }}, {} }, 'quadro_itens' /* cType */, oPDF, Nil /* lEndPage */, .T. /* lBold */ )
+	aCab := {}
+	aCab := { { 'Label 1', 12 },;
+				{ 'Data 1', 21 },;
+				{ 'Label 2', 12 },;
+				{ 'Data 2', 21 },;
+				{ 'Label 3', 12 },;
+				{ 'Data 3', 22 } }
+
+	aLine := {}
+	aData := {}
+	aLine := { 'Cond.Pagto', AllTrim( SC7->C7_COND ) +'-'+ AllTrim( RetField( 'SE4', 1, FWxFilial( 'SE4' ) + SC7->C7_COND, "E4_DESCRI" ) ),;
+				'Emissão', DtoC( SC7->C7_EMISSAO ),;
+				'Tp. Frete', iif( SC7->C7_TPFRETE == 'C', 'CIF', iif( SC7->C7_TPFRETE == 'F', 'FOB', iif( SC7->C7_TPFRETE $ ' |S' , 'SEM FRETE', ' ' ) ) ) }
+	aAdd( aData, aClone( aLine ) )
+	printData( { aCab, aData }, 'quadro_cab', oPDF, Nil )
+	nLine -= 1
+
+	aCab := {}
+	aCab := { { 'Label 1', 15 },;
+			{ 'Data 1', 50 },;
+			{ 'Label 2', 15 },;
+			{ 'Data 2', 20 } }
+
+	aLine := {}
+	aData := {}
+	aLine := { 'Transportadora', getTransp(),;
+				'Valor Frete', getValFrete( cFilPed, cNumPed ) }
+	aAdd( aData, aClone( aLine ) )
+	printData( { aCab, aData }, 'quadro_cab', oPDF, Nil )
+
+	aLine := {}
+	aData := {}
+
+	// Inicializa MATXFIS
+	cFilSC7 := cFilPed
+	R110FIniPC( cNumPed )
+
+	DBSelectArea( 'SC7' )
+	SC7->( DBSetOrder( 1 ) )
+	if SC7->( DBSeek( cFilPed + cNumPed ) )
+
+		printData( { {{ "ITENS DO PEDIDO", 100 }}, {} }, 'quadro_itens' /* cType */, oPDF, Nil /* lEndPage */, .T. /* lBold */ )
+		aCab :={{ 'Item'                     , 6, ALIGN_H_CENTER},;
+				{'Produto'                   , 14},;
+				{'Cod.Prd.For.'              , 14},;
+				{'Descrição'                 , 20},;
+				{'Qtde'                      , 7 },;
+				{'UM'                        , 4, ALIGN_H_CENTER},;
+				{'Vlr Unit.'                 , 7 },;
+				{'Vlr Total'                 , 11},;
+				{'IPI'                       , 7 },;
+				{'Prev. Entr.'               , 10 }}
+		while ! SC7->( EOF() ) .and. SC7->C7_FILIAL + SC7->C7_NUM == cFilPed + cNumPed
+
+			aAdd( aLine, SC7->C7_ITEM )                                                                             // 01. Item
+			aAdd( aLine, AllTrim(SC7->C7_PRODUTO) )                                                                 // 02. Produto
+			aAdd( aLine, getPrdFor(SC7->C7_PRODUTO, SC7->C7_FORNECE, SC7->C7_LOJA ) )                               // 03. Código do Produto no Fornecedor
+			aAdd( aLine, AllTrim(RetField( 'SB1', 1, FWxFilial( 'SB1' ) + SC7->C7_PRODUTO, 'B1_DESC' ) ) )          // 04. Descrição
+			aAdd( aLine, Round(SC7->C7_QUANT,0) )                                                                   // 05. Quantidade
+			aAdd( aLine, SC7->C7_UM )                                                                               // 06. Unidade de Medida
+			aAdd( aLine, SC7->C7_PRECO )                                                                            // 07. Valor unitário
+			aAdd( aLine, SC7->C7_TOTAL )                                                                            // 08. Valor total do item
+			aAdd( aLine, SC7->C7_IPI )                                                                              // 09. IPI
+			aAdd( aLine, SC7->C7_DATPRF )                                                                           // 10. Data Entrega
+
+			aAdd( aData, aClone( aLine ) )
+			aLine := {}
+
+			SC7->( DBSkip() )
+		enddo
+	endif
+	printData( { aCab, aData }, 'quadro_itens', oPDF, Nil /* lEndPage */ )
+
+	nLine -= 1
+	aLine := {}
+	aData := {}
+	aCab  := { { 'Despesas', 80 },;
+		{ "R$ "+ Transform( MaFisRet(,'NF_DESPESA'), "@E 999,999,999.99" ), 20 } }
+	printData( { aCab, aData }, 'quadro_itens', oPDF, Nil, .T. /* lBold */, .T. /* lTotal */ )
+	
+	aLine := {}
+	aData := {}
+	aCab  := { { 'Valor do IPI', 80 },;
+		{ "R$ "+ Transform( MaFisRet(,'NF_VALIPI'), "@E 999,999,999.99" ), 20 } }
+	printData( { aCab, aData }, 'quadro_itens', oPDF, Nil, .T. /* lBold */, .T. /* lTotal */ )
+
+	aLine := {}
+	aData := {}
+	aCab  := { { 'TOTAL DO PEDIDO', 80 },;
+		{ "R$ "+ Transform( MaFisRet(,'NF_TOTAL'), "@E 999,999,999.99" ), 20 } }
+	printData( { aCab, aData }, 'quadro_itens', oPDF, Nil, .T. /* lBold */, .T. /* lTotal */ )
+
+	// Encerra MATXFIS
+	MaFisEnd()
+
+	aCab := {}
+	aCab := { { 'OBSERVAÇÕES', 100 } }
+	aData := getObs( cFilPed, cNumPed )
+	if len( aData ) > 0
+		printData( { aCab, aData }, 'quadro_cab', oPDF, Nil )
+	endif
+
+	oPDF:EndPage()
+	oPDF:Print()
+
+	if File( cFilePDF )
+		lSuccess := .T.
+	else
+		lSuccess := .F.
+		Hlp( 'JSRLPDCO.5',;
+			'Falha ao gerar PDF '+ cFilePDF,;
+			'Verifique se há permissões suficientes para salvar o arquivo no local desejado e tente novamente!' )
+	endif
+
+return lSuccess
+
+/*/{Protheus.doc} getValFrete
+Função para obter o valor do frete contratado (FOB) + frete previsto em NF
+@type function
+@version 1.0
+@author Jean Carlos Pandolfo Saggin
+@since 22/08/2025
+@param cFilPed, character, Filial do pedido
+@param cNumPed, character, Número do pedido
+@return numeric, nValFrete
+/*/
+static function getValFrete( cFilPed, cNumPed )
+	local aArea := getArea()
+	local nValFrete := 0 as numeric
+	DBSelectArea( 'SC7' )
+	SC7->( DBSetOrder( 1 ) )
+	if SC7->( DBSeek( cFilPed + cNumPed ) )
+		nValFrete := SC7->C7_FRETCON
+		while ! SC7->( EOF() ) .and. SC7->C7_FILIAL + SC7->C7_NUM == cFilPed + cNumPed
+			nValFrete += SC7->C7_VALFRE
+			SC7->( DBSkip() )
+		enddo
+	endif
+	restArea( aArea )
+return nValFrete
+
+/*/{Protheus.doc} getObs
+Função para obter as observações do pedido de compras
+@type function
+@version 1.0
+@author Jean Carlos Pandolfo Saggin
+@since 21/08/2025
+@param cFilPed, character, filial do pedido
+@param cNumPed, character, ID do pedido
+@return array, aObs
+/*/
+static function getObs( cFilPed, cNumPed )
+	
+	local aArea    := getArea()
+	local aObs     := {} as array
+	local cTmp     := "" as character
+
+	DBSelectArea( 'SC7' )
+	SC7->( DBSetorder( 1 ) )	// C7_FILIAL + C7_NUM
+	if SC7->( DBSeek( cFilPed + cNumPed ) )
+		while ! SC7->( EOF() ) .and. SC7->C7_FILIAL + SC7->C7_NUM == cFilPed + cNumPed
+			
+			cTmp := AllTrim(MSMM( SC7->C7_OBSM,,,,3,1000 ))
+			if aScan( aObs, {|x| cTmp $ x } ) == 0
+				aAdd( aObs, StrTran( cTmp, chr(13)+chr(10), "" ) )
+			endif
+
+			SC7->( DBSkip() )
+		enddo
+	endif
+
+	restArea( aArea )
+return aObs
+
+/*/{Protheus.doc} getTransp
+Obtém o transportador informado no pedido de compras
+@type function
+@version 1.0
+@author Jean Carlos Pandolfo Saggin
+@since 21/08/2025
+@return character, cTransp
+/*/
+static function getTransp()
+	
+	local cTransp := "" as character
+
+	if SC7->( FieldPos( 'C7_X_TRANS' ) ) > 0 .and. X3Uso( GetSX3Cache( 'C7_X_TRANS', 'X3_USADO' ) ) .and. ! Empty( SC7->C7_X_TRANS )
+		cTransp := SC7->C7_X_TRANS + '-'+ AllTrim( RetField( 'SA4', 1, FWxFilial( 'SA4' ) + SC7->C7_X_TRANS, 'A4_NOME' ) )
+	elseif ! Empty( SC7->C7_TRANSP )
+		cTransp := AllTrim( SC7->C7_TRANSP ) +'/'+ SC7->C7_TRANSLJ +'-'+; 
+					AllTrim( RetField( 'SA2', 1, FWxFilial( 'SA2' ) + SC7->C7_TRANSP + AllTrim( SC7->C7_TRANSLJ ), 'A2_NOME' ) )
+	endif
+return cTransp
+
+/*/{Protheus.doc} R110FIniPC
+Função de inicialização do MATXFIS para o pedido
+@type function
+@version 1.0
+@author Jean Carlos Pandolfo Saggin
+@since 21/08/2025
+@param cPedido, character, ID do pedido
+@param cItem, character, Item do pedido
+@param cSequen, character, Sequencia do pedido
+@param cFiltro, character, Filtro (expressao)
+@return logical, lSuccess
+/*/
+Static Function R110FIniPC(cPedido,cItem,cSequen,cFiltro)
+
+	Local aArea		:= GetArea()
+	Local aAreaSC7	:= SC7->(GetArea())
+	Local cValid	:= ""
+	Local nPosRef	:= 0
+	Local nItem		:= 0
+	Local cItemDe	:= IIf(cItem==Nil,'',cItem)
+	Local cItemAte	:= IIf(cItem==Nil,Repl('Z',Len(SC7->C7_ITEM)),cItem)
+	Local cRefCols	:= ''
+	Local nX
+	Static aStru	:= FWFormStruct(3,"SC7")[1]
+
+	DEFAULT cSequen	:= ""
+	DEFAULT cFiltro	:= ""
+	DEFAULT cRegra    := SuperGetMV("MV_ARRPEDC",.F.,"ROUND")
+	DEFAULT nTamTot   := TamSX3("C7_PRECO")[2]
+
+	If !(cRegra $ "ROUND|NOROUND")
+		cRegra := "LEGADO"
+	Endif
+
+	dbSelectArea("SC7")
+	dbSetOrder(1)
+	If dbSeek(cFilSC7+cPedido+cItemDe+Alltrim(cSequen))
+		MaFisEnd()
+		MaFisIni(SC7->C7_FORNECE,SC7->C7_LOJA,"F","N","R",{})
+		While !Eof() .AND. SC7->C7_FILIAL+SC7->C7_NUM == cFilSC7+cPedido .AND. ;
+				SC7->C7_ITEM <= cItemAte .AND. (Empty(cSequen) .OR. cSequen == SC7->C7_SEQUEN)
+
+			// Nao processar os Impostos se o item possuir residuo eliminado
+			If &cFiltro
+				SC7->(dbSkip())
+				Loop
+			EndIf
+
+			If !Empty(cRegra)
+				If AllTrim(cRegra) == "NOROUND"
+					nValTotSC7 := NoRound( SC7->C7_QUANT * SC7->C7_PRECO, nTamTot )
+				ElseIf AllTrim(cRegra) == "ROUND"
+					nValTotSC7 := Round( SC7->C7_QUANT * SC7->C7_PRECO, nTamTot )
+				Else
+					nValTotSC7 := SC7->C7_TOTAL
+				EndIf
+			EndIf
+
+			// Inicia a Carga do item nas funcoes MATXFIS
+			nItem++
+			MaFisIniLoad(nItem)
+
+			For nX := 1 To Len(aStru)
+				cValid	:= StrTran(UPPER(GetCbSource(aStru[nX][7]))," ","")
+				cValid	:= StrTran(cValid,"'",'"')
+				If "MAFISREF" $ cValid .And. !(aStru[nX][14]) //campos que não são virtuais
+					nPosRef  := AT('MAFISREF("',cValid) + 10
+					cRefCols := Substr(cValid,nPosRef,AT('","MT120",',cValid)-nPosRef )
+					// Carrega os valores direto do SC7.
+					If aStru[nX][3] == "C7_TOTAL" .AND. !Empty(cRegra)
+						MaFisLoad(cRefCols,nValTotSC7,nItem)
+					Else
+						MaFisLoad(cRefCols,&("SC7->"+ aStru[nX][3]),nItem)
+					EndIf
+				EndIf
+			Next nX
+
+			MaFisEndLoad(nItem,2)
+
+			SC7->(dbSkip())
+		End
+	EndIf
+
+	RestArea(aAreaSC7)
+	RestArea(aArea)
+
+Return .T.
+
+/*/{Protheus.doc} getPrdFor
+Obtém o código do produto com o fornecedor (caso exista essa relação)
+@type function
+@version 1.0
+@author Jean Carlos Pandolfo Saggin
+@since 20/08/2025
+@param cProduto, character, ID do produto no Protheus
+@param cFornece, character, ID do fornecedor
+@param cLoja, character, Loja do fornecedor
+@return character, cProdFor
+/*/
+static function getPrdFor( cProduto, cFornece, cLoja )
+	local cProdFor := "" as character
+
+	DBSelectArea( 'SA5' )
+	SA5->( DBSetOrder( 1 ) )
+	if SA5->(DBSeek( FWxFilial( 'SA5' ) + cFornece + cLoja + cProduto ))
+		cProdFor := AllTrim( SA5->A5_CODPRF )
+	endif
+
+return cProdFor
+
+/*/{Protheus.doc} getForma
+Retorna a descrição da forma de pagamento do SX5
+@type function
+@version 1.0
+@author Jean Carlos Pandolfo Saggin
+@since 27/01/2025
+@param cForma, character, ID da forma de pagamento
+@return character, cDescricao
+/*/
+static function getForma( cForma )
+return Capital(AllTrim( RetField( 'SX5', 1, FWxFilial( 'SX5' ) + "24" + PADR( cForma, 6, " " ), 'X5_DESCRI' ) ))
+
+/*/{Protheus.doc} convBox
+Função que executa a conversão do conteúdo de um campo ComboBox para retornar sua descrição de acordo com o conteúdo do dicionário de dados
+@type function
+@version 1.0
+@author Jean C. P. Saggin
+@since 10/24/2023
+@param cData, character, informação a ser convertida
+@param cField, character, ID do campo
+@return character, cConteudo
+/*/
+static function convBox( cData, cField )
+	local cReturn  := "" as character
+	local aTemp    := StrTokArr( AllTrim( GetSX3Cache( cField, 'X3_CBOX' ) ), ';' )
+	local aOptions := {} as array
+	aEval( aTemp, {|x| aAdd( aOptions, StrTokArr( x, '=' ) ) } )
+	if aScan( aOptions, {|x| x[1] == cData } ) > 0
+		cReturn := AllTrim( aOptions[ aScan( aOptions, {|x| x[1] == cData } ) ][2] )
+	endif
+return cReturn
+
+/*/{Protheus.doc} printData
+Função para imprimir os dados no arquivo PDF
+@type function
+@version 1.0
+@author Administrador
+@since 13/10/2023
+@param xData, variadic, dado a ser impresso
+@param cType, character, tipo do dado a ser impresso (cabecalho, texto, assinatura, planilha)
+@param oPDF, object, objeto do PDF
+@param lEndPage, logical, indica se deve encerrar a página
+@param lBold, logical, indica se o texto deve ser impresso em negrito
+/*/
+static function printData( xData, cType, oPDF, lEndPage, lBold, lTotal )
+
+	local oFontCab  := TFont():New('Arial',,-8,,.F.)
+	local oFontGrid := TFont():New('Calibri',,-8,,.F.)
+	local oFontGrB  := TFont():New('Calibri',,-8,,.T.)
+	local oFontTitle:= TFont():New('Arial',,-10,,.T. /* lBold */,,,,,.T. /* lUnderline */, .F. /* lItalic */)
+	local oFontTmp  as object
+	local nX        := 0 as numeric
+	local nY        := 0 as numeric
+	local nCol      := 10 as numeric
+	local nSize     := 0 as numeric
+	local nHeight   := 0 as numeric
+	local oBrush    as object
+	local cDocType  := "PEDIDO DE COMPRA N. " + SC7->C7_NUM
+	local nHorSize  := oPDF:nHorzSize()-60
+
+	default lEndPage := .F.
+	default lBold    := .F.
+	default lTotal   := .F.
+
+	if cType == 'cabecalho'
+
+		if lEndPage
+			oPDF:EndPage()
+		endif
+
+		oPDF:StartPage()
+
+		nLine := 3
+		oPDF:Box( nLine * N_HEIGHT, 10, (nLine+6)*N_HEIGHT, (nHorSize)+10 )
+		oPDF:Box( nLine * N_HEIGHT, 10, (nLine+6)*N_HEIGHT, 140 )
+		nLine++
+		oPDF:SayAlign( nLine * N_HEIGHT, (nHorSize)-300, AllTrim( SM0->M0_NOMECOM ), oFontCab, 300, N_HEIGHT, /* nColorText */, ALIGN_RIGHT, ALIGN_BUTTON )
+		nLine++
+		oPDF:SayBitmap( ( nLine * N_HEIGHT )+10, 15, cPathLogo, 10, 10 )
+		oPDF:SayAlign( nLine * N_HEIGHT, 0, cDocType, oFontTitle, nHorSize, N_HEIGHT*2, /* nColorText */,;
+			ALIGN_H_CENTER, ALIGN_BUTTON )
+		oPDF:SayAlign( nLine * N_HEIGHT, (nHorSize)-300, "CNPJ: "+ AllTrim( Transform( SM0->M0_CGC, '@R 99.999.999/9999-99' ) ) +;
+			" INSCRIÇÃO ESTADUAL: "+ AllTrim( SM0->M0_INSC ), oFontCab, 300, N_HEIGHT, /* nColorText */,;
+			ALIGN_RIGHT, ALIGN_BUTTON )
+		nLine++
+		oPDF:SayAlign( nLine * N_HEIGHT, (nHorSize)-300, AllTrim( SM0->M0_ENDCOB ) +' - Bairro: '+ AllTrim( SM0->M0_BAIRCOB ),;
+			oFontCab, 300, N_HEIGHT, /* nColorTExt */, ALIGN_RIGHT, ALIGN_BUTTON )
+
+		nLine++
+		oPDF:SayAlign( nLine * N_HEIGHT, (nHorSize)-300, "CEP: "+ Transform( SM0->M0_CEPCOB, '@R 99.999-999' ) +" - Cidade: "+ AllTrim( SM0->M0_CIDCOB ) +" - "+ SM0->M0_ESTCOB,;
+			oFontCab, 300, N_HEIGHT, /* nColorTExt */, ALIGN_RIGHT, ALIGN_BUTTON )
+
+		nLine++
+		oPDF:SayAlign( nLine * N_HEIGHT, (nHorSize)-300, "Telefone: "+ AllTrim( SM0->M0_TEL ),oFontCab, 300, N_HEIGHT, /* nColorTExt */, ALIGN_RIGHT, ALIGN_BUTTON )
+		nLine += 2
+
+	elseif cType == 'quadro_cab'
+
+		// Cria um objeto do tipo pincel para pintar o quadro do cabeçalho da planilha
+		oBrush := TBRush():New(, RGB( 192, 192, 192 ) )     // Light Grey
+		// Se não conseguir imprimir ao menos o cabeçalho do quadro e a primeira linha de dados, pula para a próxima página
+		if (nLine + 1) > N_MAX_LINES
+			printData( /* xData */, 'cabecalho' /* cType */, oPDF, .T. /* lEndPage */ )
+		endif
+
+		// Informações do quadro (quando houverem)
+		nCol := 10
+		nHorSize := nHorSize
+		if xData[2] != Nil .and. len( xData[2] ) > 0
+			for nX := 1 to len( xData[2] )
+				nCol    := 10
+				nHeight := 1
+
+				for nY := 1 to len( xData[2][nX] )
+					nSize := (xData[1][nY][2]/100) * nHorSize
+					oPDF:Box( nLine * N_HEIGHT, nCol, (nLine+ nHeight)*N_HEIGHT, nCol + nSize )
+					// Colunas ímpares são pintadas de cinza indicando label, demais colunas ficam em branco indicando dados
+					if nY % 2 != 0
+						oPDF:FillRect( {(nLine * N_HEIGHT)+1, nCol+1, ( (nLine+nHeight)*N_HEIGHT )-1, (nCol + nSize)-1 }, oBrush, "-1" )
+						oFontTmp := oFontGrB
+					else
+						oFontTmp := oFontGrid
+					endif
+					oPDF:SayAlign( nLine * N_HEIGHT, nCol, convData( xData[2][nX][nY] ), oFontTmp, nSize, N_HEIGHT * nHeight, /* nColorText */, getAlign( xData[2][nX][nY], xData[1][nY] ), ALIGN_V_CENTER )
+					nCol += nSize
+				next nY
+				nLine+= nHeight
+
+				if nLine > N_MAX_LINES
+					printData( /* xData */, 'cabecalho' /* cType */, oPDF, .T. /* lEndPage */ )
+				endif
+
+			next nX
+			nLine++
+		endif
+
+	elseif cType == 'quadro_itens'
+
+		// Cria um objeto do tipo pincel para pintar o quadro do cabeçalho da planilha
+		oBrush := TBRush():New(, RGB( 192, 192, 192 ) )     // Light Grey
+
+		// Se não conseguir imprimir ao menos o cabeçalho do quadro e a primeira linha de dados, pula para a próxima página
+		if (nLine + 1) > N_MAX_LINES
+			printData( /* xData */, 'cabecalho' /* cType */, oPDF, .T. /* lEndPage */ )
+		endif
+
+		if lBold
+			oFontTmp := oFontGrB
+		else
+			oFontTmp := oFontGrid
+		endif
+
+		// Cabeçalho do quadro
+		nCol     := 10
+		nHorSize := nHorSize
+		aEval( xData[1], {|x| nHeight := getHeight( nHeight, x[1], x[2] ) } )
+		for nX := 1 to len( xData[1] )
+			nSize := (xData[1][nX][2]/100) * nHorSize
+			oPDF:Box( nLine * N_HEIGHT, nCol, (nLine+nHeight)*N_HEIGHT, nCol + nSize )
+			oPDF:FillRect( {(nLine * N_HEIGHT)+1, nCol+1, ( (nLine+nHeight)*N_HEIGHT )-1, (nCol + nSize)-1 }, oBrush, "-1" )
+			oPDF:SayAlign( nLine * N_HEIGHT, nCol, xData[1][nX][1], oFontTmp, nSize, N_HEIGHT * nHeight, /* nColorText */, iif( lTotal, ALIGN_RIGHT, ALIGN_H_CENTER), ALIGN_V_CENTER )
+			nCol += nSize
+		next nX
+		nLine+= nHeight
+
+		// Informações do quadro (quando houverem)
+		if xData[2] != Nil .and. len( xData[2] ) > 0
+			for nX := 1 to len( xData[2] )
+				nCol    := 10
+				nHeight := 1
+				for nY := 1 to len( xData[2][nX] )
+					nHeight := getHeight( nHeight, xData[2][nX][nY], xData[1][nY][2] )
+				next nY
+
+				for nY := 1 to len( xData[2][nX] )
+					nSize := (xData[1][nY][2]/100) * nHorSize
+					oPDF:Box( nLine * N_HEIGHT, nCol, (nLine+ nHeight)*N_HEIGHT, nCol + nSize )
+					oPDF:SayAlign( nLine * N_HEIGHT, nCol, convData( xData[2][nX][nY] ), oFontTmp, nSize, N_HEIGHT * nHeight, /* nColorText */, getAlign( xData[2][nX][nY], xData[1][nY] ), ALIGN_V_CENTER )
+					nCol += nSize
+				next nY
+				nLine+= nHeight
+
+				if nLine > N_MAX_LINES
+					printData( /* xData */, 'cabecalho' /* cType */, oPDF, .T. /* lEndPage */ )
+				endif
+
+			next nX
+			nLine++
+		endif
+
+	endif
+
+return Nil
+
+/*/{Protheus.doc} getAlign
+Função de ajuste de alinhamento conforme o tipo de informação que vai ser impresso
+@type function
+@version 1.0
+@author Jean Carlos Pandolfo Saggin
+@since 27/01/2025
+@param xData, variadic, dado que vai ser impresso na célula
+@param aField, array, Vetor com configuração do campo que está sendo impresso
+@return numeric, nAlign
+/*/
+static function getAlign( xData, aField )
+	local nAlign := ALIGN_H_CENTER
+	// Se veio configurado no campo o alinhamento, utiliza a configuração que veio, do contrário, verifica tipo de dados
+	if len( aField ) >= 3
+		nAlign := aField[3]
+	elseif ValType( xData ) == 'C'
+		nAlign := ALIGN_LEFT
+	elseif ValType( xData ) == 'N'
+		nALign := ALIGN_RIGHT
+	endif
+return nAlign
+
+/*/{Protheus.doc} getHeight
+Função para calcular a espessura da linha com base nos dados que serão impressos
+@type function
+@version 1.0
+@author Jean C. P. Saggin
+@since 10/23/2023
+@param nHeight, numeric, espessura atual da linha
+@param xInfo, variadic, informação que será impressa
+@param nHorSize, numeric, Tamanho da página na horizontal
+@return numeric, nHeight
+/*/
+static function getHeight( nHeight, xInfo, nPercent )
+	local nNewHeight := 0 as numeric
+	local cInfo      := convData( xInfo )
+	local nSize      := len( AllTrim( cInfo ) )
+	local nProporcao := nPercent * 1.2
+	local nLinhas    := Int( nSize / nProporcao )
+
+	if nSize % nProporcao > 0
+		nLinhas++
+	endif
+	nNewHeight := iif( nLinhas > nHeight, nLinhas, nHeight )
+return nNewHeight
+
+/*/{Protheus.doc} convData
+FUnção de conversão para quando o tipo de dado for diferente de caractere
+@type function
+@version 1.0
+@author Jean C. P. Saggin
+@since 10/23/2023
+@param xData, variadic, dado a ser impresso
+@return character, cData
+/*/
+static function convData( xData )
+	local cData := ""  as character
+
+	if ValType( xData ) == 'U'
+		cData := ""
+	elseif ValType( xData ) == 'N'
+		cData := AllTrim( Transform( xData, '@E 999,999,999.99' ) )
+	elseif ValType( xData ) == 'D'
+		cData := DtoC( xData )
+	else
+		cData := xData
+	endif
+return cData
+
+/*/{Protheus.doc} HLP
+Função para simplificar utilização da função Help
+@type function
+@version 1.0
+@author Jean Carlos Pandolfo Saggin
+@since 22/08/2023
+@param cTitle, character, Titulo da janela
+@param cError, character, Descrição do motivo da mensagem
+@param cHelp, character, Texto de ajuda para o usuário solucionar o problema
+/*/
+Static Function Hlp( cTitle, cError, cHelp )
+return Help( ,, cTitle,, cError, 1, 0, NIL, NIL, NIL, NIL, NIL,{ cHelp } )
+
+/*/{Protheus.doc} getLogo
+Função para obter o mesmo logo utilizado para impressão do danfe (modelo retrato)
+@type function
+@version 12.1.2410
+@author Jean Carlos Pandolfo Saggin
+@since 20/08/2025
+@return character, cLogo
+/*/
+static function getLogo()
+
+	local cDescLogo   := ""
+	local cGrpCompany := ""
+	local cCodEmpGrp  := ""
+	local cUnitGrp    := ""
+	local cFilGrp     := ""
+	local lMVLOGOD    := If(GetNewPar("MV_LOGOD", "N" ) == "S", .T., .F. )
+	local cLogoD      := "" as character
+	local cLogo       := FisxLogo("1")
+
+	If lMVLOGOD
+		cGrpCompany	:= AllTrim(FWGrpCompany())
+		cCodEmpGrp	:= AllTrim(FWCodEmp())
+		cUnitGrp	:= AllTrim(FWUnitBusiness())
+		cFilGrp		:= AllTrim(FWFilial())
+
+		If !Empty(cUnitGrp)
+			cDescLogo	:= cGrpCompany + cCodEmpGrp + cUnitGrp + cFilGrp
+		Else
+			cDescLogo	:= cEmpAnt + cFilAnt
+		EndIf
+
+		cLogoD := GetSrvProfString("Startpath","") + "DANFE" + cDescLogo + ".BMP"
+		If !File(cLogoD)
+			cLogoD	:= GetSrvProfString("Startpath","") + "DANFE" + cEmpAnt + ".BMP"
+			If !File(cLogoD)
+				lMVLOGOD := .F.
+			EndIf
+		EndIf
+	endif
+
+	If lMVLOGOD
+		cLogo := cLogoD
+	EndIF
+	ConOut( 'Logo em uso: '+ cLogo )
+return cLogo
