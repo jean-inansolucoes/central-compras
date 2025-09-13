@@ -1,6 +1,8 @@
 #include 'totvs.ch'
 #include 'topconn.ch'
 #include 'fwmvcdef.ch'
+#include 'tbiconn.ch'
+#include 'tbicode.ch'
 
 #define CEOL Chr(13)+Chr(10)
 
@@ -126,6 +128,13 @@ user function JSDETVER()
     aAdd( aDetVer, { '16','0016','16/05/2025', 'Adição do ponto de entrada PEPNC05 para permitir manipular as colunas do browse de produtos' } )
     aAdd( aDetVer, { '16','0017','04/08/2025', 'Ajuste no recálculo de índices por produto para evitar falha quando término do cálculo ocorre no dia seguinte' } )
     aAdd( aDetVer, { '16','0018','19/08/2025', 'Novos campos na tabela de empenhos do produto' } )
+    aAdd( aDetVer, { '17','0001','20/08/2025', 'Implementação de novo layout de pedido de compras' } )
+    aAdd( aDetVer, { '17','0002','22/08/2025', 'Alterado tratativas para gravação de pedido na filial de entrega ao invés de utilizar campo filial de destino' } )
+    aAdd( aDetVer, { '17','0003','10/09/2025', 'Implementado melhoria para exibir detalhamentos no gráfico de análise de médias mensais' } )
+    aAdd( aDetVer, { '17','0004','11/09/2025', 'Melhoria para permitir impressão dos dados de detalhamento do gráfico de médias' } )
+    aAdd( aDetVer, { '17','0005','11/09/2025', 'Ajustes pontuais no relatório de pedido para exibir o grupo de compra do produto e também corrigido falha de impressão dos dados do transportador' } )
+    aAdd( aDetVer, { '17','0006','12/09/2025', 'Adição de botão para consulta do kardex do produto na tela principal' } )
+    aAdd( aDetVer, { '17','0007','12/09/2025', 'Correção de falha durante gravação da observação quando compra multi-filial.' } )
 
 return aDetVer
 
@@ -546,9 +555,17 @@ user function JSQRYINF( aConf, aFilters, cPedSol, aCustom )
         cQuery += "AND "+ cZB3 +".D_E_L_E_T_ = ' ' " + CEOL
 
         cQuery += "WHERE B1.B1_FILIAL  = '"+ FWxFilial( 'SB1' ) +"' "+ CEOL 
+        
         if ! Empty( aFilters[5] )
             cQuery += "  AND B1.B1_COD "+ iif( lLike, 'LIKE', '=' ) +" '"+ StrTran( iif( lLike, AllTrim(aFilters[5]), aFilters[5]),'*','%') +"' "+ CEOL                 // Filtra pelo código do produto
         endif
+        
+        // Filtra pelo grupo do produto que determina sua classificação quanto a tabela de preços do fornecedor
+        // ESPECIFICO GMAD MADECENTER
+        if aFilters[7] <> Nil .and. ! Empty( aFilters[7] ) .and. SB1->( FieldPos( 'B1_XGPTP' ) ) > 0
+            cQuery += "  AND B1.B1_XGPTP LIKE '"+ AllTrim(aFilters[7]) +"%' " + CEOL			// Filtra pelo grupo de produtos
+        endif
+
         cQuery += "  AND B1.B1_MSBLQL  <> '1' " + CEOL				// Faz leitura apenas dos itens ativos
         cQuery += "  AND B1.B1_TIPO IN ( "+ cTypes +" ) " + CEOL	// Desconsidera produtos acabado e serviços da análise do MRP
         cQuery += "  AND B1.B1_MRP     = 'S' " + CEOL				// Apenas os produtos que devem entrar no MRP
@@ -883,3 +900,4 @@ Função para devolver ao requisitante a API key de comunicação com o banco
 /*/
 User Function JSGETKEY()
 return "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1xZHhwbnZlenVtbGxkZXVzYm1oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Mzk1NjQxMjIsImV4cCI6MjA1NTE0MDEyMn0._bjK4yUSX6jlkWYKdwg4ou0VUBjJpIHkD5jZb4o3lqY"
+ 

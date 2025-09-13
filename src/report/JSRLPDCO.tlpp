@@ -4,8 +4,8 @@
 #include "rptdef.ch"
 #include "FWPrintSetup.ch"
 
-#define N_HEIGHT        15      // Altura da linha em pixels
-#define N_MAX_LINES     35      // Quantidade máxima de linhas do relatório
+#define N_HEIGHT        12      // Altura da linha em pixels
+#define N_MAX_LINES     80      // Quantidade máxima de linhas do relatório
 #define ALIGN_LEFT      0       // Alinhamento à esquerda - horizontal
 #define ALIGN_RIGHT     1       // Alinhamento à direita - horizontal
 #define ALIGN_H_CENTER  2       // Alinhamento ao centro - horizontal
@@ -125,6 +125,9 @@ static function printPDF()
 
 	if ! Empty( cPathTmp ) .and. ExistDir( cPathTmp )
 		cPathEst := cPathTmp
+	elseif Empty( cPathTmp )
+		lSuccess := .F.
+		return lSuccess
 	endif
 
 	cFilePDF := cPathEst + StrTran( cFilePrint, '.rel', '.pdf' )
@@ -144,12 +147,12 @@ static function printPDF()
 	printData( { {{ "DADOS DO FORNECEDOR", 100 }}, {} }, 'quadro_itens' /* cType */, oPDF, Nil /* lEndPage */, .T. /* lBold */ )
 
 	aCab := {}
-	aCab := { { 'Label 1', 12 },;
-		{ 'Data 1', 21 },;
+	aCab := { { 'Label 1', 10 },;
+		{ 'Data 1', 12 },;
 		{ 'Label 2', 12 },;
-		{ 'Data 2', 21 },;
-		{ 'Label 3', 12 },;
-		{ 'Data 3', 22 } }
+		{ 'Data 2', 40 },;
+		{ 'Label 3', 6 },;
+		{ 'Data 3', 12 } }
 
 	aLine := {}
 	aData := {}
@@ -157,51 +160,19 @@ static function printPDF()
 	SA2->( DBSetOrder( 1 ) )    // FILIAL + COD + LOJA
 	SA2->( DBSeek( FWxFilial( 'SA2' ) + SC7->C7_FORNECE + SC7->C7_LOJA ) )
 	aLine := { 'Fornecedor', AllTrim( SC7->C7_FORNECE ) +'/'+ AllTrim( SC7->C7_LOJA ),;
-		'Razão Social', AllTrim( SA2->A2_NOME ),;
-		'Fantasia', AllTrim( SA2->A2_NREDUZ ) }
-	aAdd( aData, aClone( aLine ) )
-	printData( { aCab, aData }, 'quadro_cab', oPDF, Nil )
-
-	nLine -= 1
-	aData := {}
-	aCab := { { 'Label 1', 10 },;
-		{ 'Data 1', 30 },;
-		{ 'Label 2', 10 },;
-		{ 'Data 2', 20 },;
-		{ 'Label 3', 10 },;
-		{ 'Data 3', 20 } }
-	aLine := { 'Endereço', AllTrim( SA2->A2_END ),;
-		'Inscrição Estadual', AllTrim( SA2->A2_INSCR ),;
+		'Razão Social', AllTrim( SA2->A2_NOME ) +'/'+ Alltrim( SA2->A2_NREDUZ ),;
 		'CGC/CPF', AllTrim( Transform( SA2->A2_CGC, iif( SA2->A2_TIPO=='F', "@R 999.999.999-99", "@R 99.999.999/9999-99" ) ) ) }
 	aAdd( aData, aClone( aLine ) )
-	aLine := {}
-	printData( { aCab, aData }, 'quadro_cab', oPDF, Nil )
-	
-	nLine -= 1
-	aData := {}
-	aCab := { { 'Label 1', 10 },;
-				{ 'Data 1', 15 },;
-				{ 'Label 2', 15 },;
-				{ 'Data 2', 30 },;
-				{ 'Label 3', 10 },;
-				{ 'Data 3', 20 } }
-				
-	aLine := {  'Bairro', AllTrim( SA2->A2_BAIRRO ),;
-				'Município/UF', AllTrim( SA2->A2_MUN ) +' - '+ SA2->A2_EST,;
-				'Telefone', iif( ! Empty( SA2->A2_DDD ), "("+AllTrim(SA2->A2_DDD)+")", "" ) +;
-							iif( ! Empty( SA2->A2_TEL ), " "+AllTrim(SA2->A2_TEL), "" ) }
-	aAdd( aData, aClone( aLine ) )
-	aLine := {}
 	printData( { aCab, aData }, 'quadro_cab', oPDF, Nil )
 
 	printData( { {{ "PEDIDO", 100 }}, {} }, 'quadro_itens' /* cType */, oPDF, Nil /* lEndPage */, .T. /* lBold */ )
 	aCab := {}
-	aCab := { { 'Label 1', 12 },;
-				{ 'Data 1', 21 },;
+	aCab := { { 'Label 1', 10 },;
+				{ 'Data 1', 14 },;
 				{ 'Label 2', 12 },;
-				{ 'Data 2', 21 },;
-				{ 'Label 3', 12 },;
-				{ 'Data 3', 22 } }
+				{ 'Data 2', 40 },;
+				{ 'Label 3', 8 },;
+				{ 'Data 3', 16 } }
 
 	aLine := {}
 	aData := {}
@@ -213,20 +184,24 @@ static function printPDF()
 	nLine -= 1
 
 	aCab := {}
-	aCab := { { 'Label 1', 15 },;
-			{ 'Data 1', 50 },;
-			{ 'Label 2', 15 },;
-			{ 'Data 2', 20 } }
+	aCab := { { 'Label 1', 12 },;
+			{ 'Data 1', 33 },;
+			{ 'Label 2', 12 },;
+			{ 'Data 2', 15 },;
+			{ 'Label 3', 13 },;
+			{ 'Data 3', 15 } }
 
 	aLine := {}
 	aData := {}
 	aLine := { 'Transportadora', getTransp(),;
-				'Valor Frete', getValFrete( cFilPed, cNumPed ) }
+				'Valor Frete', getValFrete( cFilPed, cNumPed ),;
+				'Prev.Entr.', maxPrevEnt( cFilPed, cNumPed ) }
 	aAdd( aData, aClone( aLine ) )
 	printData( { aCab, aData }, 'quadro_cab', oPDF, Nil )
 
 	aLine := {}
 	aData := {}
+	aCab  := {}
 
 	// Inicializa MATXFIS
 	cFilSC7 := cFilPed
@@ -237,28 +212,39 @@ static function printPDF()
 	if SC7->( DBSeek( cFilPed + cNumPed ) )
 
 		printData( { {{ "ITENS DO PEDIDO", 100 }}, {} }, 'quadro_itens' /* cType */, oPDF, Nil /* lEndPage */, .T. /* lBold */ )
-		aCab :={{ 'Item'                     , 6, ALIGN_H_CENTER},;
-				{'Produto'                   , 14},;
-				{'Cod.Prd.For.'              , 14},;
-				{'Descrição'                 , 20},;
-				{'Qtde'                      , 7 },;
-				{'UM'                        , 4, ALIGN_H_CENTER},;
-				{'Vlr Unit.'                 , 7 },;
-				{'Vlr Total'                 , 11},;
-				{'IPI'                       , 7 },;
-				{'Prev. Entr.'               , 10 }}
+		aAdd( aCab, { 'Item', 4, ALIGN_H_CENTER} )
+		aAdd( aCab, { 'Cod.Prd.For.', 14 } )
+		aAdd( aCab, { 'Código', 09 } )
+		// Utiliza impressão dos dados do campo apenas quando contiver o campo na tabela
+		if SB1->( FieldPos( 'B1_XGPTP' ) ) > 0
+			aAdd( aCab, { 'GrTb', 4, ALIGN_H_CENTER } )
+		endif
+		aAdd( aCab, { 'Descrição', iif( SB1->( FieldPos( 'B1_XGPTP' ) ) > 0, 33, 37 ) } )
+		aAdd( aCab, { 'Qtde', 9, ALIGN_RIGHT } )
+		aAdd( aCab, { 'UM', 4, ALIGN_H_CENTER } )
+		aAdd( aCab, { 'Vlr Unit.', 7 } )
+		aAdd( aCab, { 'Vlr Total', 10 } )
+		aAdd( aCab, { 'IPI', 6 } )
+		
+		DBSelectArea( 'SB1' )
+		SB1->( DBSetOrder( 1 ) )
 		while ! SC7->( EOF() ) .and. SC7->C7_FILIAL + SC7->C7_NUM == cFilPed + cNumPed
 
+			// Posiciona no cadastro de produtos
+			SB1->( DBSeek( FWxFilial( 'SB1' ) + SC7->C7_PRODUTO ) )
+
 			aAdd( aLine, SC7->C7_ITEM )                                                                             // 01. Item
-			aAdd( aLine, AllTrim(SC7->C7_PRODUTO) )                                                                 // 02. Produto
-			aAdd( aLine, getPrdFor(SC7->C7_PRODUTO, SC7->C7_FORNECE, SC7->C7_LOJA ) )                               // 03. Código do Produto no Fornecedor
-			aAdd( aLine, AllTrim(RetField( 'SB1', 1, FWxFilial( 'SB1' ) + SC7->C7_PRODUTO, 'B1_DESC' ) ) )          // 04. Descrição
-			aAdd( aLine, Round(SC7->C7_QUANT,0) )                                                                   // 05. Quantidade
-			aAdd( aLine, SC7->C7_UM )                                                                               // 06. Unidade de Medida
-			aAdd( aLine, SC7->C7_PRECO )                                                                            // 07. Valor unitário
-			aAdd( aLine, SC7->C7_TOTAL )                                                                            // 08. Valor total do item
-			aAdd( aLine, SC7->C7_IPI )                                                                              // 09. IPI
-			aAdd( aLine, SC7->C7_DATPRF )                                                                           // 10. Data Entrega
+			aAdd( aLine, getPrdFor(SC7->C7_PRODUTO, SC7->C7_FORNECE, SC7->C7_LOJA ) )                               // 02. Código do Produto no Fornecedor
+			aAdd( aLine, AllTrim(SC7->C7_PRODUTO) )                                                                 // 03. Produto
+			if SB1->( FieldPos( 'B1_XGPTP' ) ) > 0
+				aAdd( aLine, SubStr( SB1->B1_XGPTP, 01, 02 ) )														// 04. Grupo Tabela Preço
+			endif
+			aAdd( aLine, AllTrim( SB1->B1_DESC ) )          														// 05. Descrição
+			aAdd( aLine, ALlTrim(Transform(Round(SC7->C7_QUANT,0), GetSX3Cache( 'C7_QUANT', 'X3_PICTURE' ) )) )		// 06. Quantidade
+			aAdd( aLine, SC7->C7_UM )                                                                               // 07. Unidade de Medida
+			aAdd( aLine, SC7->C7_PRECO )                                                                            // 08. Valor unitário
+			aAdd( aLine, SC7->C7_TOTAL )                                                                            // 09. Valor total do item
+			aAdd( aLine, SC7->C7_IPI )                                                                              // 10. IPI
 
 			aAdd( aData, aClone( aLine ) )
 			aLine := {}
@@ -271,8 +257,8 @@ static function printPDF()
 	nLine -= 1
 	aLine := {}
 	aData := {}
-	aCab  := { { 'Despesas', 80 },;
-		{ "R$ "+ Transform( MaFisRet(,'NF_DESPESA'), "@E 999,999,999.99" ), 20 } }
+	aCab  := { { 'Valor da Mercadoria', 80 },;
+		{ "R$ "+ Transform( MaFisRet(,'NF_VALMERC'), "@E 999,999,999.99" ), 20 } }
 	printData( { aCab, aData }, 'quadro_itens', oPDF, Nil, .T. /* lBold */, .T. /* lTotal */ )
 	
 	aLine := {}
@@ -290,12 +276,24 @@ static function printPDF()
 	// Encerra MATXFIS
 	MaFisEnd()
 
+	nLine++
 	aCab := {}
 	aCab := { { 'OBSERVAÇÕES', 100 } }
 	aData := getObs( cFilPed, cNumPed )
 	if len( aData ) > 0
-		printData( { aCab, aData }, 'quadro_cab', oPDF, Nil )
+		printData( { aCab, aData }, 'quadro_itens', oPDF, Nil /* lEndPage */ )
 	endif
+
+	aLine := {}
+	aData := {}
+	aCab  := { { 'Comprador', 50 },;
+				{ 'Fornecedor', 50 } }
+	aAdd( aLine, "" )
+	aAdd( aLine, "" )
+	aAdd( aData, aClone( aLine ) )
+	aLine := {}
+	printData( { aCab, aData }, 'assinatura', oPDF )
+	aData := {}
 
 	oPDF:EndPage()
 	oPDF:Print()
@@ -310,6 +308,30 @@ static function printPDF()
 	endif
 
 return lSuccess
+
+/*/{Protheus.doc} maxPrevEnt
+Função para obter a data de entrega prevista conforme definido pe
+@type function
+@version 1.0
+@author Jean Carlos Pandolfo Saggin
+@since 25/08/2025
+@param cFilPed, character, Filial do pedido
+@param cNumPed, character, ID do pedido
+@return date, dDtPrev
+/*/
+static function maxPrevEnt( cFilPed, cNumPed )
+	local dDtPrev := StoD('') as date
+	
+	DBSelectArea('SC7' )
+	SC7->( DBSetOrder( 1 ) )
+	if SC7->( DbSeek( cFilPed + cNumPed ) )
+		while ! SC7->( EOF() ) .and. cFilPed + cNumPed == SC7->C7_FILIAL + SC7->C7_NUM	
+			dDtPrev := iif( SC7->C7_DATPRF > dDtPrev, SC7->C7_DATPRF, dDtPrev )
+			SC7->( DBSkip() )
+		enddo
+	endif
+
+return dDtPrev
 
 /*/{Protheus.doc} getValFrete
 Função para obter o valor do frete contratado (FOB) + frete previsto em NF
@@ -357,9 +379,9 @@ static function getObs( cFilPed, cNumPed )
 	if SC7->( DBSeek( cFilPed + cNumPed ) )
 		while ! SC7->( EOF() ) .and. SC7->C7_FILIAL + SC7->C7_NUM == cFilPed + cNumPed
 			
-			cTmp := AllTrim(MSMM( SC7->C7_OBSM,,,,3,1000 ))
-			if aScan( aObs, {|x| cTmp $ x } ) == 0
-				aAdd( aObs, StrTran( cTmp, chr(13)+chr(10), "" ) )
+			cTmp := StrTran(AllTrim(SC7->C7_OBSM), chr(13)+chr(10), "" )
+			if ! Empty( cTmp ) .and. aScan( aObs, {|x| cTmp $ x[1] } ) == 0
+				aAdd( aObs, { cTmp } )
 			endif
 
 			SC7->( DBSkip() )
@@ -382,10 +404,10 @@ static function getTransp()
 	local cTransp := "" as character
 
 	if SC7->( FieldPos( 'C7_X_TRANS' ) ) > 0 .and. X3Uso( GetSX3Cache( 'C7_X_TRANS', 'X3_USADO' ) ) .and. ! Empty( SC7->C7_X_TRANS )
-		cTransp := SC7->C7_X_TRANS + '-'+ AllTrim( RetField( 'SA4', 1, FWxFilial( 'SA4' ) + SC7->C7_X_TRANS, 'A4_NOME' ) )
+		cTransp := SC7->C7_X_TRANS + '-'+ AllTrim( SubStr(RetField( 'SA4', 1, FWxFilial( 'SA4' ) + SC7->C7_X_TRANS, 'A4_NOME' ), 1, 25) )
 	elseif ! Empty( SC7->C7_TRANSP )
 		cTransp := AllTrim( SC7->C7_TRANSP ) +'/'+ SC7->C7_TRANSLJ +'-'+; 
-					AllTrim( RetField( 'SA2', 1, FWxFilial( 'SA2' ) + SC7->C7_TRANSP + AllTrim( SC7->C7_TRANSLJ ), 'A2_NOME' ) )
+					AllTrim( SubStr(RetField( 'SA2', 1, FWxFilial( 'SA2' ) + SC7->C7_TRANSP + AllTrim( SC7->C7_TRANSLJ ), 'A2_NOME' ), 1, 25) )
 	endif
 return cTransp
 
@@ -545,9 +567,9 @@ Função para imprimir os dados no arquivo PDF
 /*/
 static function printData( xData, cType, oPDF, lEndPage, lBold, lTotal )
 
-	local oFontCab  := TFont():New('Arial',,-8,,.F.)
-	local oFontGrid := TFont():New('Calibri',,-8,,.F.)
-	local oFontGrB  := TFont():New('Calibri',,-8,,.T.)
+	local oFontCab  := TFont():New('Arial',,-6,,.F.)
+	local oFontGrid := TFont():New('Calibri',,-6,,.F.)
+	local oFontGrB  := TFont():New('Calibri',,-7,,.T.)
 	local oFontTitle:= TFont():New('Arial',,-10,,.T. /* lBold */,,,,,.T. /* lUnderline */, .F. /* lItalic */)
 	local oFontTmp  as object
 	local nX        := 0 as numeric
@@ -556,7 +578,7 @@ static function printData( xData, cType, oPDF, lEndPage, lBold, lTotal )
 	local nSize     := 0 as numeric
 	local nHeight   := 0 as numeric
 	local oBrush    as object
-	local cDocType  := "PEDIDO DE COMPRA N. " + SC7->C7_NUM
+	local cDocType  := "PEDIDO DE COMPRA N. " + SC7->C7_NUM + Space(10)
 	local nHorSize  := oPDF:nHorzSize()-60
 
 	default lEndPage := .F.
@@ -572,28 +594,29 @@ static function printData( xData, cType, oPDF, lEndPage, lBold, lTotal )
 		oPDF:StartPage()
 
 		nLine := 3
-		oPDF:Box( nLine * N_HEIGHT, 10, (nLine+6)*N_HEIGHT, (nHorSize)+10 )
-		oPDF:Box( nLine * N_HEIGHT, 10, (nLine+6)*N_HEIGHT, 140 )
-		nLine++
+		oPDF:Box( nLine * N_HEIGHT, 10, (nLine+(6*0.6))*N_HEIGHT, (nHorSize)+10 )
+		oPDF:Box( nLine * N_HEIGHT, 10, (nLine+(6*0.6))*N_HEIGHT, 140 )
+		oPDF:SayBitmap( ( nLine-1) * N_HEIGHT, 25, cPathLogo, 60, 60 )
+
+		nLine+=0.6
 		oPDF:SayAlign( nLine * N_HEIGHT, (nHorSize)-300, AllTrim( SM0->M0_NOMECOM ), oFontCab, 300, N_HEIGHT, /* nColorText */, ALIGN_RIGHT, ALIGN_BUTTON )
-		nLine++
-		oPDF:SayBitmap( ( nLine * N_HEIGHT )+10, 15, cPathLogo, 10, 10 )
-		oPDF:SayAlign( nLine * N_HEIGHT, 0, cDocType, oFontTitle, nHorSize, N_HEIGHT*2, /* nColorText */,;
-			ALIGN_H_CENTER, ALIGN_BUTTON )
+		nLine+=0.6
 		oPDF:SayAlign( nLine * N_HEIGHT, (nHorSize)-300, "CNPJ: "+ AllTrim( Transform( SM0->M0_CGC, '@R 99.999.999/9999-99' ) ) +;
 			" INSCRIÇÃO ESTADUAL: "+ AllTrim( SM0->M0_INSC ), oFontCab, 300, N_HEIGHT, /* nColorText */,;
 			ALIGN_RIGHT, ALIGN_BUTTON )
-		nLine++
+		nLine+=0.6
+		oPDF:SayAlign( nLine * N_HEIGHT, 0, cDocType, oFontTitle, nHorSize, N_HEIGHT*2, /* nColorText */,;
+			ALIGN_H_CENTER, ALIGN_BUTTON )
 		oPDF:SayAlign( nLine * N_HEIGHT, (nHorSize)-300, AllTrim( SM0->M0_ENDCOB ) +' - Bairro: '+ AllTrim( SM0->M0_BAIRCOB ),;
 			oFontCab, 300, N_HEIGHT, /* nColorTExt */, ALIGN_RIGHT, ALIGN_BUTTON )
 
-		nLine++
+		nLine+=0.6
 		oPDF:SayAlign( nLine * N_HEIGHT, (nHorSize)-300, "CEP: "+ Transform( SM0->M0_CEPCOB, '@R 99.999-999' ) +" - Cidade: "+ AllTrim( SM0->M0_CIDCOB ) +" - "+ SM0->M0_ESTCOB,;
 			oFontCab, 300, N_HEIGHT, /* nColorTExt */, ALIGN_RIGHT, ALIGN_BUTTON )
 
-		nLine++
+		nLine+=0.6
 		oPDF:SayAlign( nLine * N_HEIGHT, (nHorSize)-300, "Telefone: "+ AllTrim( SM0->M0_TEL ),oFontCab, 300, N_HEIGHT, /* nColorTExt */, ALIGN_RIGHT, ALIGN_BUTTON )
-		nLine += 2
+		nLine += 1
 
 	elseif cType == 'quadro_cab'
 
@@ -606,7 +629,6 @@ static function printData( xData, cType, oPDF, lEndPage, lBold, lTotal )
 
 		// Informações do quadro (quando houverem)
 		nCol := 10
-		nHorSize := nHorSize
 		if xData[2] != Nil .and. len( xData[2] ) > 0
 			for nX := 1 to len( xData[2] )
 				nCol    := 10
@@ -653,7 +675,6 @@ static function printData( xData, cType, oPDF, lEndPage, lBold, lTotal )
 
 		// Cabeçalho do quadro
 		nCol     := 10
-		nHorSize := nHorSize
 		aEval( xData[1], {|x| nHeight := getHeight( nHeight, x[1], x[2] ) } )
 		for nX := 1 to len( xData[1] )
 			nSize := (xData[1][nX][2]/100) * nHorSize
@@ -689,6 +710,42 @@ static function printData( xData, cType, oPDF, lEndPage, lBold, lTotal )
 			nLine++
 		endif
 
+	elseif cType == 'assinatura'
+
+		// Cria um objeto do tipo pincel para pintar o quadro do cabeçalho da planilha
+		oBrush := TBRush():New(, RGB( 192, 192, 192 ) )     // Light Grey
+		
+		if ( nLine + 4 ) > N_MAX_LINES
+            printData( /* xData */, 'cabecalho' /* cType */, oPDF, .T. /* lEndPage */)
+        endif
+
+        if lBold
+            oFontTmp := oFontGrB
+        else
+            oFontTmp := oFontGrid
+        endif
+
+        // Cabeçalho do quadro de assinaturas
+        nCol     := 10
+        aEval( xData[1], {|x| nHeight := getHeight( nHeight, x[1], x[2] ) } ) 
+        for nX := 1 to len( xData[1] )
+            nSize := (xData[1][nX][2]/100) * nHorSize
+            oPDF:Box( nLine * N_HEIGHT, nCol, (nLine+nHeight)*N_HEIGHT, nCol + nSize )
+            oPDF:FillRect( {(nLine * N_HEIGHT)+1, nCol+1, ( (nLine+nHeight)*N_HEIGHT )-1, (nCol + nSize)-1 }, oBrush, "-1" )
+            oPDF:SayAlign( nLine * N_HEIGHT, nCol, xData[1][nX][1], oFontTmp, nSize, N_HEIGHT * nHeight, /* nColorText */, iif( lTotal, ALIGN_RIGHT, ALIGN_H_CENTER), ALIGN_V_CENTER )
+            nCol += nSize
+        next nX
+        nLine++
+
+        // Monta espaço para assinaturas
+        nCol := 10
+        for nX := 1 to len( xData[1] )
+            nSize := (xData[1][nX][2]/100) * nHorSize
+            oPDF:Box( nLine * N_HEIGHT, nCol, ((nLine+nHeight*4)*N_HEIGHT), nCol + nSize )
+            oPDF:SayAlign( (nLine + nHeight*3) * N_HEIGHT, nCol+5, Replicate("_ ",15), oFontTmp, nSize, N_HEIGHT * nHeight, /* nColorText */, iif( lTotal, ALIGN_RIGHT, ALIGN_H_CENTER), ALIGN_V_CENTER )
+            nCol += nSize
+        next nX
+        nLine+=5
 	endif
 
 return Nil
@@ -730,7 +787,7 @@ static function getHeight( nHeight, xInfo, nPercent )
 	local nNewHeight := 0 as numeric
 	local cInfo      := convData( xInfo )
 	local nSize      := len( AllTrim( cInfo ) )
-	local nProporcao := nPercent * 1.2
+	local nProporcao := nPercent * 1.5
 	local nLinhas    := Int( nSize / nProporcao )
 
 	if nSize % nProporcao > 0
