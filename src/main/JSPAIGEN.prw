@@ -135,7 +135,7 @@ user function JSDETVER()
     aAdd( aDetVer, { '17','0005','11/09/2025', 'Ajustes pontuais no relatório de pedido para exibir o grupo de compra do produto e também corrigido falha de impressão dos dados do transportador' } )
     aAdd( aDetVer, { '17','0006','12/09/2025', 'Adição de botão para consulta do kardex do produto na tela principal' } )
     aAdd( aDetVer, { '17','0007','12/09/2025', 'Correção de falha durante gravação da observação quando compra multi-filial.' } )
-    aAdd( aDetVer, { '17','0008','19/09/2025', 'Criado função "Continuar de onde parou..."' } )
+    aAdd( aDetVer, { '18','0001','23/09/2025', 'Criado função "Continuar de onde parou..."' } )
 
 return aDetVer
 
