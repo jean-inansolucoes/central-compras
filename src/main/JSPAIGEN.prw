@@ -135,6 +135,7 @@ user function JSDETVER()
     aAdd( aDetVer, { '17','0005','11/09/2025', 'Ajustes pontuais no relatório de pedido para exibir o grupo de compra do produto e também corrigido falha de impressão dos dados do transportador' } )
     aAdd( aDetVer, { '17','0006','12/09/2025', 'Adição de botão para consulta do kardex do produto na tela principal' } )
     aAdd( aDetVer, { '17','0007','12/09/2025', 'Correção de falha durante gravação da observação quando compra multi-filial.' } )
+    aAdd( aDetVer, { '17','0008','19/09/2025', 'Criado função "Continuar de onde parou..."' } )
 
 return aDetVer
 
@@ -562,8 +563,10 @@ user function JSQRYINF( aConf, aFilters, cPedSol, aCustom )
         
         // Filtra pelo grupo do produto que determina sua classificação quanto a tabela de preços do fornecedor
         // ESPECIFICO GMAD MADECENTER
-        if aFilters[7] <> Nil .and. ! Empty( aFilters[7] ) .and. SB1->( FieldPos( 'B1_XGPTP' ) ) > 0
-            cQuery += "  AND B1.B1_XGPTP LIKE '"+ AllTrim(aFilters[7]) +"%' " + CEOL			// Filtra pelo grupo de produtos
+        if SB1->( FieldPos( 'B1_XGPTP' ) ) > 0
+            if len(aFilters) >= 8 .and. ValType(aFilters[7]) == 'C' .and. ! Empty( aFilters[7] )
+                cQuery += "  AND B1.B1_XGPTP LIKE '"+ AllTrim(aFilters[7]) +"%' " + CEOL			// Filtra pelo grupo de produtos
+            endif
         endif
 
         cQuery += "  AND B1.B1_MSBLQL  <> '1' " + CEOL				// Faz leitura apenas dos itens ativos

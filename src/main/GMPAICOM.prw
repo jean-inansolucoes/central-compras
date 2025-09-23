@@ -158,6 +158,8 @@ User Function GMPAICOM()
 	Private aFullPro   := {} as array
 	Private _cPedSol   := "" as character
 	private aPEPNC05   := {} as array
+	private oRestore   as object
+	private lFilFirst  := .T. as logical
 
 	// Atualiza variável que indica se a conexão com supabase está ativa
 	lSupabase := U_JSGLBPAR( .T. /* lCheck */ )
@@ -343,7 +345,8 @@ User Function GMPAICOM()
 	aAdd( aButtons, { "BTNPAICFG", {|| fManPar(), fLoadCfg() }, "Parâmetros Internos (F12)" } )
 	aAdd( aButtons, { "BTNCONFIG", {|| oBrwPro:Config() }, "Configurar Janela de Produtos" } )
 	aAdd( aButtons, { "BTNFILIAL", {|| _aFil := userFil( _aFil ),;
-									Processa( {|| fLoadInf() }, 'Aguarde!','Executando filtro de produtos...' ) }, "Selecionar Filiais" } )
+									Processa( {|| fLoadInf() }, 'Aguarde!','Executando filtro de produtos...' ),;
+									saveData() }, "Selecionar Filiais" } )
 	aAdd( aButtons, { "BTNFILTRO", {|| _aFilters := prodFilter( _aFilters ),;
 									Processa( {|| fLoadInf() }, 'Aguarde!','Executando filtro de produtos...' ) }, "Filtro" } )
 	aAdd( aButtons, { "BTNPRINT" , {|| iif( len( aColPro ) > 0, printBrw( oBrwPro ), Nil ) }, 'Exportar dados de produtos' } )
@@ -369,8 +372,9 @@ User Function GMPAICOM()
 			 'pode gerar falhas no processo de análise de compras e, consequentsemente, rupturas indesejadas de estoque.' )
 	endif
 
-	DEFINE MSDIALOG oDlgCom TITLE AllTrim( SM0->M0_FILIAL ) +" | Painel de Compra - "+ U_JSGETVER() FROM 000, 000  TO aSize[06], aSize[05] COLORS 0, 16777215 PIXEL
-	
+	DEFINE MSDIALOG oDlgCom TITLE AllTrim( SM0->M0_FILIAL ) +" | Painel de Compra - "+ U_JSGETVER() FROM 000, 000  TO aSize[06], aSize[05] COLORS 0, 16777215 PIXEL STYLE DS_MODALFRAME
+	oDlgCom:lEscClose := .F.		// Desabilita fechamento da tela com tecla ESC
+
 	// Group para separar a tela em duas partes na vertical
 	@ 030, 000 GROUP oGroup1 TO nVer*NPERCSUP, nHor OF oDlgCom COLOR 0, 16777215 PIXEL
 	@ nVer*NPERCSUP, 000 GROUP oGrpPro TO nVer, nHor OF oDlgCom COLOR 0, 16777215 PIXEL
@@ -487,7 +491,11 @@ User Function GMPAICOM()
 														
 	oAliFor:Delete()
 	oAliSol:Delete()	// Apaga alias temporário de solicitações
-	
+	if ValType( oRestore ) == 'J'
+		FreeObj( oRestore )
+		oRestore := Nil
+	endif
+
 Return ( Nil )
 
 /*/{Protheus.doc} JSENTRDC
@@ -4013,6 +4021,10 @@ Static Function fMarkPro()
 	EndIf
 	
 	cFilAnt := cFilHist
+
+	saveData( 'carrinho', aCarCom, aHeaCar )
+	saveData( 'carrinho_filial', aCarFil, aHeaCar )
+
 	oBrwFor:UpdateBrowse()
 	oBrwPro:LineRefresh()
 	oBrwPro:oBrowse:SetFocus()
@@ -4707,6 +4719,12 @@ Static Function fLoadCfg( lAuto )
 			aAdd( aConfig, iif( Empty( &( cPref + 'MDPED' ) ), 'N', &( cPref + 'MDPED' ) ) )	// [28] - Indica qual modelo do relatório de pedido de compras a ser utilizado N=Normal ou C=Customizado
 		else
 			aAdd( aConfig, 'N' )		// N=Normal ou C=Custom
+		endif
+
+		if ( cAliCfg )->( FieldPos( cAliCfg + '_CMT' ) ) > 0
+			aAdd( aConfig, iif( Empty( &( cPref + 'CMT' ) ), 'S', &( cPref + 'CMT' ) ) )		// [29] - Indica se ativa ou não a função Continuar mais tarde...
+		else
+			aAdd( aConfig, 'S' )		// S=Sim ou N=Não
 		endif
 
 		// Inicializa variáveis do workspace
@@ -6440,6 +6458,7 @@ Static Function fGrvPed( oCbo, aCbo, cCbo, cFornece, cLoja )
 															x[len(x)] == SubStr(aCbo[nCbo],1,len(cFilAnt)) } ) )		
 						aSize( aCarFil, len( aCarFil )-1 )		
 					next nX
+					saveData( 'carrinho_filial', aCarFil, aHeaCar )
 
 					if MsgYesNo( 'Pedido de compra número <b>'+ SC7->C7_NUM +'</b> gerado com SUCESSO!'+;
 								 iif( ! SubStr(aCbo[nCbo],1,len(cFilAnt)) == cFilAnt, ' Entrega na filial: '+ SubStr(aCbo[nCbo],1,len(cFilAnt)), '' )  +'. Deseja realizar a impressão do pedido?','S U C E S S O ! Pedido Nro. '+ SC7->C7_NUM +'' )
@@ -6530,6 +6549,7 @@ Static Function fGrvPed( oCbo, aCbo, cCbo, cFornece, cLoja )
 															x[len(x)] == SubStr(aCbo[nCbo],1,len(cFilAnt)) } ) )		
 						aSize( aCarFil, len( aCarFil )-1 )		
 					next nX
+					saveData( 'carrinho_filial', aCarFil, aHeaCar )
 
 					aAuxWF   := U_JSWFSOL()
 					cMailCom := getMailCom( cGetCom )
@@ -6599,7 +6619,11 @@ Static Function fGrvPed( oCbo, aCbo, cCbo, cFornece, cLoja )
 			aDel( aCarCom, aScan( aCarCom, {|x| x[carPos('C7_FORNECE')] == cFornece .and. x[carPos('C7_LOJA')] == cLoja } ) )
 			aSize( aCarCom, Len( aCarCom )-1 )
 		end
-		
+		saveData('carrinho', aCarCom, aHeaCar)
+		if len( aCarCom ) == 0
+			// Elimina arquivo temporário do carrinho se não houverem mais registros
+			fErase( pathSaved() )
+		endif
 	endif
 	
 Return ( lSuccess )
@@ -6980,6 +7004,10 @@ Static Function fChgCar()
 		oTot2UN:Refresh()
 
 		dataProdUpd( oBrwCar, cCbo )
+
+		saveData( 'carrinho', aCarCom, aHeaCar )
+		saveData( 'carrinho_filial', aCarFil, aHeaCar )
+
 		oBrwPro:oBrowse:Refresh()
 	EndIf
 	
@@ -7425,6 +7453,23 @@ static function prodFilter( aFiltros, lManual )
 	_aFilters := aClone( aFiltros )
 	_cTypes   := _aFilters[2]
 	
+	if lFilFirst .and. File(pathSaved()) .and. aConfig[29] == 'S'
+		lFilFirst := .F.
+		if MsgYesNo( 'Foi identificado que existe processo de compra em andamento, deseja restaurá-lo? Se disser que "não", o processo será eliminado.',;
+			'A T E N Ç Ã O ! ' )
+			_aFilters := loadSaved( 'filters' )
+			_aFil     := loadSaved( 'filiais' )
+			aCarCom   := loadSaved( 'carrinho' )
+			aCarFil   := loadSaved( 'carrinho_filial' )
+			return _aFilters
+		else
+			// Elimina arquivo temporário para usuário dar início em um novo processo
+			fErase( pathSaved() )
+		endif
+	else
+		lFilFirst := .F.
+	endif
+	
 	oLookDlg := FWDialogModal():New()
 	oLookDlg:SetEscClose( .F. )
 	oLookDlg:SetTitle( 'Filtro de Seleção de Produtos' )
@@ -7432,7 +7477,7 @@ static function prodFilter( aFiltros, lManual )
 	oLookDlg:SetSize( 300, 200 )
 	oLookDlg:CreateDialog()
 	oLookDlg:AddCloseButton( {|| lCancel := .T., _aFilters := aClone(aFiltros), _aFilters[len(_aFilters)] := lCancel, oLookDlg:DeActivate() }, "Cancelar" )
-	oLookDlg:AddOkButton( {|| iif( lManual .or. valFilPro( _aFilters ), oLookDlg:DeActivate(), Nil ), _aFilters[len(_aFilters)] := lCancel }, "Ok" )
+	oLookDlg:AddOkButton( {|| iif( lManual .or. valFilPro( _aFilters ), oLookDlg:DeActivate(), Nil ), _aFilters[len(_aFilters)] := lCancel, saveData( 'filters', _aFilters ) }, "Ok" )
 	oContainer := TPanel():New( ,,, oLookDlg:getPanelMain() )
 	oContainer:Align := CONTROL_ALIGN_ALLCLIENT
 
@@ -8326,7 +8371,7 @@ static function getColPro( aFields, aAlter )
 							'Qtd.Bloq.',;                     										// [n][01] Título da coluna
 							&("{|oBrw| aColPro[oBrw:At()]["+ cValToChar(nX+2) +"] }"),; 				// [n][02] Code-Block de carga dos dados
 							"N",;                													// [n][03] Tipo de dados
-							"@E 999,999,999",;                     									// [n][04] Máscara
+							PesqPict( 'SC7', 'C7_QUANT' ),;                     									// [n][04] Máscara
 							2,;                      												// [n][05] Alinhamento (0=Centralizado, 1=Esquerda ou 2=Direita)
 							11 * nPropor,;                             										// [n][06] Tamanho
 							0,;                              										// [n][07] Decimal
@@ -8343,11 +8388,11 @@ static function getColPro( aFields, aAlter )
 		elseif aFields[nX] == 'NECCOMP'
 			aAdd(aColumns, {;
 							'Comprar',;                     										// [n][01] Título da coluna
-							&("{|oBrw| aColPro[oBrw:At()]["+ cValToChar(nX+2) +"] }"),; 				// [n][02] Code-Block de carga dos dados
+							&("{|oBrw| aColPro[oBrw:At()]["+ cValToChar(nX+2) +"] }"),; 			// [n][02] Code-Block de carga dos dados
 							"N",;                													// [n][03] Tipo de dados
-							"@E 999,999,999",;                     									// [n][04] Máscara
+							PesqPict( 'SC7', 'C7_QUANT' ),;                     					// [n][04] Máscara
 							2,;                      												// [n][05] Alinhamento (0=Centralizado, 1=Esquerda ou 2=Direita)
-							11 * nPropor,;                             										// [n][06] Tamanho
+							11 * nPropor,;                             								// [n][06] Tamanho
 							0,;                              										// [n][07] Decimal
 							aScan( aAlter, {|x| AllTrim(x) == aFields[nX] } ) > 0,;                 // [n][08] Indica se permite a edição
 							{|| AlwaysTrue() },;                          							// [n][09] Code-Block de validação da coluna após a edição
@@ -8381,11 +8426,11 @@ static function getColPro( aFields, aAlter )
 		elseif aFields[nX] == 'PRCNEGOC'
 			aAdd(aColumns, {;
 							'Prç.Neg.',;                     										// [n][01] Título da coluna
-							&("{|oBrw| aColPro[oBrw:At()]["+ cValToChar(nX+2) +"] }"),; 				// [n][02] Code-Block de carga dos dados
+							&("{|oBrw| aColPro[oBrw:At()]["+ cValToChar(nX+2) +"] }"),; 			// [n][02] Code-Block de carga dos dados
 							"N",;                													// [n][03] Tipo de dados
-							"@E 9,999,999.99",;                     								// [n][04] Máscara
+							PesqPict("SC7", "C7_PRECO"),;                     						// [n][04] Máscara
 							2,;                      												// [n][05] Alinhamento (0=Centralizado, 1=Esquerda ou 2=Direita)
-							11 * nPropor,;                             										// [n][06] Tamanho
+							11 * nPropor,;                             								// [n][06] Tamanho
 							2,;                              										// [n][07] Decimal
 							aScan( aAlter, {|x| AllTrim(x) == aFields[nX] } ) > 0,;                 // [n][08] Indica se permite a edição
 							{|| AlwaysTrue() },;                          							// [n][09] Code-Block de validação da coluna após a edição
@@ -8400,11 +8445,11 @@ static function getColPro( aFields, aAlter )
 		elseif aFields[nX] == "ULTPRECO"
 			aAdd(aColumns, {;
 							'Ult.Prç.',;                     										// [n][01] Título da coluna
-							&("{|oBrw| aColPro[oBrw:At()]["+ cValToChar(nX+2) +"] }"),; 				// [n][02] Code-Block de carga dos dados
+							&("{|oBrw| aColPro[oBrw:At()]["+ cValToChar(nX+2) +"] }"),; 			// [n][02] Code-Block de carga dos dados
 							"N",;                													// [n][03] Tipo de dados
-							"@E 9,999,999.99",;                     								// [n][04] Máscara
+							PesqPict("SC7", "C7_PRECO"),;                     						// [n][04] Máscara
 							2,;                      												// [n][05] Alinhamento (0=Centralizado, 1=Esquerda ou 2=Direita)
-							11 * nPropor,;                             										// [n][06] Tamanho
+							11 * nPropor,;                             								// [n][06] Tamanho
 							2,;                              										// [n][07] Decimal
 							aScan( aAlter, {|x| AllTrim(x) == aFields[nX] } ) > 0,;                 // [n][08] Indica se permite a edição
 							{|| AlwaysTrue() },;                          							// [n][09] Code-Block de validação da coluna após a edição
@@ -8423,7 +8468,7 @@ static function getColPro( aFields, aAlter )
 							"N",;                													// [n][03] Tipo de dados
 							"@E 9,999,999.9999",;                     								// [n][04] Máscara
 							2,;                      												// [n][05] Alinhamento (0=Centralizado, 1=Esquerda ou 2=Direita)
-							14 * nPropor,;                             										// [n][06] Tamanho
+							14 * nPropor,;                             								// [n][06] Tamanho
 							4,;                              										// [n][07] Decimal
 							aScan( aAlter, {|x| AllTrim(x) == aFields[nX] } ) > 0,;                 // [n][08] Indica se permite a edição
 							{|| AlwaysTrue() },;                          							// [n][09] Code-Block de validação da coluna após a edição
@@ -8733,10 +8778,19 @@ Função de validação para fechamento da tela do Painel de Compras.
 @return logical, lClose
 /*/
 static function closeVld()
-	local lClose := .T. as logical
-	lCLose := len( aCarCom ) == 0
+	local lClose  := .T. as logical
+	local nChoice := 0 as numeric
+	lClose := len( aCarCom ) == 0
 	if ! lClose
-		lClose := MsgYesNo( 'Seu carrinho não está vazio, se optar por sair, terá de adicioná-los novamente, deseja prosseguir?', 'A T E N Ç Ã O !' )
+		nChoice := Aviso( 'A T E N Ç Ã O !', 'Seu carrinho não está vazio, você poderá "Descartar" os itens do '+;
+					'carrinho ou "Continuar mais tarde..." para dar continuidade no processo de compra. O quê deseja fazer?',;
+					{ 'Descartar carrinho','Continuar mais tarde', 'Ficar na rotina' }, 3  )
+		lClose := nChoice == 1 .or. nChoice == 2
+		if nChoice == 1
+			fErase( pathSaved() )
+			FreeObj( oRestore)
+			oRestore := Nil
+		endif
 	endif
 return lClose
 
@@ -8905,6 +8959,15 @@ user function PCOMPRE(oBrw, oCol, cPre )
 			aColumns[len(aColumns)]:SetSize( TAMSX3( cZB3 +'_CONMED' )[1] )
 			aColumns[len(aColumns)]:SetDecimal( TAMSX3( cZB3 +'_CONMED' )[2] )
 			aColumns[len(aColumns)]:SetPicture( PesqPict( cZB3, cZB3 +'_CONMED' ) )
+			
+			aAdd( aColumns, FWBrwColumn():New() )
+			aColumns[len(aColumns)]:SetTitle( 'Media 12M' )
+			aColumns[len(aColumns)]:SetData( &( "{|oBrw| getMedia( aProFil[oBrw:At()]["+ cValToChar(len( aProFil[1] )) +"], aProFil[oBrw:At()]["+ cValToChar( nPosPrd ) +"], 12 ) }" ) )
+			aColumns[len(aColumns)]:SetType( 'N' )
+			aColumns[len(aColumns)]:SetAlign( 2 )		// Alinha a Direita
+			aColumns[len(aColumns)]:SetSize( TAMSX3( cZB3 +'_CONMED' )[1] )
+			aColumns[len(aColumns)]:SetDecimal( TAMSX3( cZB3 +'_CONMED' )[2] )
+			aColumns[len(aColumns)]:SetPicture( PesqPict( cZB3, cZB3 +'_CONMED' ) )
 
 			aAdd( aColumns, FWBrwColumn():New() )
 			aColumns[len(aColumns)]:SetTitle( 'Media 6M' )
@@ -9055,15 +9118,22 @@ static function getMedia( cFil, cProd, nMonth )
 	local cDB    := TCGetDB()
 
 	aPer  := {}
-	dAux1 := date()-Day(Date())
-	nAux  := 1
-	while nAux <= nMonth
-		dAux1-= Day(dAux1)
-		nAux++
-	end
-	dAux1+=1
-	aAdd( aPer, dAux1 )
-	aAdd( aPer, date()-Day(Date()) )
+	if nMonth == 1
+		dAux1 := date()-Day(Date())
+		dAux1+=1
+		aAdd( aPer, dAux1 )
+		aAdd( aPer, date() )
+	else
+		dAux1 := date()-Day(Date())
+		nAux  := 1
+		while nAux <= nMonth
+			dAux1-= Day(dAux1)
+			nAux++
+		end
+		dAux1+=1
+		aAdd( aPer, dAux1 )
+		aAdd( aPer, date()-Day(Date()) )
+	endif
 
 	cQuery := "SELECT COALESCE(SUM( TEMP.D2_QUANT ),0) SAIDAS FROM ( "
 	cQuery += U_JSQRYSAI( cProd, aPer[1], aPer[2], {cFil} ) 
@@ -9073,9 +9143,8 @@ static function getMedia( cFil, cProd, nMonth )
 		cQuery += " ) AS TEMP "
 	endif
 	cTmp := MPSysOpenQuery( cQuery )
-	// Aviso( 'Consulta', cQuery, {'Ok'}, 3 )
 	if ! ( cTmp )->( EOF() )
-		nMedia := Round(( cTmp )->SAIDAS/countDays(aPer[1], aPer[2]),4)
+		nMedia := Round(( cTmp )->SAIDAS/nMonth,4)
 	endif
 
 	( cTmp )->( DBCloseArea() )
@@ -10458,3 +10527,222 @@ static function viewKardex( cProduto )
 
 	restArea( aArea )
 return nil
+
+/*/{Protheus.doc} pathSaved
+FUnção para retornar o path completo onde o sistema deve verificar se existe algum processo em andamento que possa ser restaurado.
+@type function
+@version 12.1.2410
+@author Jean Carlos Pandolfo Saggin
+@since 18/09/2025
+@return character, cFullPath
+/*/
+static function pathSaved()
+	local cFullPath := "" as character
+	if !ExistDir( '/gmpaicom/' )
+		MakeDir( '/gmpaicom' )
+		if !ExistDir( '/gmpaicom/' )
+			hlp( 'NO_DIRECTORY',;
+				 'Diretório /gmpaicom/ não existe dentro da raiz do sistema e não foi possível criá-la',;
+				 'Sem o diretório de restauração de processos em andamento, não será possível utilizar a funcionalidade. Verifique com a equipe técnica responsável.' )
+			return cFullPath
+		endif
+	endif
+	cFullPath := '/gmpaicom/'+ cEmpAnt +'_'+ cFilAnt +'_'+ RetCodUsr() +'.json'
+return cFullPath
+
+/*/{Protheus.doc} loadSaved
+Função para carregar dados do Json salvo ref. à análise já realizada pelo o cliente
+@type function
+@version 12.1.2410
+@author Jean Carlos Pandolfo Saggin
+@since 18/09/2025
+@param cPart, character, string literal para indicar qual parte do arquivo se deseja restaurar
+@return array, aSaved
+/*/
+static function loadSaved( cPart )
+
+	local aSaved := {} as array
+	local oFile  := FWFileReader():New( pathSaved() )
+	local nPar   := 0 as numeric
+	local nX     := 0 as numeric
+	local nY	 := 0 as numeric
+
+	if oFile:Open()
+		// Caso o objeto ainda não tenha sido instanciado, cria uma nova instância do mesmo
+		if ValType( oRestore ) != 'J'
+			oRestore := JsonObject():New()
+		endif
+		oRestore:FromJson( oFile:FullRead() )
+		if cPart == 'filters'
+			if oRestore:hasProperty( 'filters' )
+				nPar++
+				while oRestore['filters']:hasProperty( 'nPar'+ cValToChar( nPar ) )
+					aAdd( aSaved, restData(oRestore['filters'][ 'nPar'+ cValToChar( nPar ) ]))
+					nPar++
+				end
+			endif
+		elseif cPart == 'carrinho'
+			if oRestore:hasProperty( 'carrinho' )
+				for nX := 1 to len( oRestore['carrinho'] )
+					aAdd( aSaved, {} )
+					for nY := 1 to len( aHeaCar )
+						aAdd( aSaved[len(aSaved)], restData(oRestore['carrinho'][nX][ aHeaCar[nY][2] ], aHeaCar[nY][8], aHeaCar[nY][4] ))
+					next nY
+					aAdd( aSaved[len(aSaved)], .F. )
+				next nX
+			endif
+		elseif cPart == 'carrinho_filial'
+			if oRestore:hasProperty( 'carrinho_filial' )
+				for nX := 1 to len( oRestore['carrinho_filial'] )
+					aAdd( aSaved, {} )
+					for nY := 1 to len( aHeaCar )
+						aAdd( aSaved[len(aSaved)], restData(oRestore['carrinho_filial'][nX][ aHeaCar[nY][2] ], aHeaCar[nY][8], aHeaCar[nY][4] ))
+					next nY
+					aAdd( aSaved[len(aSaved)], .F. )
+					aAdd( aSaved[len(aSaved)], restData(oRestore['carrinho_filial'][nX]['FILIAL'], 'C', len(cFilAnt) ) ) // Adiciona filial ao final do vetor
+				next nX
+			endif
+		elseif cPart == 'filiais'
+			if oRestore:hasProperty( 'filiais' )
+				for nX := 1 to len( oRestore['filiais'] )
+					aAdd( aSaved, restData(oRestore['filiais'][nX], 'C', len( cFilAnt ) ) )
+				next nX
+			endif
+		endif
+		oFile:Close()
+	endif
+
+return aSaved
+
+/*/{Protheus.doc} restData
+Função para restaurar tipagem de dados para evitar falhas de processamento quando tentamos utilizar os dados recuperados
+@type function
+@version 12.1.2410
+@author Jean Carlos Pandolfo Saggin
+@since 19/09/2025
+@param xData, variant, dado a ser restaurado
+@param cType, character, tipo do dado necessário para retorno
+@return variadic, xRet
+/*/
+static function restData( xData, cType, nSize )
+	
+	local xRet
+	
+	default cType := ValType( xData )
+	default nSize := iif( cType == 'C', len( xData ), 0 )
+
+	if cType == 'C'							// Quando character
+	
+		if xData $ 'true|false'
+			xRet := xData == 'true'
+		else
+			xRet := PADR(DecodeUTF8( xData ), nSize, ' ' )		// quando charactere, converte de UTF8 para o formato do sistema
+		endif
+	
+	elseif cType == 'D'						// Data
+		xRet := StoD( StrTran( SubStr( xData, 01, 10 ), '-', '' ) )
+	
+	elseif cType == 'L'						// Lógico
+		xRet := xData == 'true'
+	else
+		xRet := xData
+	endif
+return xRet
+
+/*/{Protheus.doc} saveData
+Função responsável pelo salvamento dos dados no Json de restauração do processo
+@type function
+@version 12.1.2410
+@author Jean Carlos Pandolfo Saggin
+@since 18/09/2025
+@param cPart, character, indica o bloco do Json que deverá ser populado
+@param aData, array, vetor de dados a serem salvos no bloco
+@return logical, lSuccess
+/*/
+static function saveData( cPart, aData, aHeader )
+	
+	local lSuccess := .T. as logical
+	local nPar     := 0 as numeric
+	local nX       := 0 as numeric
+	local nY       := 0 as numeric
+	local aLines   := {} as array
+	local cResult  as character
+	local oFilters as object
+
+	default cPart   := ""
+	default aHeader := {}
+
+	// Verifica se o salvamento está habilitado nas configurações
+	if ! aConfig[29] == 'S'
+		Return lSuccess
+	endif
+
+	// Inicializa objeto para restauração de dados
+	if ValType( oRestore ) != 'J'
+		oRestore := JsonObject():New()
+	endif
+
+	if cPart == 'filters'		// Adiciona filtros ao Json
+		oFilters := JsonObject():New()
+		aEval( aData, {|x| nPar++ , oFilters['nPar'+cValToChar(nPar)] := convData(x) } )
+		oRestore['filters'] := oFilters
+		FreeObj( oFilters )
+	elseif cPart == 'carrinho' .or. cPart == 'carrinho_filial'	// Adiciona produtos do carrinho ao Json
+		if len( aData ) > 0
+			aLines := {}
+			for nX := 1 to len( aData )
+				aAdd( aLines, JsonObject():New() )
+				for nY := 1 to len( aHeader )
+					aLines[len(aLines)][aHeader[nY][2]] := convData(aData[nX][nY])
+				next nY
+				// Quando grava carrinho por filial, add um campo para comportar os dados da filial no vetor
+				if cPart == 'carrinho_filial'
+					aLines[len(aLines)]['FILIAL'] := convData(aData[nX][len(aData[nX])])
+				endif
+			next nX
+			oRestore[cPart] := aLines
+			aLines := {}
+		else
+			oRestore[cPart] := {}
+		endif
+	endif
+	// Sempre salva posição das filiais
+
+	oRestore['filiais'] := _aFil
+	cResult := oRestore:toJsonFile( pathSaved() )
+	lSuccess := ValType( cResult ) != 'C'
+	if ! lSuccess
+		hlp( 'NO_SAVE',;
+			 'Não foi possível salvar os dados do processo em andamento no arquivo de restauração',;
+			 'Falha: '+ cResult )
+	endif
+return lSuccess
+
+/*/{Protheus.doc} convData
+Função para converter os dados para o formato aceito pelo JsonObject
+@type function
+@version 12.1.2410
+@author Jean Carlos Pandolfo Saggin
+@since 19/09/2025
+@param xData, variant, dado a ser convertido para o formato exigido pelo jsonObject
+@return variant, xRet
+/*/
+static function convData( xData )    
+    
+    local xRet
+
+    if valType( xData ) == 'D'
+        if ! Empty( xData )
+            xRet := StrTran( FWTimeStamp( 3, xData, '00:00:00' ), 'T', ' ' )
+        else
+            xRet := Nil
+        endif
+    elseif valType( xData ) == 'L'
+        xRet := iif( xData, 'true', 'false' )
+    elseif valType( xData ) == 'C'
+        xRet := EncodeUTF8( xData )        // quando charactere, remove os espaços e converte em UTF8 no formato cp1252
+    else
+        xRet := xData
+    endif
+
+return xRet

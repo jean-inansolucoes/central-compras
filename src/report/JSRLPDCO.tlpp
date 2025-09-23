@@ -152,7 +152,7 @@ static function printPDF()
 		{ 'Label 2', 12 },;
 		{ 'Data 2', 40 },;
 		{ 'Label 3', 6 },;
-		{ 'Data 3', 12 } }
+		{ 'Data 3', 20 } }
 
 	aLine := {}
 	aData := {}
@@ -168,9 +168,9 @@ static function printPDF()
 	printData( { {{ "PEDIDO", 100 }}, {} }, 'quadro_itens' /* cType */, oPDF, Nil /* lEndPage */, .T. /* lBold */ )
 	aCab := {}
 	aCab := { { 'Label 1', 10 },;
-				{ 'Data 1', 14 },;
+				{ 'Data 1', 34 },;
 				{ 'Label 2', 12 },;
-				{ 'Data 2', 40 },;
+				{ 'Data 2', 20 },;
 				{ 'Label 3', 8 },;
 				{ 'Data 3', 16 } }
 
@@ -222,7 +222,7 @@ static function printPDF()
 		aAdd( aCab, { 'Descrição', iif( SB1->( FieldPos( 'B1_XGPTP' ) ) > 0, 33, 37 ) } )
 		aAdd( aCab, { 'Qtde', 9, ALIGN_RIGHT } )
 		aAdd( aCab, { 'UM', 4, ALIGN_H_CENTER } )
-		aAdd( aCab, { 'Vlr Unit.', 7 } )
+		aAdd( aCab, { 'Vlr Unit.', 7, ALIGN_RIGHT } )
 		aAdd( aCab, { 'Vlr Total', 10 } )
 		aAdd( aCab, { 'IPI', 6 } )
 		
@@ -240,9 +240,9 @@ static function printPDF()
 				aAdd( aLine, SubStr( SB1->B1_XGPTP, 01, 02 ) )														// 04. Grupo Tabela Preço
 			endif
 			aAdd( aLine, AllTrim( SB1->B1_DESC ) )          														// 05. Descrição
-			aAdd( aLine, ALlTrim(Transform(Round(SC7->C7_QUANT,0), GetSX3Cache( 'C7_QUANT', 'X3_PICTURE' ) )) )		// 06. Quantidade
+			aAdd( aLine, ALlTrim(Transform(SC7->C7_QUANT, GetSX3Cache( 'C7_QUANT', 'X3_PICTURE' ) )) )				// 06. Quantidade
 			aAdd( aLine, SC7->C7_UM )                                                                               // 07. Unidade de Medida
-			aAdd( aLine, SC7->C7_PRECO )                                                                            // 08. Valor unitário
+			aAdd( aLine, ALlTrim(Transform(SC7->C7_PRECO, GetSX3Cache( 'C7_PRECO', 'X3_PICTURE' ) )) )				// 08. Valor unitário
 			aAdd( aLine, SC7->C7_TOTAL )                                                                            // 09. Valor total do item
 			aAdd( aLine, SC7->C7_IPI )                                                                              // 10. IPI
 
