@@ -136,6 +136,11 @@ user function JSDETVER()
     aAdd( aDetVer, { '17','0006','12/09/2025', 'Adição de botão para consulta do kardex do produto na tela principal' } )
     aAdd( aDetVer, { '17','0007','12/09/2025', 'Correção de falha durante gravação da observação quando compra multi-filial.' } )
     aAdd( aDetVer, { '18','0001','23/09/2025', 'Criado função "Continuar de onde parou..."' } )
+    aAdd( aDetVer, { '18','0002','25/09/2025', 'Ajustes na rotina de formação de preços no processo de simulação de preço de venda' } )
+    aAdd( aDetVer, { '18','0003','30/09/2025', 'Adição de função Executar que permite rodar scripts em sintaxe SQL ou funções advpl através da interface do usuário' } )
+    aAdd( aDetVer, { '18','0004','30/09/2025', 'Criação de PE para substituição de produto na formação de preços' } )
+    aAdd( aDetVer, { '18','0005','02/10/2025', 'Corrigido falha que fazia com que, nos pedidos multi-filiais, ao editar as quantidades por filial, o sistema atualizasse o browse de produtos por completo.' } )
+    aAdd( aDetVer, { '18','0006','03/10/2025', 'Removido do execauto do pedido de compra, o campo C7_DESCRI, para evitar validação padrão sobre o campo que, hora ou outra, apresentava inconsistências.' } )
 
 return aDetVer
 

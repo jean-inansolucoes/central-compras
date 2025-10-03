@@ -534,16 +534,12 @@ static function entryDocs( cProduto, cDoc, cSerie, cFornece, cLoja, cTipo )
 	local lSuccess := .T. as logical
 	local bOk      :={|| iif( lDocEntr, lSuccess := checkDoc( oBrowse, SD1TMP->D1_FILIAL, cDoc, cSerie, cFornece, cLoja, cTipo ), Nil), iif( lSuccess, oDlgDoc:End(), Nil )}
 	local bCancel  :={|| oDlgDoc:End()}
-	local aFields  := { "D1_FILIAL", "D1_DOC", "D1_SERIE", "D1_ITEM", "D1_LOCAL","D1_FORNECE", "D1_LOJA", "D1_QUANT", "D1_VUNIT", "D1_TOTAL", "D1_VALIPI", "D1_VALICM",;
-						"D1_TES", "D1_COD", "B1_DESC", "D1_UM", "D1_CF", "D1_DESC", "D1_IPI", "D1_PICM", "D1_EMISSAO", "D1_DTDIGIT", "D1_BASEICM", "D1_VALDESC",;
-						"D1_BASEIPI", "D1_CUSTO", "D1_BASIMP5", "D1_BASIMP6", "D1_VALIMP5", "D1_VALIMP6", "D1_ALQIMP5", "D1_ALQIMP6", "D1_VALFRE",;
-						"D1_ICMSDIF", "D1_ALQCSL", "D1_VOPDIF", "A2_NOME", "A2_EST", "D1_DESPESA", "D1_ALIQSOL", "D1_ICMSRET", "D1_MARGEM" }
+	local aFields  := FWSX3Util():GetAllFields( 'SD1', .F. /* lVirtual */ )
 	local bValid   :={|| .T. }
 	local bInit    :={|| EnchoiceBar( oDlgDoc, bOk, bCancel,,aButtons )} 
 	local oPanDoc        as object
 	local oPanPed		 as object
 	local oPanFld1       as object
-	local oPanFld2		 as object
 	local oPanFld3		 as object
 	local aColumns := {} as array
 	local aFldCol  := {} as array
@@ -579,7 +575,7 @@ static function entryDocs( cProduto, cDoc, cSerie, cFornece, cLoja, cTipo )
 	local aOptions := {} as array
 	local aStruct  := {} as array
 	local cType    := "" as character
-	local cSerCFI  := PADR(AllTrim( SuperGetMv( 'MV_X_PNC17',,'' ) ),TAMSX3('D1_SERIE')[1], ' ' )		// Série para notas de complemento de frete interno
+	local cSerCFI  := PADR( AllTrim( SuperGetMv( 'MV_X_PNC17',,'' ) ),TAMSX3('D1_SERIE')[1], ' ' )		// Série para notas de complemento de valor financeiro
 	local oSize    as object
 	local oSize1   as object
 
@@ -593,6 +589,7 @@ static function entryDocs( cProduto, cDoc, cSerie, cFornece, cLoja, cTipo )
 	Private oGetUNF  as object
 
 	// Entrada
+	Private oPanFld2 as object
 	Private oGetTES  as object
 	Private oGetDTE  as object
 	Private oGetICM  as object
@@ -649,6 +646,7 @@ static function entryDocs( cProduto, cDoc, cSerie, cFornece, cLoja, cTipo )
 	Private cGetDTE := Space( TAMSX3('F4_TEXTO')[1] ) as character
 	Private nGetICM := 0 
 	Private nValICM := 0
+	Private cRICM   := " "
 	Private nGetIPI := 0
 	Private nValIPI := 0
 	Private nGetFre := 0
@@ -685,6 +683,7 @@ static function entryDocs( cProduto, cDoc, cSerie, cFornece, cLoja, cTipo )
 	private nGetMg2 := 0			// Margem sobre o preço vigente
 	private nGetPCI := 0 			// Preço final + IPI
 	Private nGetIPS := 0 			// IPI de saída
+	Private nOutFre := 0 as numeric	// Variável para armazenar valores complementares de frete
 	
 	// Ultima compra
 	Private nGetUPr := 0			// Ultimo preço 
@@ -697,6 +696,7 @@ static function entryDocs( cProduto, cDoc, cSerie, cFornece, cLoja, cTipo )
 	Private cUFFor  := ""
 	Private oBrwDoc     as object
 	Private oDlgDoc     as object
+	Private cPrdAlt := "" as character
 
 	default cProduto := ""
 	default cDoc     := ""
@@ -704,6 +704,11 @@ static function entryDocs( cProduto, cDoc, cSerie, cFornece, cLoja, cTipo )
 	default cFornece := ""
 	default cLoja    := ""
 	default cTipo    := ""
+
+	// Campos de tabelas diferentes da tabela principal
+	aAdd( aFields, "A2_NOME" )
+	aAdd( aFields, "A2_EST" )
+	aAdd( aFields, "B1_DESC" )
 
 	// Valida o tipo de documento que o usuário clicou para abrir a rotina de formação de preços
 	if ! Empty( cTipo ) .and. ! cTipo == 'N'
@@ -722,7 +727,7 @@ static function entryDocs( cProduto, cDoc, cSerie, cFornece, cLoja, cTipo )
 	// Quando  produto não for informado no filtro, exibe os produtos no browse
 	if Empty( cProduto )
 		aFldCol := { "D1_FILIAL", "D1_ITEM", "D1_COD","B1_DESC", "D1_EMISSAO", "D1_DTDIGIT", "D1_DOC", "D1_SERIE", "D1_FORNECE", "D1_LOJA", "A2_NOME", "A2_EST", "D1_QUANT",; 
-						"D1_VUNIT", "D1_TOTAL", "D1_VALDESC", "F1_X_FPRC" }
+						"D1_VUNIT", "D1_TOTAL", "D1_VALDESC", "F1_X_FPRC", "D1_TIPO" }
 	else
 		cGetCod := cProduto
 		cGetDes := RetField( 'SB1', 1, FWxFilial( 'SB1' ) + cProduto, 'B1_DESC' )
@@ -731,13 +736,14 @@ static function entryDocs( cProduto, cDoc, cSerie, cFornece, cLoja, cTipo )
 		nGetLuc := getLucro( cProduto, SuperGetMV( 'MV_X_PNC05',,0 ) )
 		nGetIPS := RetField( 'SB1', 1, FWxFilial( 'SB1' ) + cProduto, 'B1_IPI' )
 		aFldCol := { "D1_FILIAL", "D1_EMISSAO", "D1_DTDIGIT", "D1_DOC", "D1_SERIE", "D1_ITEM", "D1_FORNECE", "D1_LOJA", "A2_NOME", "A2_EST", "D1_QUANT",; 
-						"D1_VUNIT", "D1_TOTAL", "D1_VALDESC", "F1_X_FPRC"  }
+						"D1_VUNIT", "D1_TOTAL", "D1_VALDESC", "F1_X_FPRC", "D1_TIPO"  }
 	endif
 
 	if len( _aFil ) > 0
 		cQuery := "SELECT TEMP.* FROM ( "+ CEOL
 		for nEmpr := 1 to len( _aFil )
-			
+
+			aStruct := {}
 			cFilAnt := _aFil[nEmpr]
 			// Query para análise 
 			cQuery += "SELECT " + CEOL
@@ -820,7 +826,7 @@ static function entryDocs( cProduto, cDoc, cSerie, cFornece, cLoja, cTipo )
 			cQuery += "FROM "+ RetSqlName( 'SD1' ) +" D1 " + CEOL
 			
 			// Faz Join com tabela de fornecedor
-			cQuery += "INNER JOIN "+ RetSqlName( 'SA2' ) +" A2 " + CEOL
+			cQuery += "LEFT JOIN "+ RetSqlName( 'SA2' ) +" A2 " + CEOL
 			cQuery += " ON A2.A2_FILIAL  = '"+ FWxFIlial( 'SA2' ) +"' "+ CEOL
 			cQuery += "AND A2.A2_COD     = D1.D1_FORNECE " + CEOL
 			cQuery += "AND A2.A2_LOJA    = D1.D1_LOJA " + CEOL
@@ -891,7 +897,7 @@ static function entryDocs( cProduto, cDoc, cSerie, cFornece, cLoja, cTipo )
 		aAdd( aColumns, FWBrwColumn():New() )
 		aColumns[len(aColumns)]:SetTitle( GetSX3Cache( aFldCol[nX], 'X3_TITULO' ) )
 		aColumns[len(aColumns)]:SetType( cType )
-		aColumns[len(aColumns)]:SetSize( GetSX3Cache( aFldCol[nX], 'X3_TAMANHO' ) )
+		aColumns[len(aColumns)]:SetSize( GetSX3Cache( aFldCol[nX], 'X3_TAMANHO' )* 0.5 ) 
 		aColumns[len(aColumns)]:SetDecimal( GetSX3Cache( aFldCol[nX], 'X3_DECIMAL' ) )
 		aColumns[len(aColumns)]:SetData(&( getStrData( aFldCol[nX] ) ))
 		aColumns[len(aColumns)]:SetAlign( getAlign( GetSX3Cache( aFldCol[nX], 'X3_TIPO' ) ) )
@@ -909,7 +915,7 @@ static function entryDocs( cProduto, cDoc, cSerie, cFornece, cLoja, cTipo )
 	aAdd( aColumns, FWBrwColumn():New() )
 	aColumns[len(aColumns)]:SetTitle( 'Compl.Fin.' )
 	aColumns[len(aColumns)]:SetType( 'N' )
-	aColumns[len(aColumns)]:SetSize( 13 )
+	aColumns[len(aColumns)]:SetSize( 13 *0.5 )
 	aColumns[len(aColumns)]:SetDecimal( 2 )
 	aColumns[len(aColumns)]:SetData( {|| SD1TMP->VALFIN } )
 	aColumns[len(aColumns)]:SetAlign( getAlign( 'N' ) )
@@ -920,7 +926,7 @@ static function entryDocs( cProduto, cDoc, cSerie, cFornece, cLoja, cTipo )
 	aAdd( aColumns, FWBrwColumn():New() )
 	aColumns[len(aColumns)]:SetTitle( 'Vlr. Frete' )
 	aColumns[len(aColumns)]:SetType( 'N' )
-	aColumns[len(aColumns)]:SetSize( 13 )
+	aColumns[len(aColumns)]:SetSize( 13 * 0.5 ) 
 	aColumns[len(aColumns)]:SetDecimal( 2 )
 	aColumns[len(aColumns)]:SetData( {|| SD1TMP->VALFRT } )
 	aColumns[len(aColumns)]:SetAlign( getAlign( 'N' ) )
@@ -953,6 +959,17 @@ static function entryDocs( cProduto, cDoc, cSerie, cFornece, cLoja, cTipo )
 	oSize1:lProp := .T.
 	oSize1:Process()
 
+	// PE para substituir produto que vai receber o preço calculado pela rotina de formação de preços
+	// Utilizado para os casos em que o preço de venda é calculado sobre o custo da matéria-prima, mas o produto que é vendido é o PA
+	if ExistBlock( 'PEPNC06' )
+		cPrdAlt := ExecBlock( 'PEPNC06', .F., .F., SD1TMP->D1_COD )
+		if ! ValType( cPrdAlt ) == 'C' .or. Empty( cPrdAlt ) .or. !ExistCpo( "SB1", cPrdAlt, 1)
+			cPrdAlt := SD1TMP->D1_COD
+		endif
+	else
+		cPrdAlt := SD1TMP->D1_COD
+	endif
+
 	// Documentos de entrada ligados ao produto atual
 	oDlgDoc := TDialog():New( oSize:aWindSize[1], oSize:aWindSize[2], oSize:aWindSize[3], oSize:aWindSize[4],'Documentos de Entrada para o Produto',,,,,CLR_BLACK,CLR_WHITE,,,.T.)
 
@@ -974,7 +991,8 @@ static function entryDocs( cProduto, cDoc, cSerie, cFornece, cLoja, cTipo )
 	oPanFld2 := TGroup():New( oSize:GetDimension( 'CALC', "LININI" ),;
 								oSize1:GetDimension( 'CALC2', "COLINI" ),;
 								oSize:GetDimension( 'CALC', "LINEND" ),;
-								oSize1:GetDimension( 'CALC2', "COLEND" ), '  Formacão de Preço  '/* cTitle */,oDlgDoc,,,.T.)
+								oSize1:GetDimension( 'CALC2', "COLEND" ), '  Formação de Preço '+; 
+								AllTrim( RetField( 'SB1', 1, FWxFilial( 'SB1' ) + cPrdAlt, 'B1_DESC' ) ) +'  ' /* cTitle */,oDlgDoc,,,.T.)
 
 	oPanFld3 := TGroup():New( oSize:GetDimension( 'CALC', "LININI" ),;
 								oSize1:GetDimension( 'CALC3', "COLINI" ),;
@@ -1011,41 +1029,42 @@ static function entryDocs( cProduto, cDoc, cSerie, cFornece, cLoja, cTipo )
 
 	// Entrada
 	nLine := oSize:GetDimension( 'CALC', "LININI" ) + 10
-	oGetTES   := doGet( nLine, 004, {|u| if( PCount()>0,cGetTES:=u,cGetTES ) }, oPanFld1, 40, 10, "@!", 'cGetTES', 'TES', !lEnable )
+	oGetTES   := doGet( nLine, 004, {|u| if( PCount()>0,cGetTES:=u,cGetTES ) }, oPanFld1, 40, 10, "@!", 'cGetTES', 'TES', lEnable )
 	oGetTES:cF3 := "SF4"	// Pesquisa padrão cadastro de TES
 	oGetDTE   := doGet( nLine, 095, {|u| if( PCount()>0,cGetDTE:=u,cGetDTE ) }, oPanFld1, 70, 10, "@x", 'cGetDTE',, !lEnable )
 	nLine += 14
 	oGetICM   := doGet( nLine, 004, {|u| if( PCount()>0,nGetICM:=u,nGetICM ) }, oPanFld1, 40, 10, "@R 9,999.99 %", 'nGetICM', 'ICMS', lEnable )
-	oGetICM:bChange := {|| nValICM := (nGetICM/100)*nGetUOC, someChange() }
+	// oGetICM:bChange := {|| nValICM := (nGetICM/100)*nGetUOC, someChange() }
 	oValICM   := doGet( nLine, 095, {|u| if( PCOunt()>0,nValICM:=u,nValICM ) }, oPanFld1, 40, 10, "@E 9,999,999.99", 'nValICM',, !lEnable,,CLR_RED )
+	oRICM     := doGet( nLine, 134, {|u| if( PCount()>0,cRICM:=u,cRICM ) }, oPanFld1, 10, 10, "@x", 'cRICM',, !lEnable )
 	nLine += 14
 	oGetIPI   := doGet( nLine, 004, {|u| if( pCOunt()>0,nGetIPI:=u,nGetIPI ) }, oPanFld1, 40, 10, "@R 9,999.99 %", 'nGetIPI', 'IPI', lEnable )
-	oGetIPI:bChange := {|| nValIPI := (nGetIPI/100)*nGetUOC, someChange() }
+	// oGetIPI:bChange := {|| nValIPI := (nGetIPI/100)*nGetUOC, someChange() }
 	oValIPI   := doGet( nLine, 095, {|u| if( PCount()>0,nValIPI:=u,nValIPI ) }, oPanFld1, 40, 10, "@E 9,999,999.99", 'nValIPI',, !lEnable )
 	nLine += 14
 	oGetFre   := doGet( nLine, 004, {|u| if( pCOunt()>0,nGetFre:=u,nGetFre ) }, oPanFld1, 40, 10, "@R 9,999.99 %", 'nGetFre', 'Frete', lEnable )
-	oGetFre:bChange := {|| nValFre := (nGetFre/100)*nGetUOC, someChange() }
+	// oGetFre:bChange := {|| nValFre := (nGetFre/100)*nGetUOC, someChange() }
 	oValFre   := doGet( nLine, 095, {|u| if( PCount()>0,nValFre:=u,nValFre ) }, oPanFld1, 40, 10, "@E 9,999,999.99", 'nValFre',,!lEnable )
 	nLine += 14
 	oGetICF   := doGet( nLine, 004, {|u| if( pCOunt()>0,nGetICF:=u,nGetICF ) }, oPanFld1, 40, 10, "@R 9,999.99 %", 'nGetICF', 'ICMS Frete', lEnable )
-	oGetICF:bChange := {|| nValICF := (nGetICF/100)*nValFre, someChange() }
+	// oGetICF:bChange := {|| nValICF := (nGetICF/100)*nValFre, someChange() }
 	oValICF   := doGet( nLine, 095, {|u| if( PCount()>0,nValICF:=u,nValICF ) }, oPanFld1, 40, 10, "@E 9,999,999.99", 'nValICF',,!lEnable,,CLR_RED )
 	nLine += 14
 	oGetOut   := doGet( nLine, 004, {|u| if( pCOunt()>0,nGetOut:=u,nGetOut ) }, oPanFld1, 40, 10, "@R 9,999.99 %", 'nGetOut', 'Outras Desp.',lEnable )
-	oGetOut:bChange := {|| nValOut := (nGetOut/100)*nGetUOC, someChange() }
+	// oGetOut:bChange := {|| nValOut := (nGetOut/100)*nGetUOC, someChange() }
 	oValOut   := doGet( nLine, 095, {|u| if( PCount()>0,nValOut:=u,nValOut ) }, oPanFld1, 40, 10, "@E 9,999,999.99", 'nValOut',,!lEnable )
 	nLine += 14
 	oGetFin   := doGet( nLine, 004, {|u| if( pCOunt()>0,nGetFin:=u,nGetFin ) }, oPanFld1, 40, 10, "@R 9,999.99 %", 'nGetFin', 'Financeiro', lEnable )
-	oGetFin:bChange := {|| nValFin := (nGetFin/100)*nGetUOC, someChange() }
+	// oGetFin:bChange := {|| nValFin := (nGetFin/100)*nGetUOC, someChange() }
 	oValFin   := doGet( nLine, 095, {|u| if( PCount()>0,nValFin:=u,nValFin ) }, oPanFld1, 40, 10, "@E 9,999,999.99", 'nValFin',,lEnable )
-	oValFin:bChange := {|| nGetFin := (nValFin/nGetUOC)*100, someChange() }
+	// oValFin:bChange := {|| nGetFin := (nValFin/nGetUOC)*100, someChange() }
 	nLine += 14
-	oGetPC    := doGet( nLine, 004, {|u| if( pCOunt()>0,nGetPC :=u,nGetPC  ) }, oPanFld1, 40, 10, "@R 9,999.99 %", 'nGetPC', 'PIS/COFINS', lEnable )
-	oGetPC:bChange := {|| nValPC := (nGetPC/100)*nGetUOC, someChange() }
+	oGetPC    := doGet( nLine, 004, {|u| if( pCOunt()>0,nGetPC :=u,nGetPC  ) }, oPanFld1, 40, 10, "@R 9,999.99 %", 'nGetPC', 'PIS/COFINS', !lEnable )
+	// oGetPC:bChange := {|| nValPC := (nGetPC/100)*nGetUOC, someChange() }
 	oValPC    := doGet( nLine, 095, {|u| if( PCount()>0,nValPC :=u,nValPC  ) }, oPanFld1, 40, 10, "@E 9,999,999.99", 'nValPC',, !lEnable,,CLR_RED )
 	nLine += 14
 	oGetST    := doGet( nLine, 004, {|u| if( pCOunt()>0,nGetST :=u,nGetST  ) }, oPanFld1, 40, 10, "@R 9,999.99 %", 'nGetST', 'ST', lEnable )
-	oGetST:bChange := {|| nValST := (nGetST/100)*nGetUOC, someChange() }
+	// oGetST:bChange := {|| nValST := (nGetST/100)*nGetUOC, someChange() }
 	oValST    := doGet( nLine, 095, {|u| if( PCount()>0,nValST :=u,nValST  ) }, oPanFld1, 40, 10, "@E 9,999,999.99", 'nValST',, !lEnable )
 	nLine += 14
 	oGetMVA   := doGet( nLine, 004, {|u| if( pCOunt()>0,nGetMVA:=u,nGetMVA ) }, oPanFld1, 40, 10, "@R 9,999.99 %", 'nGetMVA', 'MVA', !lEnable )
@@ -1104,12 +1123,12 @@ static function entryDocs( cProduto, cDoc, cSerie, cFornece, cLoja, cTipo )
 	oGetSug   := doGet( nLine, nIniHor+4, {|u| if( PCount()>0,nGetSug:=u,nGetSug ) }, oPanFld2, 40, 10, "@E 9,999,999.99", 'nGetSug', 'Sug.Preço' )
 	oGetMg1   := doGet( nLine, nIniHor+91,{|u| if( PCount()>0,nGetMg1:=u,nGetMg1 ) }, oPanFld2, 40, 10, "@R 9,999.99 %", 'nGetMg1',, !lEnable )
 	oGetScI   := doGet( nLine, nIniHor+143, {|u| if( PCount()>0,nGetScI:=u,nGetScI ) }, oPanFld2, 40, 10, "@E 9,999,999.99", 'nGetScI', 'PS+IPI',!lEnable )
-	oBtnTab   := TButton():New( nLine, nIniHor+227, "Aplicar",oPanFld2,{|| priceAdjust( cGetTab, SD1TMP->D1_COD, nGetSug ), oBrowse:LineRefresh(), someChange() }, 30,10,,,.F.,.T.,.F.,,.F.,,,.F. )
-	oBtnTab:bWhen := {|| !Empty( cGetTab ) .and. ! Round( nGetSug, 2 ) == nGetPrc .and. RetCodUsr() $ cMasters }
+	oBtnTab   := TButton():New( nLine, nIniHor+227, "Aplicar",oPanFld2,{|| priceAdjust( cGetTab, cPrdAlt, nGetSug ), oBrowse:LineRefresh(), someChange() }, 30,10,,,.F.,.T.,.F.,,.F.,,,.F. )
+	oBtnTab:bWhen := {|| !Empty( cGetTab ) .and. ! Round( nGetSug, 2 ) == nGetPrc .and. ( RetCodUsr() $ cMasters .or. FWIsAdmin() ) }
 
 	if lDocEntr
 		oBtnIgn := TButton():New( nLine, nIniHor+287, "Ignorar",oPanFld2,{|| checkItem(), oBrowse:LineRefresh(), someChange() }, 30,10,,,.F.,.T.,.F.,,.F.,,,.F. )
-		oBtnIgn:bWhen := {|| ! SD1TMP->(EOF()) .and. RetCodUsr() $ cMasters }
+		oBtnIgn:bWhen := {|| ! SD1TMP->(EOF()) .and. ( RetCodUsr() $ cMasters .or. FWIsAdmin() ) }
 	endif
 
 	nLine += 14
@@ -1136,8 +1155,16 @@ static function entryDocs( cProduto, cDoc, cSerie, cFornece, cLoja, cTipo )
 
 	oDlgDoc:Activate(,,,.T. /* lCentered */, bValid,,bInit)
 
-	// Encerra cálculos
-	MaFisEnd()
+	// Se já existir cálculo em memória, encerra e começa outro
+	if MaFisFound("NF")
+		MaFisEnd()
+	endif
+
+	// Se chegou a mudar de filial, resposiciona no SM0 para poder seguir com o processamento
+	if cFilAnt != cFilHist
+		cFilAnt := cFilHist
+		FWSM0Util():setSM0PositionBycFilAnt()
+	endif
 
 	oTmp:Delete()
 	FreeObj( oTmp )
@@ -6276,7 +6303,7 @@ Static Function fGrvPed( oCbo, aCbo, cCbo, cFornece, cLoja )
 	Local nQtd := aScan( aHea, {|x| AllTrim( x[02] ) == 'QUANT'      } )
 	Local nPrc := aScan( aHea, {|x| AllTrim( x[02] ) == 'PRECO'      } )
 	Local nTot := aScan( aHea, {|x| AllTrim( x[02] ) == 'TOTAL'      } )
-	Local nDes := aScan( aHea, {|x| AllTrim( x[02] ) == 'C7_DESCRI'  } )
+	// Local nDes := aScan( aHea, {|x| AllTrim( x[02] ) == 'C7_DESCRI'  } )
 	Local nUnM := aScan( aHea, {|x| AllTrim( x[02] ) == 'C7_UM'      } )
 	Local nIni := aScan( aHea, {|x| AllTrim( x[02] ) == 'DINICOM'    } )
 	Local nEnt := aScan( aHea, {|x| AllTrim( x[02] ) == 'DATPRF'     } )
@@ -6367,9 +6394,9 @@ Static Function fGrvPed( oCbo, aCbo, cCbo, cFornece, cLoja )
 						if nPrd > 0
 							aAdd( aLin, { "C7_PRODUTO", aCol[nX][nPrd], Nil } )
 						endif
-						if nDes > 0
-							aAdd( aLin, { "C7_DESCRI" , aCol[nX][nDes], Nil } )
-						endif
+						// if nDes > 0
+						// 	aAdd( aLin, { "C7_DESCRI" , aCol[nX][nDes], Nil } )
+						// endif
 						if nUnM > 0
 							aAdd( aLin, { "C7_UM"     , aCol[nX][nUnM], Nil } )
 						endif
@@ -6418,7 +6445,7 @@ Static Function fGrvPed( oCbo, aCbo, cCbo, cFornece, cLoja )
 						for nField := 1 to len( aHea )
 							if aScan( aLin, {|x| AllTrim(x[1]) == AllTrim(aHea[nField][2]) } ) == 0 .and.;
 							aScan( aCab, {|x| AllTrim(x[1]) == AllTrim(aHea[nField][2]) } ) == 0 .and.; 
-							SC7->( FieldPos( aHea[nField][2] ) ) > 0 .and. ! AllTrim(aHea[nField][2]) $ "C7_VALFRE"
+							SC7->( FieldPos( aHea[nField][2] ) ) > 0 .and. ! AllTrim(aHea[nField][2]) $ "C7_VALFRE|C7_DESCRI"
 
 								if ! ( GetSX3Cache( aHea[nField][2], 'X3_TIPO' ) $ "C|M" .and. Empty( aCol[nX][nField] ) )
 									aAdd( aLin, { aHea[nField][2], aCol[nX][nField], Nil  } )
@@ -7979,13 +8006,16 @@ static function someChange( lReset )
 	
 	local cVar      := upper(ReadVar())	
 	local aLast     := {} as array	
-	local cCDIPI    := "" as character
-	Private aHeader := headerSD1()
-	Private aCols   := getCols( SD1TMP->D1_FILIAL, SD1TMP->D1_DOC, SD1TMP->D1_SERIE, SD1TMP->D1_FORNECE, SD1TMP->D1_LOJA, SD1TMP->D1_TIPO )
-	Private n       := aScan( aCols, {|x| x[d1Pos('D1_ITEM')] == SD1TMP->D1_ITEM .and.;
-										  x[d1Pos('D1_COD')] == SD1TMP->D1_COD } )
+	local lST       := .F. as logical
+	local n          := 1 as numeric
 	
 	default lReset  := .F.
+
+	// Quando filial diferente, para executar os cálculos, muda a filial e reposiciona o SM0
+	if ! cFilAnt == SD1TMP->D1_FILIAL
+		cFilAnt := SD1TMP->D1_FILIAL
+		FWSM0Util():setSM0PositionBycFilAnt()
+	endif
 
 	DBSelectArea( 'SA2' )
 	SA2->( DBSetOrder( 1 ) )
@@ -7996,73 +8026,151 @@ static function someChange( lReset )
 		MaFisEnd()
 	endif
 
+	DBSelectArea( 'SB1' )
+	SB1->( DBSetOrder( 1 ) )
+	SB1->( DBSeek( FWxFilial( 'SB1' ) + SD1TMP->D1_COD ) )
+	
 	// Inicializa cálculo de impostos da NF
 	MAFisIni( SD1TMP->D1_FORNECE,;
-			  SD1TMP->D1_LOJA,;
-			  'F',;
-			  SD1TMP->D1_TIPO,;
-			  Nil,;
-			  MaFisRelImp("MT100", {"SF1", "SD1"}),;
-			  Nil,;
-			  .T.,;
-			  "SB1",;
-			  "MATA103" )
-
-	// Carrega dados da NF para o aCols
-	MaFisToCols(aHeader,aCols,,"MT100")
+			SD1TMP->D1_LOJA,;
+			'F',;
+			SD1TMP->D1_TIPO,;
+			Nil,;
+			MaFisRelImp("MT100", {"SF1", "SD1"}),;
+			Nil,;
+			.T.,;
+			"SB1",;
+			"MATA103" )
 
 	// Entrada
-	if ! lReset
-		nGetUOC := ( SD1TMP->D1_TOTAL - SD1TMP->D1_VALDESC ) / SD1TMP->D1_QUANT
-		nGetUNF := ( SD1TMP->D1_TOTAL - SD1TMP->D1_VALDESC ) / SD1TMP->D1_QUANT
-		cGetTES := SD1TMP->D1_TES
-		nGetICM := SD1TMP->D1_PICM
-		// nGetIPI := 
-	else
-		MaFisAlt( "IT_VUNIT", nGetUOC, n )
-		MaFisAlt( "IT_TES", cGetTES, n )
-		MaFisAlt( "IT_ALIQICM", nGetICM, n )
+	if lReset
+
+		DBSelectArea( 'SF4' )
+		SF4->( DBSetOrder( 1 ) )
+		SF4->( DBSeek( FWxFilial( 'SF4' ) + SD1TMP->D1_TES ) )
 		
+		cGetTES := SD1TMP->D1_TES
+		cGetDTE := RetField("SF4", 1, FWxFilial( 'SF4' ) + cGetTES, 'F4_TEXTO' )
+		nGetUOC := SD1TMP->D1_VUNIT
+		nValFin := Round(SD1TMP->VALFIN / SD1TMP->D1_QUANT, 2)
+		nGetFin := Round( nValFin / SD1TMP->D1_VUNIT * 100,2)
+		nOutFre := SD1TMP->VALFRT / SD1TMP->D1_QUANT
+		
+		// PE para substituir produto que vai receber o preço calculado pela rotina de formação de preços
+		// Utilizado para os casos em que o preço de venda é calculado sobre o custo da matéria-prima, mas o produto que é vendido é o PA
+		if ExistBlock( 'PEPNC06' )
+			cPrdAlt := ExecBlock( 'PEPNC06', .F., .F., SD1TMP->D1_COD )
+			if ! ValType( cPrdAlt ) == 'C' .or. Empty( cPrdAlt ) .or. !ExistCpo( "SB1", cPrdAlt, 1)
+				cPrdAlt := SD1TMP->D1_COD
+			endif
+		else
+			cPrdAlt := SD1TMP->D1_COD
+		endif
+		oPanFld2:cCaption := "Formação de Preços "+ AllTrim( RetField( 'SB1', 1, FWxFilial( 'SB1' ) + cPrdAlt, 'B1_DESC' ) ) +'  '
+
+	else
+		if cVar == 'NGETUOC'
+			// MaFisAlt( "IT_PRCUNI", nGetUOC, n )
+			// MaFisTes( cGetTES, SF4->(Recno()), n )
+		elseif cVar == 'CGETTES'
+			// MaFisAlt( "IT_TES", cGetTES, n )
+			// MaFisTes( cGetTES, SF4->(Recno()), n )
+			cGetDTE := RetField("SF4", 1, FWxFilial( 'SF4' ) + cGetTES, 'F4_TEXTO' )
+		elseif cVar == 'NGETICM'  
+			// MaFisAlt( "IT_ALIQICM", nGetICM, n )
+			// MaItArred( n, { "IT_BASEICM", "IT_VALICM" } )
+		elseif cVar == 'NGETIPI'
+			// MaFisAlt( "IT_ALIQIPI", nGetIPI, n )
+		elseif cVar == 'NGETFRE'
+			// MaFisAlt( "IT_VLR_FRT", Round((nGetFre/100)*nGetUOC, 2), n )
+			nOutFre := Round((nGetFre/100)*nGetUOC, 2)
+		elseif cVar == 'NVALFRE'
+			nOutFre := nValFre
+			// MaFisAlt( "IT_VLR_FRT", nValFre, n )
+		elseif cVar == 'NGETICF'
+			// MaFisAlt( "IT_ICMFRETE", nGetICF, n )
+		elseif cVar == 'NGETST'
+			// MaFisAlt( "IT_ALIQSOL", nGetST, n )
+		elseif cVar == 'NVALFIN'
+			nGetFin := Round( nValFin / nGetUOC * 100,2)
+		elseif cVar == 'NGETFIN'
+			nValFin := Round((nGetFin/100) * nGetUOC,2)
+		endif
 	endif
 
-	// nGetUOC := MaFisRet( n, 'IT_' )
+	MAFisAdd(;
+			SD1TMP->D1_COD,;    	// 01 - Codigo do Produto                    ( Obrigatorio )
+			SD1TMP->D1_TES,;        // 02 - Codigo do TES                        ( Opcional )
+			SD1TMP->D1_QUANT,;  	// 03 - Quantidade                           ( Obrigatorio )
+			nGetUOC,;      			// 04 - Preco Unitario                       ( Obrigatorio )
+			SD1TMP->D1_VALDESC,;    // 05 - Desconto
+			Nil,;      				// 06 - Numero da NF Original                ( Devolucao/Benef )
+			Nil,;    				// 07 - Serie da NF Original                 ( Devolucao/Benef )
+			0,;                  	// 08 - RecNo da NF Original no arq SD1/SD2
+			SD1TMP->D1_VALFRE,;     // 09 - Valor do Frete do Item               ( Opcional )
+			SD1TMP->D1_DESPESA,;    // 10 - Valor da Despesa do item             ( Opcional )
+			SD1TMP->D1_SEGURO,;     // 11 - Valor do Seguro do item              ( Opcional )
+			0,;                  	// 12 - Valor do Frete Autonomo              ( Opcional )
+			nGetUOC * SD1TMP->D1_QUANT,;      // 13 - Valor da Mercadoria                  ( Obrigatorio )
+			0,;                  	// 14 - Valor da Embalagem                   ( Opcional )
+			SB1->( RecNo() ),;     	// 15 - RecNo do SB1
+			SF4->( RecNo() );       // 16 - RecNo do SF4
+			)
 
-	// DBSelectArea( 'SF4' )
-	// SF4->( DBSetOrder( 1 ) )
-	// if SF4->( DBSeek( FWxFilial( 'SF4' ) + cGetTES ) )
-	// 	cGetDTE := SF4->F4_TEXTO
-	// 	cCDIPI  := SF4->F4_CREDIPI
-	// else
-	// 	cGetDTE := ""
-	// 	cCDIPI  := "N"
-	// endif
-	nGetICM := iif( lReset, SD1TMP->D1_PICM, nGetICM )
-	nValICM := iif( lReset, ( SD1TMP->D1_VALICM / SD1TMP->D1_QUANT ) - (( SD1TMP->D1_VALFRE / SD1TMP->D1_QUANT ) * ( nGetICM/100 ) ), nGetUOC * (nGetICM/100) ) * -1
-	nGetIPI := iif( lReset, iif( cCDIPI == 'N', SD1TMP->D1_IPI, 0 ), nGetIPI )
-	nValIPI := iif( lReset, SD1TMP->D1_VALIPI / SD1TMP->D1_QUANT, nGetUOC * (nGetIPI/100) )
-	nGetFre := iif( lReset, ( ( SD1TMP->D1_VALFRE + SD1TMP->VALFRT ) / ( SD1TMP->D1_TOTAL - SD1TMP->D1_VALDESC )) * 100, nGetFre )
-	nValFre := iif( lReset, ( SD1TMP->D1_VALFRE + SD1TMP->VALFRT ) / SD1TMP->D1_QUANT, nGetFre*(nGetUOC/100) )
-	nGetICF := iif( lReset, 0, nGetICF )
-	nValICF := iif( lReset, 0, nValFre * (nGetICF/100) ) * -1
-	nGetOut := iif( lReset, (SD1TMP->D1_DESPESA/(SD1TMP->D1_TOTAL-SD1TMP->D1_VALDESC)) * 100, nGetOut )
-	nValOut := iif( lReset, SD1TMP->D1_DESPESA / SD1TMP->D1_QUANT, nGetUOC * (nGetOut/100) )
-	nGetFin := iif( lReset, (SD1TMP->VALFIN / ( SD1TMP->D1_TOTAL - SD1TMP->D1_VALDESC )) * 100, nGetFin )
-	nValFin := iif( lReset, SD1TMP->VALFIN / SD1TMP->D1_QUANT, nGetUOC * (nGetFin/100) )
-	nGetPC  := iif( lReset, SD1TMP->D1_ALQIMP5 + SD1TMP->D1_ALQIMP6, nGetPC )
-	nValPC  := iif( lReset, ( SD1TMP->D1_VALIMP5 + SD1TMP->D1_VALIMP6 ) / SD1TMP->D1_QUANT, nGetUOC * (nGetPC/100) ) * -1
-	nGetST  := iif( lReset, iif( SD1TMP->D1_ICMSRET > 0, SD1TMP->D1_ALIQSOL, 0 ), nGetST )
-	nValST  := iif( lReset, SD1TMP->D1_ICMSRET / SD1TMP->D1_QUANT, nGetUOC * (nGetST/100) )
-	nGetMVA := iif( lReset, SD1TMP->D1_MARGEM, nGetMVA )
-	nGetCuL := nGetUOC + nValICM + nValPC + nValIPI + nValFre + nValICF + nValOut + nValFin + nValST
+	nGetUOC := MaFisRet( n, 'IT_PRCUNI' )
+	nGetICM := MaFisRet( n, 'IT_ALIQICM' )
+	cRICM   := SF4->F4_CREDICM
+	nValICM := Round(MaFisRet( n, 'IT_VALICM' )/MaFisRet( n, 'IT_QUANT' ),2) * iif( cRICM == 'S', -1, 1)
+	nGetIPI := MaFisRet( n, 'IT_ALIQIPI' )
+	nValIPI := Round( MaFisRet( n, 'IT_VALIPI' )/MaFisRet( n, 'IT_QUANT' ),2)
+	nValFre := Round(MaFisRet( n, 'IT_VLR_FRT' )/MaFisRet( n, 'IT_QUANT' ),2) + nOutFre
+	nGetFre := Round((nValFre / nGetUOC) * 100, 2)
+	nGetICF := MaFisRet( n, 'IT_ICMFRETE' )
+	nValICF := Round(((MaFisRet( n, 'IT_ICMFRETE' )/100) * MaFisRet( n, 'IT_VLR_FRT' ))/MaFisRet( n, 'IT_QUANT' ),2) * -1
+	nGetOut := Round((MaFisRet( n, 'IT_DESPESA' )/(MaFisRet( n, 'IT_TOTAL' )- MaFisRet( n, 'IT_DESCONTO' ))) * 100,2)
+	nValOut := Round(MaFisRet( n, 'IT_DESPESA' )/MaFisRet( n, 'IT_QUANT' ),2)
+
+	// Só atribui alíquota no campo, quando valor for diferente de 0
+	if MaFisRet( n, "IT_VALPS2" ) != 0 .or. MaFisRet( n, 'IT_VALCF2' ) != 0
+		nGetPC  := MaFisRet( n, 'IT_ALIQPIS' ) + MaFisRet( n, 'IT_ALIQCOF' )
+	else
+		nGetPC  := 0
+	endif
+	nValPC  := ((MaFisRet( n, "IT_VALPS2" ) + MaFisRet( n, 'IT_VALCF2' )) / MaFisRet( n, 'IT_QUANT' ) ) * -1
+	
+	// Só exibe alíquota do ICMS ST quando o valor calculado for maior que 0
+	if MaFisRet( n, 'IT_VALSOL' ) > 0
+		nGetST  := MaFisRet( n, 'IT_ALIQSOL' )
+	else
+		nGetST  := 0
+	endif
+
+	// Valor ST por unidade do produto
+	nValST  := Round(MaFisRet( n, 'IT_VALSOL' ) / MaFisRet( n, 'IT_QUANT' ),2)
+	
+	// Verifica se teve ST na entrada, se teve, preenche MVA
+	lST := MaFisRet( n, 'IT_VALSOL' ) > 0
+	if lST
+		nGetMVA := MaFisRet( n, 'IT_MARGEM' )
+	else
+		nGetMVA := 0
+	endif
+
+	nGetCuL := nGetUOC +; 
+			   iif( cRICM == 'S', nValICM, iif( cRICM == 'N' .and. SF4->F4_AGREG = 'I', nValICM, 0 ) ) +; 
+			   nValPC + nValIPI + nValFre + nValICF + nValOut + nValFin + nValST
 	nGetCuM := RetField( 'SB2', 1, SD1TMP->D1_FILIAL + SD1TMP->D1_COD + SD1TMP->D1_LOCAL, 'B2_CM1' )
 
 	// Saída
-	nGetTCV := nGetLuc + nGetPCV + nGetICV + nGetOpe + nGetCSL + nGetIRP + nGetIna
+	nGetTCV := nGetLuc + nGetPCV +; 
+			   iif( SB1->B1_PICMRET > 0 .and. lST, 0, nGetICV ) +; 
+				   nGetOpe + nGetCSL + nGetIRP + nGetIna
+
 	nGetPSL := nGetCuL / ( 1-(nGetTCV-nGetLuc)/100)
 	nGetSug := Round(iif( cVar == 'NGETSUG', nGetSug, ( nGetCuL / ( 1-(nGetTCV/100) ) ) / ( 1-(nGetFiV/100) ) ),TAMSX3('DA1_PRCVEN')[2])
 	nGetScI := nGetSug + ( nGetSug * ( nGetIPS/100 ) )
 	nGetMg1 := ( (nGetSug-nGetCuL) / nGetSug ) * 100
-	nGetPrc := RetField( 'DA1', 1, FWxFilial( 'DA1' ) + cGetTab + SD1TMP->D1_COD, "DA1_PRCVEN" )
+	nGetPrc := RetField( 'DA1', 1, FWxFilial( 'DA1' ) + cGetTab + cPrdAlt, "DA1_PRCVEN" )
 	nGetMg2 := iif( nGetPrc > 0, ( (nGetPrc-nGetCuL) / nGetPrc ) * 100, 0 )
 	nGetPCI := nGetPrc + ( nGetPrc * (nGetIPS/100) )
 
@@ -8078,6 +8186,12 @@ static function someChange( lReset )
 		cGetUFo := aLast[7]
 	endif
 	oDlgDoc:Refresh()
+
+	// Se já existir cálculo em memória, encerra e começa outro
+	if MaFisFound("NF")
+		MaFisEnd()
+	endif
+
 return nil
 
 /*/{Protheus.doc} getLastDoc
@@ -8863,7 +8977,7 @@ user function PCOMPRE(oBrw, oCol, cPre )
 	local bOk      := {|| nAux := 0, aEval( _aProdFil, {|x| iif( x[nPosPrd] == cProduto, nAux+= x[nPosNec], nil ) } ),;
 						  aColPro[aScan(aColPro, {|x| x[nPosPrd] == cProduto })][nPosNec] := nAux,;
 						  updCarCom( cProduto ),;
-						  oBrwPro:UpdateBrowse(),;
+						  oBrwPro:LineRefresh(),;
 						  oQtdFil:End() }
 
 	local bCancel  :={|| oQtdFil:End() }
