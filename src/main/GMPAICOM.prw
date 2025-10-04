@@ -6986,9 +6986,9 @@ Static Function fChgCar()
 					nValTot += oBrwCar:aCols[nX][carPos('TOTAL')] 
 				endif
 				if 'C7_IPI' $ cReadVar .and. oBrwCar:nAt == nX
-					nValIPI += Round(&(cReadVar)*nValTot,2)
+					nValIPI += Round((&(cReadVar)/100)*oBrwCar:aCols[nX][carPos('TOTAL')],2)
 				else
-					nValIPI += Round((oBrwCar:aCols[nX][carPos('C7_IPI')]/100)*nValTot,2) 
+					nValIPI += Round((oBrwCar:aCols[nX][carPos('C7_IPI')]/100) * oBrwCar:aCols[nX][carPos('TOTAL')],2) 
 				endif
 
 				// Atualiza totalizadores quantitativos por unidade de medida
