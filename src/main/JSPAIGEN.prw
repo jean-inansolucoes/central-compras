@@ -142,6 +142,7 @@ user function JSDETVER()
     aAdd( aDetVer, { '18','0005','02/10/2025', 'Corrigido falha que fazia com que, nos pedidos multi-filiais, ao editar as quantidades por filial, o sistema atualizasse o browse de produtos por completo.' } )
     aAdd( aDetVer, { '18','0006','03/10/2025', 'Removido do execauto do pedido de compra, o campo C7_DESCRI, para evitar validação padrão sobre o campo que, hora ou outra, apresentava inconsistências.' } )
     aAdd( aDetVer, { '18','0007','04/10/2025', 'Corrigido cálculo do valor total do pedido de compra na tela do carrinho devido a erro no cálculo do valor do IPI individual de cada produto.' } )
+    aAdd( aDetVer, { '18','0008','06/10/2025', 'Ajuste para leitura e exibição do cálculo do IPI quando empresa tem crédito na entrada.' } )
 
 return aDetVer
 

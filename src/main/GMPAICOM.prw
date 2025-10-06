@@ -1127,7 +1127,7 @@ static function entryDocs( cProduto, cDoc, cSerie, cFornece, cLoja, cTipo )
 	oBtnTab:bWhen := {|| !Empty( cGetTab ) .and. ! Round( nGetSug, 2 ) == nGetPrc .and. ( RetCodUsr() $ cMasters .or. FWIsAdmin() ) }
 
 	if lDocEntr
-		oBtnIgn := TButton():New( nLine, nIniHor+287, "Ignorar",oPanFld2,{|| checkItem(), oBrowse:LineRefresh(), someChange() }, 30,10,,,.F.,.T.,.F.,,.F.,,,.F. )
+		oBtnIgn := TButton():New( nLine, nIniHor+260, "Ignorar",oPanFld2,{|| checkItem(), oBrowse:LineRefresh(), someChange() }, 30,10,,,.F.,.T.,.F.,,.F.,,,.F. )
 		oBtnIgn:bWhen := {|| ! SD1TMP->(EOF()) .and. ( RetCodUsr() $ cMasters .or. FWIsAdmin() ) }
 	endif
 
@@ -8004,10 +8004,11 @@ Função chamada quando o sistema perceber qualquer alteração em um dos campos da 
 /*/
 static function someChange( lReset )
 	
-	local cVar      := upper(ReadVar())	
-	local aLast     := {} as array	
+	local cVar      := upper(ReadVar())
+	local aLast     := {}  as array
 	local lST       := .F. as logical
-	local n          := 1 as numeric
+	local n         := 1   as numeric
+	local nFatorIPI := 0   as numeric
 	
 	default lReset  := .F.
 
@@ -8122,7 +8123,17 @@ static function someChange( lReset )
 	cRICM   := SF4->F4_CREDICM
 	nValICM := Round(MaFisRet( n, 'IT_VALICM' )/MaFisRet( n, 'IT_QUANT' ),2) * iif( cRICM == 'S', -1, 1)
 	nGetIPI := MaFisRet( n, 'IT_ALIQIPI' )
-	nValIPI := Round( MaFisRet( n, 'IT_VALIPI' )/MaFisRet( n, 'IT_QUANT' ),2)
+	
+	// Calcula o fator do IPI para composição do custo
+	if SF4->F4_CREDIPI == 'S' .and. SF4->F4_IPI == 'S'
+		nFatorIPI := 1
+	elseif SF4->F4_CREDIPI == 'N'
+		nFatorIPI := 1
+	elseif SF4->F4_CREDIPI == 'S' .and. SF4->F4_IPI == 'R'
+		nFatorIPI := -1
+	endif
+
+	nValIPI := Round( ( MaFisRet( n, 'IT_VALIPI' )/MaFisRet( n, 'IT_QUANT' ) ) * nFatorIPI,2) 	
 	nValFre := Round(MaFisRet( n, 'IT_VLR_FRT' )/MaFisRet( n, 'IT_QUANT' ),2) + nOutFre
 	nGetFre := Round((nValFre / nGetUOC) * 100, 2)
 	nGetICF := MaFisRet( n, 'IT_ICMFRETE' )
@@ -8158,7 +8169,9 @@ static function someChange( lReset )
 
 	nGetCuL := nGetUOC +; 
 			   iif( cRICM == 'S', nValICM, iif( cRICM == 'N' .and. SF4->F4_AGREG = 'I', nValICM, 0 ) ) +; 
-			   nValPC + nValIPI + nValFre + nValICF + nValOut + nValFin + nValST
+			   nValPC +; 
+			   iif( SF4->F4_CREDIPI == 'S' .and. SF4->F4_IPI == 'S', 0, nValIPI ) +;
+			   nValFre + nValICF + nValOut + nValFin + nValST
 	nGetCuM := RetField( 'SB2', 1, SD1TMP->D1_FILIAL + SD1TMP->D1_COD + SD1TMP->D1_LOCAL, 'B2_CM1' )
 
 	// Saída
