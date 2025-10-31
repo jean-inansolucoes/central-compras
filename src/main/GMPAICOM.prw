@@ -1540,33 +1540,6 @@ return ( Nil )
 
 /*
 +-----------------+-------------------------+---------------------------------+-------------------+
-| Fonte: GMPAICOM | Funcao:  fFunApr        | Autor: Jean Carlos P. Saggin    |  Data: 04.11.2019 |
-+-----------------+-------------------------+---------------------------------+-------------------+
-| Descricao: Chama função referente a rotina de aprovação de documentos padrão do compras         |
-+-------------------------------------------------------------------------------------------------+
-| Parametros recebidos: Nil                                                                       |
-+-------------------------------------------------------------------------------------------------+
-| Retorno da funcao: Nil                                                                          |
-+-------------------------------------------------------------------------------------------------+  
-*/
-Static Function fFunApr()
-	
-	Local aArea   := GetArea()
-	Local cFunOld := FunName()
-	
-	SetFunName( "MATA094" )
-	MATA094()
-	SetFunName( cFunOld )
-	
-	RestArea( aArea )
-	
-	// Chama função que atualiza novamente o grid da tela principal para atualizar valores dos campos
-	Processa( {|| fLoadInf() }, 'Aguarde!','Analisando dados do MRP...' )
-	
-Return ( Nil )
-
-/*
-+-----------------+-------------------------+---------------------------------+-------------------+
 | Fonte: GMPAICOM | Funcao:  fRetDia        | Autor: Jean Carlos P. Saggin    |  Data: 02.08.2019 |
 +-----------------+-------------------------+---------------------------------+-------------------+
 | Descricao: Retorno da label em formato caractere com a data da projeção do estoque              |
@@ -2628,7 +2601,7 @@ Static Function fPedFor( nOpc )
 Return ( Nil )
 
 
-/*/{Protheus.doc} fPedFor
+/*/{Protheus.doc} fSolPend
 Função para exibição das solicitações de compra abertas por produto
 @type function
 @version 1.0
@@ -4049,8 +4022,10 @@ Static Function fMarkPro()
 	
 	cFilAnt := cFilHist
 
-	saveData( 'carrinho', aCarCom, aHeaCar )
-	saveData( 'carrinho_filial', aCarFil, aHeaCar )
+	if ! isInCallStack( 'U_GMINDPRO' )
+		saveData( 'carrinho', aCarCom, aHeaCar )
+		saveData( 'carrinho_filial', aCarFil, aHeaCar )
+	endif
 
 	oBrwFor:UpdateBrowse()
 	oBrwPro:LineRefresh()
@@ -6036,11 +6011,12 @@ Static Function fCarCom( cFor, cLoj )
 	endif
 
 	nLin := 58
-	oBrwCar := MsNewGetDados():New( nLin, 004, nVer-40, iif( _cPedSol == '1', nHor-24, nHor-04 ), GD_DELETE+GD_UPDATE, "AllwaysTrue", "AllwaysTrue", "", aAltCar,, Len( aCarrinho ), "U_FMANCAR", "", "AllwaysTrue", oDlgCar, aHeaCar, aCarrinho )
+	oBrwCar := MsNewGetDados():New( nLin, 004, nVer-40, iif( _cPedSol == '1' .and. carPos('C7OBSM') > 0, nHor-24, nHor-04 ),;
+			 GD_DELETE+GD_UPDATE, "AllwaysTrue", "AllwaysTrue", "", aAltCar,, Len( aCarrinho ), "U_FMANCAR", "", "AllwaysTrue", oDlgCar, aHeaCar, aCarrinho )
     oBrwCar:oBrowse:bDelOk := {|| fBrwDel() }
 
 	// Quando pedido de compra, exibe botão para observações
-	if _cPedSol == '1' 
+	if _cPedSol == '1' .and. carPos('C7OBSM') > 0
 		nLin := 78
 		oBtnObs := TBitmap():New( nLin, nHor-22, nLin+20, nHor-2, "painel_tag008.png", Nil, .T., oDlgCar,;
         {|| putObs(oBrwCar, SubStr(cCbo,1,len(cFilAnt)),; 
@@ -6697,8 +6673,7 @@ Static Function GMPCPRINT( cFil, cPC )
 	
 	local aArea    := getArea()
 	local cFilHist := cFilAnt
-	local lCustom := .T. //aConfig[28] == 'C' .and. ExistBlock( 'JSRLPDCO' )		// Verifica se o modelo de relatório a ser impresso é o padrão ou o customizado
-	// Local oRep     := Nil
+	local lCustom  := aConfig[28] == 'C' .and. ExistBlock( 'JSRLPDCO' )		// Verifica se o modelo de relatório a ser impresso é o padrão ou o customizado
 	Private lAuto  := .T.
 	
 	default cPC := ""
@@ -7032,6 +7007,7 @@ Static Function fChgCar()
 
 		dataProdUpd( oBrwCar, cCbo )
 
+		// Executa opção de salvamento de dados apenas quando chamada não partir da rotina de recálculo  de índices de produtos
 		saveData( 'carrinho', aCarCom, aHeaCar )
 		saveData( 'carrinho_filial', aCarFil, aHeaCar )
 
@@ -7480,21 +7456,24 @@ static function prodFilter( aFiltros, lManual )
 	_aFilters := aClone( aFiltros )
 	_cTypes   := _aFilters[2]
 	
-	if lFilFirst .and. File(pathSaved()) .and. aConfig[29] == 'S'
-		lFilFirst := .F.
-		if MsgYesNo( 'Foi identificado que existe processo de compra em andamento, deseja restaurá-lo? Se disser que "não", o processo será eliminado.',;
-			'A T E N Ç Ã O ! ' )
-			_aFilters := loadSaved( 'filters' )
-			_aFil     := loadSaved( 'filiais' )
-			aCarCom   := loadSaved( 'carrinho' )
-			aCarFil   := loadSaved( 'carrinho_filial' )
-			return _aFilters
+	// Apenas acessa recuperação de filtros quando tipo da variável for lógico
+	if Type( 'lFilFirst' ) == 'L'
+		if lFilFirst .and. File(pathSaved()) .and. aConfig[29] == 'S'
+			lFilFirst := .F.
+			if MsgYesNo( 'Foi identificado que existe processo de compra em andamento, deseja restaurá-lo? Se disser que "não", o processo será eliminado.',;
+				'A T E N Ç Ã O ! ' )
+				_aFilters := loadSaved( 'filters' )
+				_aFil     := loadSaved( 'filiais' )
+				aCarCom   := loadSaved( 'carrinho' )
+				aCarFil   := loadSaved( 'carrinho_filial' )
+				return _aFilters
+			else
+				// Elimina arquivo temporário para usuário dar início em um novo processo
+				fErase( pathSaved() )
+			endif
 		else
-			// Elimina arquivo temporário para usuário dar início em um novo processo
-			fErase( pathSaved() )
+			lFilFirst := .F.
 		endif
-	else
-		lFilFirst := .F.
 	endif
 	
 	oLookDlg := FWDialogModal():New()
@@ -9422,7 +9401,9 @@ static function getCarrinho( cGetFor, cGetLoj, cCbo, aHeader )
 		if aCarFil[nX][carPos('C7_FORNECE')]+ aCarFil[nX][carPos('C7_LOJA')] + aCarFil[nX][len(aCarFil[nX])] == cGetFor + cGetLoj + cCbo	
 			aAdd( aCarrinho, aClone( aCarFil[nX] ) )
 			// Adiciona legenda para saber se produto tem observação preenchida
-			aCarrinho[len(aCarrinho)][carPos('C7OBSM')] := iif( !Empty( aCarFil[nX][carPos('C7OBSM')] ), LG_OBS, LG_NO_OBS )
+			if carPos( 'C7OBSM' ) > 0
+				aCarrinho[len(aCarrinho)][carPos('C7OBSM')] := iif( !Empty( aCarFil[nX][carPos('C7OBSM')] ), LG_OBS, LG_NO_OBS )
+			endif
 		endif
 	next nX
 
@@ -10800,7 +10781,7 @@ static function saveData( cPart, aData, aHeader )
 	default aHeader := {}
 
 	// Verifica se o salvamento está habilitado nas configurações
-	if ! aConfig[29] == 'S'
+	if ! aConfig[29] == 'S' .or. isInCallStack( 'U_GMINDPRO' )
 		Return lSuccess
 	endif
 

@@ -143,6 +143,10 @@ user function JSDETVER()
     aAdd( aDetVer, { '18','0006','03/10/2025', 'Removido do execauto do pedido de compra, o campo C7_DESCRI, para evitar validação padrão sobre o campo que, hora ou outra, apresentava inconsistências.' } )
     aAdd( aDetVer, { '18','0007','04/10/2025', 'Corrigido cálculo do valor total do pedido de compra na tela do carrinho devido a erro no cálculo do valor do IPI individual de cada produto.' } )
     aAdd( aDetVer, { '18','0008','06/10/2025', 'Ajuste para leitura e exibição do cálculo do IPI quando empresa tem crédito na entrada.' } )
+    aAdd( aDetVer, { '18','0009','20/10/2025', 'Correção de error-log na rotina de execução automática do cálculo de índices por produto' } )
+    aAdd( aDetVer, { '18','0010','29/10/2025', 'Ajuste da quebra de página no relatório do pedido de compra que estava suprimindo alguns itens' } )
+    aAdd( aDetVer, { '18','0011','30/10/2025', 'Habilitado configuração que torna opcional o uso da nova versão do relatório do pedido de compra em PDF' } )
+    aAdd( aDetVer, { '18','0012','31/10/2025', 'Correção de bug que impede a criação de novos campos via PE no carrinho de compras' } )
 
 return aDetVer
 

@@ -5,7 +5,7 @@
 #include "FWPrintSetup.ch"
 
 #define N_HEIGHT        12      // Altura da linha em pixels
-#define N_MAX_LINES     80      // Quantidade máxima de linhas do relatório
+#define N_MAX_LINES     68      // Quantidade máxima de linhas do relatório
 #define ALIGN_LEFT      0       // Alinhamento à esquerda - horizontal
 #define ALIGN_RIGHT     1       // Alinhamento à direita - horizontal
 #define ALIGN_H_CENTER  2       // Alinhamento ao centro - horizontal
