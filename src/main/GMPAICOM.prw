@@ -78,6 +78,8 @@ User Function GMPAICOM()
 	local cFileWF  := "" as character
 	local aAuxHea  := doHeadCar()
 	local oAliSol   as object
+	local oData     := JsonObject():New()
+	local aData     := {'Período','Quantidade'} as array
 	
 	Private aHeaPro   := {}
 	Private aHeaSol   := {} as array
@@ -160,6 +162,11 @@ User Function GMPAICOM()
 	private aPEPNC05   := {} as array
 	private oRestore   as object
 	private lFilFirst  := .T. as logical
+	// Private oChart     as object
+	// Private oWebEngine as object
+
+	// Inicializa um Json com um vetor vazio
+	oData:Set(aData)
 
 	// Atualiza variável que indica se a conexão com supabase está ativa
 	lSupabase := U_JSGLBPAR( .T. /* lCheck */ )
@@ -475,6 +482,20 @@ User Function GMPAICOM()
 	@ 04, 06+(oWinDash:nWidth/2)*0.6 MSCOMBOBOX oCboFil VAR cCboFil ITEMS aCboFil SIZE (oWinDash:nWidth/2)*0.3, 013 OF oWinDash COLORS 8421504, 16777215 FONT oFntCbo ON CHANGE Processa( {|| fLoadAna() }, 'Aguarde!', 'Analisando sazonalidade do produto...' ) PIXEL
 
 	oPanAna := TPanel():New( 20, 0,, oWinDash,, .T.,, CLR_BLACK, CLR_BLACK, (oWinDash:nWidth/2),/*nButtom*/ (oWinDash:nHeight/2)-20 )
+
+	// Instancia a classe JSChart para exibição do gráfico de sazonalidade
+	// oChart := JSChart():New( 1,; 
+	// 						'Saídas do Produto',; 
+	// 						'Indicativo de sazonalidade do produto...',;
+	// 						oData,;
+	// 						oPanAna,;
+	// 						oWinDash:nWidth*0.9,;
+	// 						(oWinDash:nHeight-20)*0.9 )
+							
+	// oWebEngine := TWebEngine():New( oPanAna, 0, 0, 100, 100, Nil, Nil )
+	// oWebEngine:Align := CONTROL_ALIGN_ALLCLIENT
+	// oWebEngine:Navigate( oChart:LoadHTML('2') )
+
     oDash := FWChartFactory():New()
     oDash:SetChartDefault( COLUMNCHART )
     oDash:SetOwner( oPanAna )
@@ -547,6 +568,8 @@ static function entryDocs( cProduto, cDoc, cSerie, cFornece, cLoja, cTipo )
 	local lEnable  := .T. as logical
 	local cAlias   := "SD1TMP" as character
 	local oTmp     as object
+	local cFornSM0 := "" as character
+	local aFornSM0 := U_JSSUPSM0()
 	
 	// Última compra
 	local oGetUPr  as object
@@ -739,6 +762,9 @@ static function entryDocs( cProduto, cDoc, cSerie, cFornece, cLoja, cTipo )
 						"D1_VUNIT", "D1_TOTAL", "D1_VALDESC", "F1_X_FPRC", "D1_TIPO"  }
 	endif
 
+	// Monta expressão IN para desconsiderar documentos de entrada no momento da consulta de histórico
+	aEval( aFornSM0, {|x| cFornSM0 += iif( !Empty( cFornSM0 ), ",", "" ) + "'"+ x +"'" } )
+
 	if len( _aFil ) > 0
 		cQuery := "SELECT TEMP.* FROM ( "+ CEOL
 		for nEmpr := 1 to len( _aFil )
@@ -867,6 +893,9 @@ static function entryDocs( cProduto, cDoc, cSerie, cFornece, cLoja, cTipo )
 			else
 				cQuery += "  AND D1.D1_TIPO    = 'N' " + CEOL
 			endif
+
+			// Desconsidera empresas do grupo
+			cQuery += "  AND D1.D1_FORNECE NOT IN ( "+ cFornSM0 +" ) "	
 			cQuery += "  AND D1.D1_TES     <> '"+ Space( TAMSX3('D1_TES')[1] ) +"' " + CEOL	// Apenas notas já classificadas
 			cQuery += "  AND D1.D_E_L_E_T_ = ' ' " + CEOL
 			
@@ -3012,11 +3041,14 @@ Static Function fLoadAna( lNoInt )
 	local nAux     := 0 as numeric
 	local nVendido := 0 as numeric
 	local nProduz  := 0 as numeric
+	// local oData    := JsonObject():New()
+	// local aData    := {}
 	
 	Default lNoInt := .F.
 	
 	oDash:DeActivate()
-	
+	// aAdd( aData, { 'Período', 'Quantidade' } )
+
 	aCliLoja := U_JSCLISM0()
 	if len( aCliLoja ) > 0
         aEval( aCliLoja, {|x| nAux++, cINCli += "'"+ x[1] + x[2] +"'" + iif( nAux < len(aCliLoja), ',', '' ) } )
@@ -3072,7 +3104,7 @@ Static Function fLoadAna( lNoInt )
 		
 		// Monta comando para leitura dos dados do banco
 		cQuery := ""
-		oDash:SetPicture( PesqPict( cZB3, cZB3 +'_INDINC' ) )
+		oDash:SetPicture( "@E 999,999,999" )
 		For nX := 1 to Len( aPer )
 			
 			// Query para identificar saídas referente ao produto
@@ -3125,11 +3157,18 @@ Static Function fLoadAna( lNoInt )
 			EndIf
 			TMPVEN->( DbCloseArea() )
 			
+			// aAdd( aData, { aPer[nX][03],; 
+			// 			   nVendido + nProduz } )
 			oDash:AddSerie( aPer[nX][03], nVendido + nProduz )
 
 		Next nX
 		
 	EndIf
+
+	// Atualiza visualização do gráfico conforme dados
+	// oData:Set( aData )
+	// oChart:SetData( oData )
+	// oWebEngine:Navigate( oChart:loadHTML( '2' ) )
 	oDash:Activate()
 	
 	RestArea( aArea )

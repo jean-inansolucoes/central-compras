@@ -147,8 +147,40 @@ user function JSDETVER()
     aAdd( aDetVer, { '18','0010','29/10/2025', 'Ajuste da quebra de página no relatório do pedido de compra que estava suprimindo alguns itens' } )
     aAdd( aDetVer, { '18','0011','30/10/2025', 'Habilitado configuração que torna opcional o uso da nova versão do relatório do pedido de compra em PDF' } )
     aAdd( aDetVer, { '18','0012','31/10/2025', 'Correção de bug que impede a criação de novos campos via PE no carrinho de compras' } )
+    aAdd( aDetVer, { '18','0013','26/11/2025', 'Adição de cláusula para ignorar documentos de venda/transferência entre empresas do mesmo grupo no processo de formação de preços' } )
+    // aAdd( aDetVer, { '18','0014','26/11/2025', 'Upgrade do gráfico de exibição da sazonalidade dos produtos com uso do GoogleChart' } )
 
 return aDetVer
+
+/*/{Protheus.doc} JSSUPSM0
+Função para obter as filiais da empresa que o usuário estiver conectado
+@type function
+@version 1.0
+@author Jean Carlos Pandolfo Saggin
+@since 11/10/2024
+@return array, aFilData
+/*/
+user function JSSUPSM0()
+	
+	local aFilData := {} as array
+	local cQuery   := "" as character
+
+	cQuery := "SELECT DISTINCT A2.A2_COD FROM SYS_COMPANY M0 "
+	
+	cQuery += "INNER JOIN "+ RetSqlName( 'SA2' ) +" A2 "
+	cQuery += " ON A2.A2_FILIAL  = '"+ FWxFilial( 'SA2' ) +"' " 
+	cQuery += "AND A2.A2_CGC     = M0.M0_CGC "
+	cQuery += "AND A2.D_E_L_E_T_ = ' ' "
+
+	cQuery += "WHERE M0.D_E_L_E_T_  = ' ' "
+	DBUseArea( .T., "TOPCONN", TcGenQry(,,cQuery), 'SM0TMP', .F., .T.)	
+	while ! SM0TMP->(EOF())
+		aAdd( aFilData, SM0TMP->A2_COD )
+		SM0TMP->( DBSkip() )
+	end
+	SM0TMP->( DBCloseArea() )
+		
+return aFilData
 
 /*/{Protheus.doc} JSWFSOL
 Função para criação automática da estrutura do workflow para disparo automático de e-mail ao comprador
