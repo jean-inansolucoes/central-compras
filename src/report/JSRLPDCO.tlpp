@@ -263,7 +263,13 @@ static function printPDF()
 	
 	aLine := {}
 	aData := {}
-	aCab  := { { 'Valor do IPI', 80 },;
+	aCab  := { { 'ICMS', 80 },;
+		{ "R$ "+ Transform( MaFisRet(,'NF_VALICM'), "@E 999,999,999.99" ), 20 } }
+	printData( { aCab, aData }, 'quadro_itens', oPDF, Nil, .T. /* lBold */, .T. /* lTotal */ )
+
+	aLine := {}
+	aData := {}
+	aCab  := { { 'IPI', 80 },;
 		{ "R$ "+ Transform( MaFisRet(,'NF_VALIPI'), "@E 999,999,999.99" ), 20 } }
 	printData( { aCab, aData }, 'quadro_itens', oPDF, Nil, .T. /* lBold */, .T. /* lTotal */ )
 

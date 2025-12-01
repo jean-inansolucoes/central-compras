@@ -148,7 +148,8 @@ user function JSDETVER()
     aAdd( aDetVer, { '18','0011','30/10/2025', 'Habilitado configuração que torna opcional o uso da nova versão do relatório do pedido de compra em PDF' } )
     aAdd( aDetVer, { '18','0012','31/10/2025', 'Correção de bug que impede a criação de novos campos via PE no carrinho de compras' } )
     aAdd( aDetVer, { '18','0013','26/11/2025', 'Adição de cláusula para ignorar documentos de venda/transferência entre empresas do mesmo grupo no processo de formação de preços' } )
-    // aAdd( aDetVer, { '18','0014','26/11/2025', 'Upgrade do gráfico de exibição da sazonalidade dos produtos com uso do GoogleChart' } )
+    aAdd( aDetVer, { '18','0014','01/12/2025', 'Ajuste no somatório do pedido de compras quando impresso por meio do modelo padrão do Painel.' } )
+    // aAdd( aDetVer, { '18','0015','26/11/2025', 'Upgrade do gráfico de exibição da sazonalidade dos produtos com uso do GoogleChart' } )
 
 return aDetVer
 
