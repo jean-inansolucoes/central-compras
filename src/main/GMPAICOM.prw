@@ -80,6 +80,7 @@ User Function GMPAICOM()
 	local oAliSol   as object
 	local oData     := JsonObject():New()
 	local aData     := {'Período','Quantidade'} as array
+	// local oFontPro  := TFont():New( 'monospace', 7, 15 )
 	
 	Private aHeaPro   := {}
 	Private aHeaSol   := {} as array
@@ -379,6 +380,9 @@ User Function GMPAICOM()
 			 'pode gerar falhas no processo de análise de compras e, consequentsemente, rupturas indesejadas de estoque.' )
 	endif
 
+	// Checa índices dos produtos calculados e remove registros em duplicidades
+	// Processa({|| checkZB3( CtoD( SubStr( cLastRun, 1, 10 ) ) ) }, 'Aguarde', 'Checando índices de produtos...' ) 
+
 	DEFINE MSDIALOG oDlgCom TITLE AllTrim( SM0->M0_FILIAL ) +" | Painel de Compra - "+ U_JSGETVER() FROM 000, 000  TO aSize[06], aSize[05] COLORS 0, 16777215 PIXEL STYLE DS_MODALFRAME
 	oDlgCom:lEscClose := .F.		// Desabilita fechamento da tela com tecla ESC
 
@@ -399,7 +403,7 @@ User Function GMPAICOM()
 	oWinPar  := oLayer:GetWinPanel( 'colPar' , 'winPar', "line1")
 	oWinDash := oLayer:GetWinPanel( 'colDash', 'winDash', "line1")
 	
-	oLayer:AddLine( "line2", 100-round((250/aSize[6])*100,0), .T. )
+	oLayer:AddLine( "line2", 100-round(((250+60)/aSize[6])*100,0), .T. )
 	oLayer:AddColumn( "colPro", 100, .F., "line2" )
 	oLayer:AddWindow( 'colPro' , 'winPro' , 'Produtos', 100, .F., .F., {|| Nil }, "line2")
 	oWinPro  := oLayer:GetWinPanel( 'colPro' , 'winPro', "line2")
@@ -441,6 +445,9 @@ User Function GMPAICOM()
 	oBrwPro:SetEditCell( .T., {|| U_PCOMVLD() } )
 	oBrwPro:SetPreEditCell( {|oBrw,oCol,cPre| U_PCOMPRE(oBrw, oCol, cPre) } )
 	oBrwPro:SetChange( {|| Processa( {|| iif( ValType( oDash ) == 'O', fLoadAna(), Nil ) }, 'Aguarde!', 'Analisando sazonalidade do produto...' ) } )
+	// oBrwPro:DisableConfig()
+	// oBrwPro:SetLineHeight( 20 )
+	// oBrwPro:SetFontBrowse( oFontPro )
 	oBrwPro:Activate()
 	
 	@ 12, 10 SAY oLblPrj PROMPT "Projeção de estoque para..." SIZE 080, 011 OF oWinPar FONT oFntTxt COLORS 8421504, 16777215 PIXEL
@@ -3511,6 +3518,10 @@ Static Function fLoadInf()
 	// FORTMP->( DBSetOrder( 1 ) )
 	// Devolve o posicionamento do fornecedor
 	// FORTMP->( DbGoTo( nRecFor ) )
+	
+	// Ordena o array pela descrição dos produtos que estão sendo exibidos
+	aSort( aColPro,,,{|x,y| x[nPosDes] < y[nPosDes] } )
+
 	aFullPro := aClone( aColPro )
 	oBrwPro:SetArray(aColPro) 
 	oBrwPro:UpdateBrowse()
@@ -4983,7 +4994,7 @@ User Function GMINDPRO( aParam )
 	
 	aPerAna := {}
 	if aConfig[15] == 'C'
-		aPerAna := { dHoje-aConfig[14], dHoje } 
+		aPerAna := { dHoje-(aConfig[14]-1), dHoje } 
 	Else
 		nDUteis := 0
 		nAux    := 0
@@ -5033,7 +5044,7 @@ User Function GMINDPRO( aParam )
 			aPerProd := {} 						// Vetor de períodos a serem considerados para cada produto
 			dDataAux := aPerAna[02]				// Variável auxiliar para ajudar a determinar a faixa de período de cada produto
 			nDiasAux := 0						// Variável auxiliar para contagem de dias já analisados
-			nDiasTot := aPerAna[02]-aPerAna[01]	// Total de dias que vão ser analisados para o produto
+			nDiasTot := aPerAna[02]-(aPerAna[01]-1)	// Total de dias que vão ser analisados para o produto
 			
 			// Valida existência de codigo de produto anterior 
 			if Empty( SB1->B1_CODANT )
@@ -8482,7 +8493,8 @@ static function getColPro( aFields, aAlter )
 	local nX       := 0 as numeric
 	local aAux     := {} as array
 	local cType    := "" as character
-	local nPropor  := 0.6 
+	local nPropor  := 0.4 
+	local aPEPNC07 := {} as array
 
 	for nX := 1 to len( aFields )
 		DBSelectArea( 'SB1' )
@@ -8532,7 +8544,7 @@ static function getColPro( aFields, aAlter )
 							aFields[nX] })                          								// [n][17] Id da coluna
 		elseif aFields[nX] == 'NECCOMP'
 			aAdd(aColumns, {;
-							'Comprar',;                     										// [n][01] Título da coluna
+							'Sug.Compra',;                     										// [n][01] Título da coluna
 							&("{|oBrw| aColPro[oBrw:At()]["+ cValToChar(nX+2) +"] }"),; 			// [n][02] Code-Block de carga dos dados
 							"N",;                													// [n][03] Tipo de dados
 							PesqPict( 'SC7', 'C7_QUANT' ),;                     					// [n][04] Máscara
@@ -8780,6 +8792,16 @@ static function getColPro( aFields, aAlter )
 							aFields[nX] })                          								// [n][17] Id da coluna
 		endif
 	next nX
+
+	// Ponto de entrada para personalização das colunas do browse de produtos
+	// Nele são permitidas várias alterações, desde que, o tamanho do vetor retornado seja o mesmo, ou seja,
+	// Não se pode adicionar ou remover campos, apenas editá-los
+	if ExistBlock( 'PEPNC07' )
+		aPEPNC07 := Execblock( 'PEPNC07', .F., .F., { aClone( aColumns ) } )
+		if ValType( aPEPNC07 ) == 'A' .and. len( aPEPNC07 ) == len( aColumns )
+			aColumns := aPEPNC07
+		endif
+	endif
 
 return aColumns
 
@@ -10893,3 +10915,54 @@ static function convData( xData )
     endif
 
 return xRet
+
+/*/{Protheus.doc} checkZB3
+Função para remoção de registros em duplicidade para um mesmo produto em uma mesma data
+@type function
+@version 12.1.2410
+@author Jean Carlos Pandolfo Saggin
+@since 02/12/2025
+@param dLast, date, última data de execução
+/*/
+static function checkZB3( dLast )
+	
+	local cQuery := "" as character
+	local cAlias := "" as character
+	local nQuant := 0 as numeric
+
+	// Comando para identificar registros duplicados por produto, filial e data
+	cQuery := "SELECT "+ cZB3 +"_FILIAL FILIAL, "+ cZB3 +"_DATA DATA, "+ cZB3 +"_PROD PRODUTO, MAX( R_E_C_N_O_ ) RECSAVE FROM "+ RetSqlName( cZB3 ) +" "
+	cQuery += "WHERE "+ cZB3 +"_FILIAL = '"+ FWxFilial( cZB3 ) +"' "
+	cQuery += "  AND "+ cZB3 +"_DATA   = '"+ DtoS( dLast ) +"' "
+	cQuery += "  AND D_E_L_E_T_ = ' ' "
+	cQuery += "GROUP BY "+ cZB3 +"_FILIAL, "+ cZB3 +"_DATA, "+ cZB3 +"_PROD "
+	cQuery += "HAVING COUNT(*) > 1"
+
+	cAlias := MpSysOpenQuery( cQuery )
+	Count to nQuant
+
+	ProcRegua( nQuant )
+	( cAlias )->( DBGoTop() )
+
+	DBSelectArea( cAlias )
+	While ! ( cAlias )->( EOF() )
+		IncProc( 'Simplificando análise para o produto '+ AllTrim( RetField( 'SB1', 1, FWxFilial( 'SB1' ) + ( cAlias )->PRODUTO, 'B1_DESC' ) ) +'...' )
+		
+		// Monta query para deleção de registros falhos
+		cQuery := "DELETE FROM "+ RetSqlName( cZB3 ) +" "
+		cQuery += "WHERE "+ cZB3 +"_FILIAL = '"+ FWxFilial( cZB3 ) +"' "
+		cQuery += "  AND "+ cZB3 +"_DATA   = '"+ DtoS( dLast ) +"' "
+		cQuery += "  AND "+ cZB3 +"_PROD   = '"+ ( cAlias )->PRODUTO +"' "
+		cQuery += "  AND R_E_C_N_O_ <> "+ cValToChar( ( cAlias )->RECSAVE ) +" "
+
+		if TCSqlExec( cQuery ) < 0
+			hlp( 'NO_DELETE_ZB3',;
+				 'Não foi possível remover registros duplicados da tabela '+ cZB3,;
+				 TcSqlError() )
+		endif
+		
+		( cAlias )->( DBSkip() )
+	end
+	( cAlias )->( DBCloseArea() )
+
+return Nil

@@ -149,7 +149,11 @@ user function JSDETVER()
     aAdd( aDetVer, { '18','0012','31/10/2025', 'Correção de bug que impede a criação de novos campos via PE no carrinho de compras' } )
     aAdd( aDetVer, { '18','0013','26/11/2025', 'Adição de cláusula para ignorar documentos de venda/transferência entre empresas do mesmo grupo no processo de formação de preços' } )
     aAdd( aDetVer, { '18','0014','01/12/2025', 'Ajuste no somatório do pedido de compras quando impresso por meio do modelo padrão do Painel.' } )
-    // aAdd( aDetVer, { '18','0015','26/11/2025', 'Upgrade do gráfico de exibição da sazonalidade dos produtos com uso do GoogleChart' } )
+    aAdd( aDetVer, { '18','0015','01/12/2025', 'Ajuste na disposição da grid de produtos para permitir ao usuário arrastar para o lado utilizando mouse' } )
+    aAdd( aDetVer, { '18','0016','02/12/2025', 'Ajuste de espaçamento dos campos da grid de produtos para melhor aproveitamento de espaço da tela' } )
+    aAdd( aDetVer, { '18','0017','04/12/2025', 'Ajustado cálculo de dias para consumo médio quando tipo de período analisado for Dias Corridos' } )
+    aAdd( aDetVer, { '18','0018','05/12/2025', 'Criado ponto de entrada para permitir que o cliente altere configurações dos campos da grid de acordo com sua necessidade' } )
+    aAdd( aDetVer, { '18','0019','05/12/2025', 'Adicionado regra de ordenação no grid de produtos para que o sistema sempre traga os dados ordenados pela descrição' } )
 
 return aDetVer
 
@@ -536,10 +540,13 @@ user function JSQRYINF( aConf, aFilters, cPedSol, aCustom )
         cQuery += "  AND C1.C1_PEDIDO  = '"+ Space( TAMSX3( 'C1_PEDIDO' )[1] ) +"' " + CEOL
         cQuery += "  AND C1.C1_RESIDUO = ' ' " + CEOL
         cQuery += "  AND C1.D_E_L_E_T_ = ' ' " + CEOL
-        cQuery += " ),0 ) QTDSOL, " + CEOL        // Quantidade em solicitação de compra
+        cQuery += " ),0 ) QTDSOL "                       // Quantidade em solicitação de compra
 
-        cQuery += "COALESCE("+ cZB3 +"_CONMED,0.0001) "+ cZB3 +"_CONMED, " + CEOL
-        cQuery += "COALESCE("+ cZB3 +"_INDINC,0) "+ cZB3 +"_INDINC " + CEOL
+        if ! isInCallStack( 'U_GMINDPRO' )
+            cQuery += ", " + CEOL
+            cQuery += "COALESCE( "+ cZB3 +"_CONMED,0.0001) "+ cZB3 +"_CONMED, " + CEOL
+            cQuery += "COALESCE( "+ cZB3 +"_INDINC,0) "+ cZB3 +"_INDINC " + CEOL
+        endif
 
         // Adiciona os campos customizados à query de captura dos dados
         if len(aCustom) > 0
@@ -593,11 +600,14 @@ user function JSQRYINF( aConf, aFilters, cPedSol, aCustom )
 
         endif
 
-        cQuery += "LEFT JOIN "+ RetSqlName( cZB3 ) +" "+ cZB3 +" " + CEOL
-        cQuery += " ON "+ cZB3 +"."+ cZB3 +"_FILIAL = '"+ FWxFilial( cZB3 ) +"' " + CEOL
-        cQuery += "AND "+ cZB3 +"."+ cZB3 +"_PROD   = B1.B1_COD " + CEOL
-        cQuery += "AND "+ cZB3 +"."+ cZB3 +"_DATA   = '"+ DtoS( dDtCalc ) +"' " + CEOL
-        cQuery += "AND "+ cZB3 +".D_E_L_E_T_ = ' ' " + CEOL
+        // Quando a demanda vier da rotina de recálculo de índices, desconsidera os índices existentes
+        if ! isInCallStack( 'U_GMINDPRO' )
+            cQuery += "LEFT JOIN "+ RetSqlName( cZB3 ) +" "+ cZB3 +" " + CEOL
+            cQuery += " ON "+ cZB3 +"."+ cZB3 +"_FILIAL = '"+ FWxFilial( cZB3 ) +"' " + CEOL
+            cQuery += "AND "+ cZB3 +"."+ cZB3 +"_PROD   = B1.B1_COD " + CEOL
+            cQuery += "AND "+ cZB3 +"."+ cZB3 +"_DATA   = '"+ DtoS( dDtCalc ) +"' " + CEOL
+            cQuery += "AND "+ cZB3 +".D_E_L_E_T_ = ' ' " + CEOL
+        endif
 
         cQuery += "WHERE B1.B1_FILIAL  = '"+ FWxFilial( 'SB1' ) +"' "+ CEOL 
         
