@@ -2,6 +2,14 @@
 	"version": "0.2.0",
 	"configurations": [
 		{
+			"type": "totvs_language_web_debug",
+			"request": "launch",
+			"name": "Smart Client Web Debug",
+			"program": "${command:AskForProgramName}",
+			"isMultiSession": true,
+			"enableTableSync": true
+		},
+		{
 			"type": "totvs_language_debug",
 			"request": "launch",
 			"name": "Depuração do idioma TOTVS",
@@ -14,5 +22,11 @@
 				"charDetails": false
 			}
 		}
-	]
+	],
+	"lastPrograms": [
+		{
+			"label": "sigacom"
+		}
+	],
+	"lastProgramExecuted": "sigacom"
 }
