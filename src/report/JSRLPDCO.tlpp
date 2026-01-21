@@ -574,8 +574,8 @@ Função para imprimir os dados no arquivo PDF
 static function printData( xData, cType, oPDF, lEndPage, lBold, lTotal )
 
 	local oFontCab  := TFont():New('Arial',,-6,,.F.)
-	local oFontGrid := TFont():New('Calibri',,-6,,.F.)
-	local oFontGrB  := TFont():New('Calibri',,-7,,.T.)
+	local oFontGrid := TFont():New('Arial',,-6,,.F.)
+	local oFontGrB  := TFont():New('Arial',,-7,,.T.)
 	local oFontTitle:= TFont():New('Arial',,-10,,.T. /* lBold */,,,,,.T. /* lUnderline */, .F. /* lItalic */)
 	local oFontTmp  as object
 	local nX        := 0 as numeric

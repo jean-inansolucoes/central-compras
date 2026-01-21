@@ -24,6 +24,21 @@ user function JSGETVER()
                 aDetVer[len(aDetVer)][3] /* cDate */+')'
 return cDetVer
 
+/*/{Protheus.doc} JSDICVER
+Retorna a versão do dicionário de dados e da rotina que está em uso
+@type function
+@version 12.1.2410
+@author Jean Carlos Pandolfo Saggin
+@since 20/01/2026
+@return character, cDicVer
+/*/
+user function JSDICVER()
+    local cDicVer := "" as character
+    local aDetVer := {} as array
+    aDetVer := U_JSDETVER()
+    cDicVer := aDetVer[len(aDetVer)][1]
+return cDicVer
+
 /*/{Protheus.doc} JSDETVER
 Função com detalhamento das versões do aplicativo.
 @type function
@@ -154,6 +169,9 @@ user function JSDETVER()
     aAdd( aDetVer, { '18','0017','04/12/2025', 'Ajustado cálculo de dias para consumo médio quando tipo de período analisado for Dias Corridos' } )
     aAdd( aDetVer, { '18','0018','05/12/2025', 'Criado ponto de entrada para permitir que o cliente altere configurações dos campos da grid de acordo com sua necessidade' } )
     aAdd( aDetVer, { '18','0019','05/12/2025', 'Adicionado regra de ordenação no grid de produtos para que o sistema sempre traga os dados ordenados pela descrição' } )
+    aAdd( aDetVer, { '18','0020','20/01/2026', 'Ajuste para exibir código do produto em que está sendo formado o preço de venda junto da descrição do mesmo' } )
+    aAdd( aDetVer, { '18','0021','20/01/2026', 'Permitir acessar o kardex do produto por dentro da tela de formação de preços' } )
+    aAdd( aDetVer, { '18','0022','20/01/2026', 'Permitir salvar índice padrão para IPI de saída na tela de formação de preços.' } )
 
 return aDetVer
 

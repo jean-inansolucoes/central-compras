@@ -558,7 +558,7 @@ static function entryDocs( cProduto, cDoc, cSerie, cFornece, cLoja, cTipo )
 	
 	local aArea    := getArea()
 	local cQuery   := "" as character
-	local aButtons := {} as array
+	local aButtons := {{"KARDEX", {|| viewKardex(iif(cProduto<>Nil,cProduto,SD1TMP->D1_COD)) }, 'Consultar Kardex do Produto' }} as array
 	local lSuccess := .T. as logical
 	local bOk      :={|| iif( lDocEntr, lSuccess := checkDoc( oBrowse, SD1TMP->D1_FILIAL, cDoc, cSerie, cFornece, cLoja, cTipo ), Nil), iif( lSuccess, oDlgDoc:End(), Nil )}
 	local bCancel  :={|| oDlgDoc:End()}
@@ -597,6 +597,7 @@ static function entryDocs( cProduto, cDoc, cSerie, cFornece, cLoja, cTipo )
 	local oBtnIRP  as object
 	local oBtnIna  as object
 	local oBtnFin  as object
+	local oBtnIPS  as object
 	local nEmpr    := 0 as numeric
 	local cDB      := TCGetDB()
 	local cFilHist := cFilAnt
@@ -1152,6 +1153,8 @@ static function entryDocs( cProduto, cDoc, cSerie, cFornece, cLoja, cTipo )
 
 	nLine += 14
 	oGetIPS   := doGet( nLine, nIniHor+4, {|u| if( PCount()>0,nGetIPS:=u,nGetIPS ) }, oPanFld2, 40, 10, "@E 9,999,999.99", 'nGetIPS', 'IPI Saída', lEnable )
+	oBtnIPS   := TButton():New( nLine, nIniHor+110, "Tornar Padrão",oPanFld2,{|| PutMV( 'MV_X_PNC19', nGetIPS ), readGlobal(), someChange() }, 40,10,,,.F.,.T.,.F.,,.F.,,,.F. )
+	oBtnIPS:bWhen := {|| GetMv( 'MV_X_PNC19', .T. /* lCheck */ ) .and. nGetIPS != GetMV( 'MV_X_PNC19' ) }
 
 	nLine += 14
 	oGetPSL   := doGet( nLine, nIniHor+4, {|u| if( PCount()>0,nGetPSL:=u,nGetPSL ) }, oPanFld2, 40, 10, "@E 9,999,999.99", 'nGetPSL', 'Prc.s/Lucro', !lEnable )
@@ -1346,6 +1349,7 @@ static function readGlobal()
 	nGetIna := GetMV( 'MV_X_PNC09')
 	nGetFiV := GetMV( 'MV_X_PNC10')
 	nGetICV := GetMV( 'MV_X_PNC18')
+	nGetIPS := GetMV( 'MV_X_PNC19')
 return Nil
 
 /*/{Protheus.doc} getLucro
@@ -8096,7 +8100,7 @@ static function someChange( lReset )
 		else
 			cPrdAlt := SD1TMP->D1_COD
 		endif
-		oPanFld2:cCaption := "Formação de Preços "+ AllTrim( RetField( 'SB1', 1, FWxFilial( 'SB1' ) + cPrdAlt, 'B1_DESC' ) ) +'  '
+		oPanFld2:cCaption := "Formação de Preços "+ AllTrim(cPrdAlt) +"-"+ AllTrim( RetField( 'SB1', 1, FWxFilial( 'SB1' ) + cPrdAlt, 'B1_DESC' ) ) +'  '
 
 	else
 		if cVar == 'NGETUOC'
