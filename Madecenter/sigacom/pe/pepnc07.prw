@@ -13,7 +13,7 @@ user function pepnc07()
     local aColumns := PARAMIXB[1]
     
     if aScan( aColumns, {|x| AllTrim(x[17]) == 'PRCNEGOC' } ) > 0
-        aColumns[ aScan( aColumns, {|x| AllTrim(x[17]) == 'PRCNEGOC' } ) ][4] := "@E 999,999,999.99"
+        aColumns[ aScan( aColumns, {|x| AllTrim(x[17]) == 'PRCNEGOC' } ) ][4] := "@E 99,999,999.9999"
     endif
     if aScan( aColumns, {|x| AllTrim(x[17]) == 'ULTPRECO' } ) > 0
         aColumns[ aScan( aColumns, {|x| AllTrim(x[17]) == 'ULTPRECO' } ) ][4] := "@E 999,999,999.99"
