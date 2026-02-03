@@ -19,6 +19,7 @@ User Function JSGLBPAR( lCheck )
     Local oWiz     as object
     Local oPgAtu   as object
     local lChecked := .F. as logical
+    local lStruct  := .T. as logical
 
     Private oIntAct   as object
     Private oContract as object
@@ -28,9 +29,21 @@ User Function JSGLBPAR( lCheck )
     Private lSupabase := .F. as logical
     Private nCustomer := 0 as numeric
     Private aTab      := {} as array
+    Private aPar      := {} as array
+    Private aParams   := getParams()
     Private oBrowse   as object
+    Private cDictVer  := Alltrim(SuperGetMv( 'MV_X_PNC20',,"00" ))
    
     default lCheck := .F.
+
+    // Tabelas a serem checadas no momento do acesso à plataforma
+    aAdd( aTab, { "01", "PNC_CONFIG_"+ cEmpAnt, "" } )
+
+    // Faz a checagem de status das tabelas 
+    // if ! cDictVer == U_JSDICVER()
+    //     aEval( aParams, {|x| lStruct := lStruct .and. GetMv( x[1], .T. ) } )
+    //     aEval( aTab, {|x| lStruct := lStruct .and. U_JSTBLCHK( x[2] ) == 'O' } )
+    // endif
 
     // Carrega os dados do cliente
     MsAguarde({|| lSupabase := chkActive() }, 'Conectando...', 'Checando conexão com ambiente web...' )
@@ -39,7 +52,7 @@ User Function JSGLBPAR( lCheck )
         if nCustomer > 0
             MsAguarde({|| aContract := getContract() }, 'Obtendo contrato...', 'Verificando contratos vigentes para o cliente...' )
             if len( aContract ) > 0
-                lChecked := lSupabase .and. Date() <= aContract[3]
+                lChecked := lStruct .and. lSupabase .and. Date() <= aContract[3]
             endif
         endif
     endif
@@ -51,6 +64,7 @@ User Function JSGLBPAR( lCheck )
                 'Você está utilizando a rotina Painel de Compras em versão trial (versão de avaliação)',;
                 'Aproveite todas as funcionalidades, você tem até '+ DtoC( aContract[3] ) +' para fazer seu setor de compras decolar!' )
         endif
+        
         Return lChecked
     endif
 
@@ -84,14 +98,21 @@ User Function JSGLBPAR( lCheck )
     oPgAtu:SetCancelAction( {|| iif( MsgYesNo( 'Está certo de que gostaria de sair do do assistente?', 'Tem certeza?' ), oDlgConf:DeActivate(), .F. ) } )
 
     oPgAtu := oWiz:AddStep("3", {|oPanel| buildPanel( 3 /* nPage */, oPanel) } )
-    oPgAtu:SetStepDescription( 'Dicionário de Dados' )
+    oPgAtu:SetStepDescription( 'Parâmetros Internos' )
     oPgAtu:SetNextAction( {|| nextPage(3) } )
     oPgAtu:SetPrevAction( {|| .T. } )
     oPgAtu:SetPrevTitle( "Contrato" )
     oPgAtu:SetCancelAction( {|| iif( MsgYesNo( 'Está certo de que gostaria de sair do do assistente?', 'Tem certeza?' ), oDlgConf:DeActivate(), .F. ) } )
 
-    // Página 4 - Finalização
     oPgAtu := oWiz:AddStep("4", {|oPanel| buildPanel( 4 /* nPage */, oPanel) } )
+    oPgAtu:SetStepDescription( 'Dicionário de Dados' )
+    oPgAtu:SetNextAction( {|| nextPage(4) } )
+    oPgAtu:SetPrevAction( {|| .T. } )
+    oPgAtu:SetPrevTitle( "Parâmetros" )
+    oPgAtu:SetCancelAction( {|| iif( MsgYesNo( 'Está certo de que gostaria de sair do do assistente?', 'Tem certeza?' ), oDlgConf:DeActivate(), .F. ) } )
+
+    // Página 4 - Finalização
+    oPgAtu := oWiz:AddStep("5", {|oPanel| buildPanel( 5 /* nPage */, oPanel) } )
     oPgAtu:SetStepDescription( 'Finalização' )
     oPgAtu:SetNextAction( {|| oDlgConf:DeActivate() } )
     oPgAtu:SetPrevAction( {|| .T. } )
@@ -128,6 +149,7 @@ Static Function buildPanel( nPage, oPanel )
     local bDataExp  := {|| 'Data de expiração.......: '+ DtoC( iif( lSupabase, aContract[3], StoD(" ") ) ) }
     local cMessage  := "" as character
     local aColumns  := {} as array
+    local nPos      := 0 as numeric
 
     default nPage := 1
 
@@ -152,18 +174,63 @@ Static Function buildPanel( nPage, oPanel )
         oDataExp := TSay():New( nLine*nLnSize, 30, bDataExp, oPanel,,oFont,,,,.T.,CLR_GRAY,CLR_WHITE,400,20)
         oDataExp:CtrlRefresh()
 
-    elseif nPage == 3       // Dicionário de dados
+    elseif nPage == 3       // Parâmetros internos
 
-        aTab := {}
-        aAdd( aTab, { "01", "PNC_CONFIG_"+ cEmpAnt, "" } )
-        // aAdd( aTab, { "02", "PNC_CALC_PROD_"+ cEmpAnt, "" } )
-        // aAdd( aTab, { "03", "PNC_ITENS_DESC_"+ cEmpAnt, "" } )
-        // aAdd( aTab, { "04", "PNC_TAGS_"+ cEmpAnt, "" } )
-        // aAdd( aTab, { "05", "PNC_ALERTAS_"+ cEmpAnt, "" } )
-        // aAdd( aTab, { "06", "PNC_ALERTAS_ENV_"+ cEmpAnt, "" } )
-        // aAdd( aTab, { "07", "PNC_PERFIS_"+ cEmpAnt, "" } )
+        // Monta lista de parâmetros e checa existência de cada um
+        aPar     := {}
+        aColumns := {}
+        aEval( aParams, {|x| nPos++, aAdd( aPar, { aParams[nPos][1],;
+                                                    AllTrim(aParams[nPos][3]+aParams[nPos][4]+aParams[nPos][5]),;
+                                                    GetMv(aParams[nPos][1], .T.),;
+                                                    AllTrim(ConvPar(SuperGetMv(aParams[nPos][1],,aParams[nPos][6]))) } ) } )
+
+        aAdd( aColumns, FWBrwColumn():New() )
+        aColumns[len(aColumns)]:SetTitle( 'Parâmetro' )
+        aColumns[len(aColumns)]:SetType( 'C' )
+        aColumns[len(aColumns)]:SetSize( 10 )
+        aColumns[len(aColumns)]:SetDecimal( 0 )
+        aColumns[len(aColumns)]:SetPicture( "@!" )
+        aColumns[len(aColumns)]:SetData( {|oBrw| aPar[oBrw:At()][1] } )
+        
+        aAdd( aColumns, FWBrwColumn():New() )
+        aColumns[len(aColumns)]:SetTitle( 'Descrição' )
+        aColumns[len(aColumns)]:SetType( 'C' )
+        aColumns[len(aColumns)]:SetSize( 20 )
+        aColumns[len(aColumns)]:SetDecimal( 0 )
+        aColumns[len(aColumns)]:SetPicture( "@x" )
+        aColumns[len(aColumns)]:SetData( {|oBrw| aPar[oBrw:At()][2] } )
+
+        aAdd( aColumns, FWBrwColumn():New() )
+        aColumns[len(aColumns)]:SetTitle( 'Status' )
+        aColumns[len(aColumns)]:SetType( 'C' )
+        aColumns[len(aColumns)]:SetSize( 2 )
+        aColumns[len(aColumns)]:SetDecimal( 0 )
+        aColumns[len(aColumns)]:SetPicture( "@x" )
+        aColumns[len(aColumns)]:SetData( {|oBrw| iif( aPar[oBrw:At()][3], "Ok","Inexistente" ) } )
+
+        aAdd( aColumns, FWBrwColumn():New() )
+        aColumns[len(aColumns)]:SetTitle( 'Conteúdo' )
+        aColumns[len(aColumns)]:SetType( 'C' )
+        aColumns[len(aColumns)]:SetSize( 15 )
+        aColumns[len(aColumns)]:SetDecimal( 0 )
+        aColumns[len(aColumns)]:SetPicture( "@x" )
+        aColumns[len(aColumns)]:SetData( {|oBrw| aPar[oBrw:At()][4] } )
+
+        oBrowse := FWBrowse():New( oPanel )
+        oBrowse:SetDataArray()
+        oBrowse:SetArray( aPar )
+        oBrowse:AddStatusColumn( {|| iif( aPar[oBrowse:At()][3], "BR_VERDE","BR_VERMELHO" ) }, Nil )
+        oBrowse:SetColumns( aColumns )
+        // oBrowse:GetColumn(2):bLDblClick := {|oBrowse| editPar( oBrowse ) }
+        // oBrowse:GetColumn(3):bLDblClick := {|oBrowse| editPar( oBrowse ) }
+        oBrowse:DisableConfig()
+        oBrowse:DisableReport()
+        oBrowse:Activate()
+
+    elseif nPage == 4       // Dicionário de dados
 
         // Faz a checagem de status das tabelas 
+        aColumns := {}
         aEval( aTab, {|x| x[3] := U_JSTBLCHK( x[2] ) } )
         
         aAdd( aColumns, FWBrwColumn():New() )
@@ -201,7 +268,7 @@ Static Function buildPanel( nPage, oPanel )
         oBrowse:DisableReport()
         oBrowse:Activate()
 
-    elseif nPage == 4       // Finalização
+    elseif nPage == 5       // Finalização
         nLine := 2
         cMessage := "A checagem do PlugIn Painel de Compras foi finalizada"
         if Date() > aContract[3]
@@ -216,7 +283,7 @@ Static Function buildPanel( nPage, oPanel )
 
     endif
 
-return Nil
+return Nil 
 
 /*/{Protheus.doc} contractType
 Função para retornar tipo de contrato atual do cliente
@@ -272,7 +339,11 @@ Static Function nextPage( nAtual )
 
     // elseif nAtual == 2  // Status do Contrato
 
-    elseif nAtual == 3  // Dicionário
+    elseif nAtual == 3  // Parâmetros
+
+        aEval( aParams, {|x| lSuccess := lSuccess .and. iif( ! GetMv( x[1], .T. ), incPar(x), .T. ) } )
+
+    elseif nAtual == 4  // Dicionário
 
         if len( aTab ) > 0
             
@@ -392,11 +463,67 @@ Static Function nextPage( nAtual )
         endif
 
 
-    elseif nAtual == 4  // Fim
+    elseif nAtual == 5  // Fim
         lSuccess := .T.
     endif
 
 return lSuccess
+
+/*/{Protheus.doc} incPar
+Função para inclusão automática de parâmetro no configurador
+@type function
+@version 12.1.2410
+@author Jean Carlos Pandolfo Saggin
+@since 20/01/2026
+@param aPar, array, vetor contendo dados do parâmetro a ser incluído
+@return logical, lSuccess
+/*/
+static function incPar( aPar )
+    local lSuccess := .F. as logical
+    local cSX6     := "SX6" as character
+    RecLock( cSX6, .T. )
+        ( cSX6 )->( FieldPut( FieldPos( 'X6_FIL'     ), cFilAnt ) )
+        ( cSX6 )->( FieldPut( FieldPos( 'X6_VAR'     ), aPar[1] ) )
+        ( cSX6 )->( FieldPut( FieldPos( 'X6_TIPO'    ), aPar[2] ) )
+        ( cSX6 )->( FieldPut( FieldPos( 'X6_DESCRIC' ), aPar[3] ) )
+        ( cSX6 )->( FieldPut( FieldPos( 'X6_DSCSPA'  ), aPar[3] ) )
+        ( cSX6 )->( FieldPut( FieldPos( 'X6_DSCENG'  ), aPar[3] ) )
+        ( cSX6 )->( FieldPut( FieldPos( 'X6_DESC1'   ), aPar[4] ) )
+        ( cSX6 )->( FieldPut( FieldPos( 'X6_DSCSPA1' ), aPar[4] ) )
+        ( cSX6 )->( FieldPut( FieldPos( 'X6_DSCENG1' ), aPar[4] ) )
+        ( cSX6 )->( FieldPut( FieldPos( 'X6_DESC2'   ), aPar[5] ) )
+        ( cSX6 )->( FieldPut( FieldPos( 'X6_DSCSPA2' ), aPar[5] ) )
+        ( cSX6 )->( FieldPut( FieldPos( 'X6_DSCENG2' ), aPar[5] ) )
+        ( cSX6 )->( FieldPut( FieldPos( 'X6_CONTEUD' ), convPar(aPar[6]) ) )
+        ( cSX6 )->( FieldPut( FieldPos( 'X6_CONTSPA' ), convPar(aPar[6]) ) )
+        ( cSX6 )->( FieldPut( FieldPos( 'X6_CONTENG' ), convPar(aPar[6]) ) )
+        ( cSX6 )->( FieldPut( FieldPos( 'X6_PROPRI'  ), "U" ) )
+        ( cSX6 )->( FieldPut( FieldPos( 'X6_ACTIVE'  ), "1" ) )
+    ( cSX6 )->( MsUnlock() )
+    lSuccess := .T.
+return lSuccess
+
+/*/{Protheus.doc} convPar
+Função para converter conteúdo do parâmetro para possibilitar inserção no SX6
+@type function
+@version 12.1.2410
+@author Jean Carlos Pandolfo Saggin
+@since 20/01/2026
+@param xValue, variant, conteúdo a ser gravado no parâmetro
+@return character, cValue
+/*/
+static function convPar( xValue )
+    local cType := ValType( xValue )
+    if cType == 'N'
+        cValue := cValToChar( xValue )
+    elseif cType == 'D'
+        cValue := DtoC( xValue )
+    elseif cType == 'L'
+        cValue := cValToChar( xValue )
+    else
+        cValue := AllTrim( xValue )
+    endif
+return cValue
 
 /*/{Protheus.doc} chkActive
 Função para checar se a conexão com o supabase está online
@@ -515,3 +642,176 @@ Função facilitadora para utilização da função Help do Protheus
 /*/
 static function hlp( cTitle, cFail, cHelp )
 return Help( ,, cTitle,, cFail, 1, 0, NIL, NIL, NIL, NIL, NIL,{ cHelp } )
+
+/*/{Protheus.doc} getParms
+Monta a listagem de parâmetros interos utilizados pela rotina do Painel de Compras
+@type function
+@version 12.1.2410
+@author Jean Carlos Pandolfo Saggin
+@since 20/01/2026
+@return array, aParms
+/*/
+static function getParams()
+    local aParams := {} as array
+
+    aAdd( aParams, {; 
+                    "MV_X_PNC01",;                                          // Parâmetro
+                    "C",;                                                   // Tipo
+                    "Formula de calculo da necessidade de compra atravé",;  // Descrição 1
+                    "s do Painel de Compra",;                               // Descrição 2
+                    "",;                                                    // Descrição 3
+                    AllTrim(SuperGetMv("MV_X_PNC01",,"(|(|nDias|+|nLdTime|)|-|nPrjEst|)|*|nConMed" ));// Conteúdo
+                    } )
+    aAdd( aParams, {; 
+                    "MV_X_PNC02",;                                          // Parâmetro
+                    "C",;                                                   // Tipo
+                    "Alias da tabela de indices por produto            ",;  // Descrição 1
+                    "",;                                                    // Descrição 2
+                    "",;                                                    // Descrição 3
+                    AllTrim(SuperGetMv( "MV_X_PNC02",, "" )) ;              // Conteúdo
+                    } )
+    aAdd( aParams, {; 
+                    "MV_X_PNC03",;                                          // Parâmetro
+                    "C",;                                                   // Tipo
+                    "Alias da tabela de parâmetros globais da central d",;  // Descrição 1
+                    "e compras                                         ",;  // Descrição 2
+                    "",;                                                    // Descrição 3
+                    AllTrim(SuperGetMv( "MV_X_PNC03",, "" )) ;              // Conteúdo
+                    } )
+    aAdd( aParams, {; 
+                    "MV_X_PNC04",;                                          // Parâmetro
+                    "C",;                                                   // Tipo
+                    "Alias da tabela de controle de produtos descontinu",;  // Descrição 1
+                    "ados                                              ",;  // Descrição 2
+                    "",;                                                    // Descrição 3
+                    AllTrim(SuperGetMv( "MV_X_PNC04",, "" )) ;              // Conteúdo
+                    } )
+    aAdd( aParams, {; 
+                    "MV_X_PNC05",;                                          // Parâmetro
+                    "N",;                                                   // Tipo
+                    "Lucro líquido que a empresa pretende obter com a v",;  // Descrição 1
+                    "enda do produto                                   ",;  // Descrição 2
+                    "",;                                                    // Descrição 3
+                    SuperGetMv( "MV_X_PNC05",, 15 );                        // Conteúdo
+                    } )
+    aAdd( aParams, {; 
+                    "MV_X_PNC06",;                                          // Parâmetro
+                    "N",;                                                   // Tipo
+                    "Índice de despesas operacionais utilizado para for",;  // Descrição 1
+                    "macao de precos                                   ",;  // Descrição 2
+                    "",;                                                    // Descrição 3
+                    SuperGetMv( "MV_X_PNC06",, 15 );                        // Conteúdo
+                    } )
+    aAdd( aParams, {; 
+                    "MV_X_PNC07",;                                          // Parâmetro
+                    "N",;                                                   // Tipo
+                    "Índice CSLL usado na formação de precos           ",;  // Descrição 1
+                    "",;                                                    // Descrição 2
+                    "",;                                                    // Descrição 3
+                    SuperGetMv( "MV_X_PNC07",, 1.08 );                      // Conteúdo
+                    } )
+    aAdd( aParams, {; 
+                    "MV_X_PNC08",;                                          // Parâmetro
+                    "N",;                                                   // Tipo
+                    "Índice IRPJ usado no processo de formação de preço",;  // Descrição 1
+                    "",;                                                    // Descrição 2
+                    "",;                                                    // Descrição 3
+                    SuperGetMv( "MV_X_PNC08",, 1.32 );                      // Conteúdo
+                    } )
+    aAdd( aParams, {; 
+                    "MV_X_PNC09",;                                          // Parâmetro
+                    "N",;                                                   // Tipo
+                    "Indice inadimplencia usado para formacao de precos",;  // Descrição 1
+                    "",;                                                    // Descrição 2
+                    "",;                                                    // Descrição 3
+                    SuperGetMv( "MV_X_PNC09",, 2 );                         // Conteúdo
+                    } )
+    aAdd( aParams, {; 
+                    "MV_X_PNC10",;                                          // Parâmetro
+                    "N",;                                                   // Tipo
+                    "Indice de custo financeiro para formacao de precos",;  // Descrição 1
+                    "",;                                                    // Descrição 2
+                    "",;                                                    // Descrição 3
+                    SuperGetMv( "MV_X_PNC10",, 2 );                         // Conteúdo
+                    } )
+    aAdd( aParams, {; 
+                    "MV_X_PNC11",;                                          // Parâmetro
+                    "N",;                                                   // Tipo
+                    "Metodo de analise 1-Fornecedor Padrão ou 2-Melhor ",;  // Descrição 1
+                    "Fornecedor                                        ",;  // Descrição 2
+                    "",;                                                    // Descrição 3
+                    SuperGetMv( "MV_X_PNC11",, 1 );                         // Conteúdo
+                    } )
+    aAdd( aParams, {; 
+                    "MV_X_PNC12",;                                          // Parâmetro
+                    "C",;                                                   // Tipo
+                    "TimeStamp da ultima execucao do job de cálculo dos",;  // Descrição 1
+                    " indices dos produtos para Painel de Compras      ",;  // Descrição 2
+                    "",;                                                    // Descrição 3
+                    AllTrim(SuperGetMv( "MV_X_PNC12",, "" ));               // Conteúdo
+                    } )
+    aAdd( aParams, {; 
+                    "MV_X_PNC13",;                                          // Parâmetro
+                    "C",;                                                   // Tipo
+                    "Campo do produto usado para filtro de grupo       ",;  // Descrição 1
+                    "",;                                                    // Descrição 2
+                    "",;                                                    // Descrição 3
+                    AllTrim(SuperGetMv( "MV_X_PNC13",, "B1_GRUPO" ));       // Conteúdo
+                    } )
+    aAdd( aParams, {; 
+                    "MV_X_PNC14",;                                          // Parâmetro
+                    "C",;                                                   // Tipo
+                    "Alias da tabela de cadastro de tags               ",;  // Descrição 1
+                    "",;                                                    // Descrição 2
+                    "",;                                                    // Descrição 3
+                    AllTrim(SuperGetMv( "MV_X_PNC14",, "" ));               // Conteúdo
+                    } )
+    aAdd( aParams, {; 
+                    "MV_X_PNC15",;                                          // Parâmetro
+                    "C",;                                                   // Tipo
+                    "Usuários com permissão para gravar preço de tabela",;  // Descrição 1
+                    "",;                                                    // Descrição 2
+                    "",;                                                    // Descrição 3
+                    AllTrim(SuperGetMv( "MV_X_PNC15",, "000000|" ));        // Conteúdo
+                    } )
+    aAdd( aParams, {; 
+                    "MV_X_PNC16",;                                          // Parâmetro
+                    "C",;                                                   // Tipo
+                    "Alias da tabela de perfis de calculo              ",;  // Descrição 1
+                    "",;                                                    // Descrição 2
+                    "",;                                                    // Descrição 3
+                    AllTrim(SuperGetMv( "MV_X_PNC16",, "" ));               // Conteúdo
+                    } )
+    aAdd( aParams, {; 
+                    "MV_X_PNC17",;                                          // Parâmetro
+                    "C",;                                                   // Tipo
+                    "Série das notas de complemento de valor financeiro",;  // Descrição 1
+                    "",;                                                    // Descrição 2
+                    "",;                                                    // Descrição 3
+                    AllTrim(SuperGetMv( "MV_X_PNC17",, "" ));               // Conteúdo
+                    } )
+    aAdd( aParams, {; 
+                    "MV_X_PNC18",;                                          // Parâmetro
+                    "N",;                                                   // Tipo
+                    "Alíquota de ICMS para formação de preços          ",;  // Descrição 1
+                    "",;                                                    // Descrição 2
+                    "",;                                                    // Descrição 3
+                    SuperGetMv( "MV_X_PNC18",, 0 );                         // Conteúdo
+                    } )
+    aAdd( aParams, {; 
+                    "MV_X_PNC19",;                                          // Parâmetro
+                    "N",;                                                   // Tipo
+                    "Alíquota de IPI para formação de preços           ",;  // Descrição 1
+                    "",;                                                    // Descrição 2
+                    "",;                                                    // Descrição 3
+                    SuperGetMv( "MV_X_PNC19",, 0 );                         // Conteúdo
+                    } )
+    aAdd( aParams, {; 
+                    "MV_X_PNC20",;                                          // Parâmetro
+                    "C",;                                                   // Tipo
+                    "Versão dicionario de dados do Painel de Compras   ",;  // Descrição 1
+                    "",;                                                    // Descrição 2
+                    "",;                                                    // Descrição 3
+                    AllTrim(SuperGetMv( "MV_X_PNC20",, "00" ));             // Conteúdo
+                    } )
+return aParams

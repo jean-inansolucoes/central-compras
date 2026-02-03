@@ -172,6 +172,13 @@ user function JSDETVER()
     aAdd( aDetVer, { '18','0020','20/01/2026', 'Ajuste para exibir código do produto em que está sendo formado o preço de venda junto da descrição do mesmo' } )
     aAdd( aDetVer, { '18','0021','20/01/2026', 'Permitir acessar o kardex do produto por dentro da tela de formação de preços' } )
     aAdd( aDetVer, { '18','0022','20/01/2026', 'Permitir salvar índice padrão para IPI de saída na tela de formação de preços.' } )
+    aAdd( aDetVer, { '18','0023','21/01/2026', 'Adicionado tratativa para que a rotina delimite a quantidade de análise de giro dos produtos quando o tempo '+;
+                                                'configurado for maior do que o tempo de operações da unidade' } )
+    aAdd( aDetVer, { '18','0024','22/01/2026', 'Aumentado para 5 o tamanho do campo de lead-time calculado para o fornecedor' } )
+    aAdd( aDetVer, { '18','0025','22/01/2026', 'Ajuste na impressão do pedido de compra que está saindo com números diferentes quando possui mais que uma página' } )
+    aAdd( aDetVer, { '18','0026','23/01/2026', 'Removido obrigatoriedade do nome do fornecedor e do nome do produto na importação do arquivo de produto x fornecedor' } )
+    aAdd( aDetVer, { '19','0001','26/01/2026', 'Implantação de tabelas externas ao contexto do Painel de Compras em substituição à tabelas presentes no dicionário de dados' } )
+    aAdd( aDetVer, { '19','0002','02/02/2026', 'Adicionado campo de valor de venda na tela de análise de produtos para compra.' } )
 
 return aDetVer
 

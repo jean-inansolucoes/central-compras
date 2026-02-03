@@ -75,8 +75,7 @@ static function printPDF()
 
 	local lSuccess  := .T. as logical
 	local cFilPed   := SC7->C7_FILIAL
-	local cNumPed   := SC7->C7_NUM
-	Local cArqDest  := cNumPed       	// Nome do arquivo DOCUMENTO a ser gerado
+	Local cArqDest  := SC7->C7_NUM       	// Nome do arquivo DOCUMENTO a ser gerado
 	local cExtDest  := ".pdf" 			// Extensão do arquivo
 	Local cPathEst  := AllTrim(GetTempPath())+"protheus\" // Pasta na estação local onde será gerado o DOCUMENTO
 	Local oPDF             as object
@@ -88,6 +87,7 @@ static function printPDF()
 	Private cFilePrint  := "" as character
 	Private nLine       := 0 as numeric
 	Private nValTotSC7  := 0
+	Private cNumPed     := SC7->C7_NUM
 
 	default lEnd := .F.
 
@@ -584,7 +584,7 @@ static function printData( xData, cType, oPDF, lEndPage, lBold, lTotal )
 	local nSize     := 0 as numeric
 	local nHeight   := 0 as numeric
 	local oBrush    as object
-	local cDocType  := "PEDIDO DE COMPRA N. " + SC7->C7_NUM + Space(10)
+	local cDocType  := "PEDIDO DE COMPRA N. " + cNumPed + Space(10)
 	local nHorSize  := oPDF:nHorzSize()-60
 
 	default lEndPage := .F.

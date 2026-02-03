@@ -18,6 +18,9 @@ user function pepnc07()
     if aScan( aColumns, {|x| AllTrim(x[17]) == 'ULTPRECO' } ) > 0
         aColumns[ aScan( aColumns, {|x| AllTrim(x[17]) == 'ULTPRECO' } ) ][4] := "@E 999,999,999.99"
     endif
+    if aScan( aColumns, {|x| AllTrim(x[17]) == 'PRCVEN' } ) > 0
+        aColumns[ aScan( aColumns, {|x| AllTrim(x[17]) == 'PRCVEN' } ) ][4] := "@E 999,999,999.99"
+    endif
     if aScan( aColumns, {|x| AllTrim(x[17]) == 'QTDBLOQ' } ) > 0
         aColumns[ aScan( aColumns, {|x| AllTrim(x[17]) == 'QTDBLOQ' } ) ][14] := .T. // lDeleted
     endif

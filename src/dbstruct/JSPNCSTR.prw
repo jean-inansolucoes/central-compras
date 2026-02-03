@@ -42,19 +42,10 @@ user function JSGETSTR( cTable )
         aAdd( aStruct, { "MAILWF" , "C", 100, 0 } )
         aAdd( aStruct, { "EMSATU" , "C", 1, 0 } )
         aAdd( aStruct, { "DHIST"  , "N", 3, 0 } )
-        // aAdd( aStruct, { "LOCPAD" , "C", TAMSX3('NNR_CODIGO')[1], 0 } )
-
-    elseif cTable == "PNC_CALC_PROD_"+ cEmpAnt
-
-    elseif cTable == "PNC_ITENS_DESC_"+ cEmpAnt
-
-    elseif cTable == "PNC_TAGS_"+ cEmpAnt
-
-    elseif cTable == "PNC_ALERTAS_"+ cEmpAnt
-
-    elseif cTable == "PNC_ALERTAS_ENV_"+ cEmpAnt
-
-    elseif cTable == "PNC_PERFIS_"+ cEmpAnt
+        aAdd( aStruct, { "LOCPAD" , "C", TAMSX3('NNR_CODIGO')[1], 0 } )
+        aAdd( aStruct, { "TPDOC"  , "C", 1, 0 } )
+        aAdd( aStruct, { "MDPED"  , "C", 1, 0 } )
+        aAdd( aStruct, { "CMT"    , "C", 1, 0 } )
 
     endif
 
