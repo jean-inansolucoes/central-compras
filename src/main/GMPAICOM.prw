@@ -80,7 +80,6 @@ User Function GMPAICOM()
 	local oAliSol   as object
 	local oData     := JsonObject():New()
 	local aData     := {'Período','Quantidade'} as array
-	// local oFontPro  := TFont():New( 'monospace', 7, 15 )
 	
 	Private aHeaPro   := {}
 	Private aHeaSol   := {} as array
@@ -352,7 +351,9 @@ User Function GMPAICOM()
 	aAdd( aButtons, { "BTNEMPEN" , {|| iif( len( aColPro ) > 0, fShowEm( aColPro[ oBrwPro:nAt][nPosPrd] ), Nil ) }, "Empenhos do Produto" } )
 	aAdd( aButtons, { "BTNPEDIDO", {|| iif( len( aColPro ) > 0, fSolPend(), Nil ) }, "Solicitações de Compra" } )
 	aAdd( aButtons, { "BTNPEDIDO", {|| iif( len( aColPro ) > 0, fPedFor(), Nil ) }, "Pedidos em Aberto" } )
-	aAdd( aButtons, { "BTNENTR"  , {|| iif( len( aColPro ) > 0, entryDocs( aColPro[ oBrwPro:nAt ][nPosPrd] ), Nil ) }, "Entradas" } )
+	aAdd( aButtons, { "BTNENTR"  , {|| iif( len( aColPro ) > 0, entryDocs( aColPro[ oBrwPro:nAt ][nPosPrd] ), Nil ),;
+									   priceCheck( aColPro[ oBrwPro:nAt ][nPosPrd] ),;
+									   oBrwPro:LineRefresh() }, "Entradas" } )
 	aAdd( aButtons, { "BTNSAIDA" , {|| iif( len( aColPro ) > 0, outPuts( aColPro[ oBrwPro:nAt ][nPosPrd] ), Nil ) }, "Saídas" } )
 	aAdd( aButtons, { "BTNPAICFG", {|| fManPar(), fLoadCfg() }, "Parâmetros Internos (F12)" } )
 	aAdd( aButtons, { "BTNCONFIG", {|| oBrwPro:Config() }, "Configurar Janela de Produtos" } )
@@ -493,19 +494,6 @@ User Function GMPAICOM()
 	@ 04, 06+(oWinDash:nWidth/2)*0.6 MSCOMBOBOX oCboFil VAR cCboFil ITEMS aCboFil SIZE (oWinDash:nWidth/2)*0.3, 013 OF oWinDash COLORS 8421504, 16777215 FONT oFntCbo ON CHANGE Processa( {|| fLoadAna() }, 'Aguarde!', 'Analisando sazonalidade do produto...' ) PIXEL
 
 	oPanAna := TPanel():New( 20, 0,, oWinDash,, .T.,, CLR_BLACK, CLR_BLACK, (oWinDash:nWidth/2),/*nButtom*/ (oWinDash:nHeight/2)-20 )
-
-	// Instancia a classe JSChart para exibição do gráfico de sazonalidade
-	// oChart := JSChart():New( 1,; 
-	// 						'Saídas do Produto',; 
-	// 						'Indicativo de sazonalidade do produto...',;
-	// 						oData,;
-	// 						oPanAna,;
-	// 						oWinDash:nWidth*0.9,;
-	// 						(oWinDash:nHeight-20)*0.9 )
-							
-	// oWebEngine := TWebEngine():New( oPanAna, 0, 0, 100, 100, Nil, Nil )
-	// oWebEngine:Align := CONTROL_ALIGN_ALLCLIENT
-	// oWebEngine:Navigate( oChart:LoadHTML('2') )
 
     oDash := FWChartFactory():New()
     oDash:SetChartDefault( COLUMNCHART )
@@ -732,6 +720,7 @@ static function entryDocs( cProduto, cDoc, cSerie, cFornece, cLoja, cTipo )
 	Private oBrwDoc     as object
 	Private oDlgDoc     as object
 	Private cPrdAlt := "" as character
+	Private lValueChg := .F. as logical
 
 	default cProduto := ""
 	default cDoc     := ""
@@ -3223,6 +3212,9 @@ Static Function fLoadInf()
 	local aLinPro   := {} as array
 	local nLinPro   := 0 as numeric
 	local cTabPrc   := "" as character
+	local cPrdPrc   := "" as character
+	local cPEPNC06  := "" as character
+	local lPEPNC06  := ExistBlock( 'PEPNC06' )
 	
 	Default lNoInt := .F.								// Default é rodar "Com Interface"
 	
@@ -3410,6 +3402,13 @@ Static Function fLoadInf()
 					nIndGir := PRDTMP->( FieldGet( FieldPos( cZB3 +'_INDINC' ) ) ) 
 					nPrice  := priceSupplier( PRDTMP->B1_COD, cFornece, cLoja )
 					cTabPrc := PADR(SuperGetMV( 'MV_TABPAD',,Space(TAMSX3('DA1_CODTAB')[1]) ), TAMSX3('DA0_CODTAB')[1], ' ')
+					cPrdPrc := PRDTMP->B1_COD
+					if lPEPNC06
+						cPEPNC06 := ExecBlock( "PEPNC06", .F., .F., cPrdPrc )
+						if valType( cPEPNC06 ) == 'C' .and. ! Empty( cPEPNC06 )
+							cPrdPrc := cPEPNC06
+						endif
+					endif
 					// Antes de adicionar o produto ao vetor, verifica se o mesmo já não está listado para esta filial
 					if len( _aProdFil ) == 0 .or. aScan( _aProdFil, {|x| x[nPosPrd] == PRDTMP->B1_COD .and. x[len(x)] == PRDTMP->FILIAL } ) == 0
 						
@@ -3423,7 +3422,7 @@ Static Function fLoadInf()
 						aLinPro[nPosBlq] := PRDTMP->QTDBLOQ
 						aLinPro[nPosNeg] := nPrice
 						aLinPro[nPosUlt] := nPrice
-						aLinPro[nPosPVe] := RetField( 'DA1', 1, FWxFilial( 'DA1' ) + cTabPrc + PRDTMP->B1_COD, 'DA1_PRCVEN' )
+						aLinPro[nPosPVe] := RetField( 'DA1', 1, FWxFilial( 'DA1' ) + cTabPrc + cPrdPrc, 'DA1_PRCVEN' )
 						aLinPro[nPosCon] := PRDTMP->( FieldGet( FieldPos( cZB3 +'_CONMED' ) ) )
 						aLinPro[nPosDur] := nPrjEst
 						aLinPro[nPosDuP] := nDurPrv
@@ -3523,12 +3522,7 @@ Static Function fLoadInf()
 		next nX
 	
 	endif
-    
-	// Restaura a ordem padrão de busca de fornecedor
-	// FORTMP->( DBSetOrder( 1 ) )
-	// Devolve o posicionamento do fornecedor
-	// FORTMP->( DbGoTo( nRecFor ) )
-	
+
 	// Ordena o array pela descrição dos produtos que estão sendo exibidos
 	aSort( aColPro,,,{|x,y| x[nPosDes] < y[nPosDes] } )
 
@@ -3542,9 +3536,7 @@ Static Function fLoadInf()
 	endif
 
 	fLoadAna()
-	
-	// RestArea( aArea )
-	
+
 Return ( Nil )
 
 /*/{Protheus.doc} gtMain
@@ -11305,3 +11297,47 @@ static function checkZB3( dLast )
 	( cAlias )->( DBCloseArea() )
 
 return Nil
+
+/*/{Protheus.doc} priceCheck
+Função de atualização do preço de vendas do produto no painel de compras sempre que houver alteração na tela de formação
+@type function
+@version 12.1.2510
+@author Jean Carlos Pandolfo Saggin
+@since 04/02/2026
+@param cProduct, character, Código do produto
+@return numeric, nPrice
+/*/
+static function priceCheck( cProduct )
+	
+	local cTabPrc  := PADR(SuperGetMV( 'MV_TABPAD',,Space(TAMSX3('DA1_CODTAB')[1]) ), TAMSX3('DA0_CODTAB')[1], ' ')
+	local nPrice   := 0 as numeric
+	local cPEPNC06 := "" as character
+	local cPrdPrc  := cProduct
+	local nAux     := 0 as numeric
+	local LPEPNC06 := ExistBlock( 'PEPNC06' )
+	local nX       := 0 as numeric
+
+	if lPEPNC06
+		cPEPNC06 := ExecBlock( "PEPNC06", .F., .F., cProduct )
+		if valType( cPEPNC06 ) == 'C' .and. ! Empty( cPEPNC06 )
+			cPrdPrc := cPEPNC06
+		endif
+	endif
+	
+	if ! Empty( cTabPrc )
+		nPrice := RetField( 'DA1', 1, FWxFilial( 'DA1' ) + cTabPrc + cPrdPrc, 'DA1_PRCVEN' )
+		
+		//Ajusta vetor geral do produto
+		aColPro[oBrwPro:nAt][nPosPVe] := nPrice
+		
+		// Ajusta também vetor de produto por filial
+		for nX := 1 to len( _aFil )
+			nAux := aScan(_aProdFil,{|x| x[nPosPrd] == aColPro[ oBrwPro:nAt ][ nPosPrd ] .and. x[len(x)] == _aFil[nX] })
+			if nAux > 0
+				_aProdFil[ nAux ][nPosPVe] := nPrice
+			endif
+		next nX
+
+	endif
+
+return nPrice
