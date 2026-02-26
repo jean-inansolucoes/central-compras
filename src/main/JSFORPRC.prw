@@ -30,11 +30,18 @@ user function JSFORPRC()
     local aColumns  := {} as array
     local aFilter   := {} as array
     local cCBox     := "" as character
+    local lSuccess  := .T. as logical
 
     Private aRotina   := {} 
     Private cCadastro := "Formação de Preço - "+ U_JSGETVER()
     Private INCLUI    := .F.
     Private ALTERA    := .F.
+
+    // Chega estrutura de dicionário de dados para saber se está tudo Ok antes de iniciar
+    MsAguarde( {|| lSuccess := checkStruct() }, 'Aguarde...', 'Checando estruturas de dados...' )
+    if ! lSuccess
+        return Nil
+    endif
 
     aAdd( aPerg, { 1, "Emissao de: ", StoD(' '),"", "", "", ".T.", 50, .F.  } )
     aAdd( aPerg, { 1, "Emissao até: ", StoD('20491231'),"", "", "", ".T.", 50, .F.  } )
@@ -74,7 +81,7 @@ user function JSFORPRC()
                                iif( !Empty( cCBox ), aColumns[len(aColumns)]:SetOptions( StrTokArr( cCBox, ';' ) ), Nil ) } )
 
     if SF1->( FieldPos( 'F1_X_FPRC' ) ) == 0
-        Hlp( 'F1_X_FPRC',;
+        U_HLP( 'F1_X_FPRC',;
              'Ambiente desatualizado para utilização da rotina de formação de preços.',;
              'Foi identificado que o campo F1_X_FPRC não está configurado na tabela de documentos de entrada. '+;
              'Solicite a atualização necessária para a equipe responsável pelo Painel de Compras, execute a atualização e tente novamente em seguida.' )
@@ -91,11 +98,15 @@ user function JSFORPRC()
     cQuery += "F1.R_E_C_N_O_ RECSF1 "
     cQuery += "FROM "+ RetSqlName( 'SF1' ) +" F1 "
  
-    // Liga com fornecedores
+    // Fornecedor
     cQuery += "INNER JOIN "+ RetSqlName( 'SA2' ) +" A2 "
     cQuery += " ON A2.A2_FILIAL  = '"+ FWxFilial( 'SA2' ) +"' "
     cQuery += "AND A2.A2_COD     = F1.F1_FORNECE "
     cQuery += "AND A2.A2_LOJA    = F1.F1_LOJA "
+    // Ignora os fornecedores ignorados no processo de formação de preços, mas valida a regra apenas quando o campo existir
+    if SA2->( FieldPos( 'A2_X_FPRC' ) ) > 0     
+        cQuery += "AND A2.A2_X_FPRC <> 'N' "
+    endif
     cQuery += "AND A2.D_E_L_E_T_ = ' ' "
 
     cQuery += "WHERE F1.F1_EMISSAO BETWEEN '"+ DtoS( MV_PAR01 ) +"' AND '"+ DtoS( MV_PAR02 ) +"' "
@@ -210,15 +221,29 @@ User Function JSFPRECO( cAlias, nRecno, nOpc )
 
 Return 
 
-/*/{Protheus.doc} hlp
-Função facilitadora para utilização da função Help do Protheus
+/*/{Protheus.doc} checkStruct
+Função responsável por avaliar estrutura de tabelas, índices, campos para posteriormente a rotina prosseguir com o processamento
 @type function
-@version 1.0
+@version 12.1.2510
 @author Jean Carlos Pandolfo Saggin
-@since 08/04/2024
-@param cTitle, character, Titulo da janela
-@param cFail, character, Informações sobre a falha
-@param cHelp, character, Informações com texto de ajuda
+@since 26/02/2026
+@return logical, lSuccess
 /*/
-static function hlp( cTitle, cFail, cHelp )
-return Help( ,, cTitle,, cFail, 1, 0, NIL, NIL, NIL, NIL, NIL,{ cHelp } )
+static function checkStruct()
+    local lSuccess := .T. as logical
+    
+    // Verifica se existe o campo Forma Preço no cadastro de fornecedor
+    lSuccess := lSuccess .and. SA2->(FieldPos( 'A2_X_FPRC' )) > 0
+    lSuccess := lSuccess .and. SF1->(FieldPos( 'F1_X_FPRC' )) > 0
+    if ! lSuccess
+        ProcRegua(1)
+        if MsgYesNo( 'Um ou mais campos de controle estão ausentes, deseja criá-lo(s) agora? Ao clicar sobre a opação "Não", '+;
+                    'o sistema permitirá que continue, porém, alguns recursos poderão ser suprimidos...', 'A T E N Ç Ã O !' )
+            IncProc( 'Adequando estrutura...' )
+            lSuccess := U_JSFldPut()
+        else
+            lSuccess := .T.
+        endif
+    endif
+
+return lSuccess

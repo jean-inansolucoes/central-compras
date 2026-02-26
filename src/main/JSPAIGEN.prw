@@ -179,6 +179,9 @@ user function JSDETVER()
     aAdd( aDetVer, { '18','0026','23/01/2026', 'Removido obrigatoriedade do nome do fornecedor e do nome do produto na importação do arquivo de produto x fornecedor' } )
     aAdd( aDetVer, { '19','0001','26/01/2026', 'Implantação de tabelas externas ao contexto do Painel de Compras em substituição à tabelas presentes no dicionário de dados' } )
     aAdd( aDetVer, { '19','0002','02/02/2026', 'Adicionado campo de valor de venda na tela de análise de produtos para compra.' } )
+    aAdd( aDetVer, { '19','0003','26/02/2026', 'Permitido a usuário visualizar documentos de todas as filiais na tela principal da formação de preços' } )
+    aAdd( aDetVer, { '19','0004','26/02/2026', 'Implementado função para criação de campo automática, desde que o acesso seja em modo exclusivo à tabela' } )
+    aAdd( aDetVer, { '19','0005','26/02/2026', 'Implementado regra para permitir definir no fornecedor se o mesmo deve ou não entrar na formação de preços.' } )
 
 return aDetVer
 

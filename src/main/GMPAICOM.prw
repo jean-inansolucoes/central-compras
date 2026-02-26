@@ -5212,6 +5212,7 @@ User Function GMINDPRO( aParam )
 	Private _aFilters := {}
 	Private cZBM     := "" as character
 	Private _cPedSol := "" as character
+	Private cDictVer := "00" as character
 
 	Default aParam := {}
 	
@@ -5224,6 +5225,7 @@ User Function GMINDPRO( aParam )
 		PREPARE ENVIRONMENT EMPRESA aParam[01] FILIAL aParam[02] TABLES "SB1,SD1,SA2" MODULO "CFG" 
 
 		// Valida existência dos parâmetros do painel de compras antes de executar a rotina
+		cDictVer := Alltrim(SuperGetMv( 'MV_X_PNC20',,"00" ))
 		fLoadCfg( .T. /*lAuto*/ )
 		if Len( aConfig ) == 0
 			ConOut( FunName() + ' - ' + DtoC( dHoje ) + ' - ' + Time() + ' - ' + 'PARAMETROS DO PAINEL DE COMPRAS NAO CADASTRADOS PARA A EMPRESA '+ cEmpAnt +' E FILIAL '+ cFilAnt +'!' )
