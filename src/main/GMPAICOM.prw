@@ -164,8 +164,6 @@ User Function GMPAICOM()
 	private oRestore   as object
 	private lFilFirst  := .T. as logical
 	Private cDictVer   := Alltrim(SuperGetMv( 'MV_X_PNC20',,"00" ))
-	// Private oChart     as object
-	// Private oWebEngine as object
 
 	// Inicializa um Json com um vetor vazio
 	oData:Set(aData)

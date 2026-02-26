@@ -22,7 +22,7 @@ user function JSFORPRC()
     local oBrowse   as object
     local cAliasTMP := "SF1TMP"
     local cQuery    := "" as character
-    local aFields   := { "F1_DOC", "F1_SERIE", "F1_X_FPRC", "F1_TIPO", "F1_ESPECIE", "F1_FORNECE", "F1_LOJA", "A2_NOME",;
+    local aFields   := { "F1_FILIAL", "F1_DOC", "F1_SERIE", "F1_X_FPRC", "F1_TIPO", "F1_ESPECIE", "F1_FORNECE", "F1_LOJA", "A2_NOME",;
                          "F1_COND", "F1_DTDIGIT", "F1_EMISSAO", "F1_VALMERC" }
     local aFieldBrw := aClone( aFields )
     local oTable    as object
@@ -83,7 +83,7 @@ user function JSFORPRC()
 
     // Cria tabela temporária para receber os dados das notas pendentes de conferência de preços.
     oTable := FWTemporaryTable():New( 'SF1TMP', aStruct )
-    oTable:AddIndex( '01', { "F1_DOC", "F1_SERIE" } )
+    oTable:AddIndex( '01', { "F1_FILIAL", "F1_DOC", "F1_SERIE" } )
     oTable:Create()
 
     cQuery := "SELECT "
@@ -98,8 +98,7 @@ user function JSFORPRC()
     cQuery += "AND A2.A2_LOJA    = F1.F1_LOJA "
     cQuery += "AND A2.D_E_L_E_T_ = ' ' "
 
-    cQuery += "WHERE F1.F1_FILIAL = '"+ FWxFilial( 'SF1' ) +"' "
-    cQuery += "  AND F1.F1_EMISSAO BETWEEN '"+ DtoS( MV_PAR01 ) +"' AND '"+ DtoS( MV_PAR02 ) +"' "
+    cQuery += "WHERE F1.F1_EMISSAO BETWEEN '"+ DtoS( MV_PAR01 ) +"' AND '"+ DtoS( MV_PAR02 ) +"' "
     cQuery += "  AND F1.F1_DTDIGIT BETWEEN '"+ DtoS( MV_PAR03 ) +"' AND '"+ DtoS( MV_PAR04 ) +"' "
     cQuery += "  AND F1.F1_TIPO     = 'N' " // Apenas notas do tipo N-Normal
     cQuery += "  AND F1.F1_FORNECE NOT IN ( "+ cFornSM0 +" ) "
@@ -150,9 +149,23 @@ Função para chamar processo de visualização do documento fiscal de entrada
 @since 28/11/2025
 /*/
 User function JSVISNF()
+    local cFilHist := cFilAnt
+
+    // Troca filial posicionada no sistema caso a filial da nota seja diferente da filial corrente
+    if cFilAnt != SF1TMP->F1_FILIAL
+		cFilAnt := SF1TMP->F1_FILIAL
+		FWSM0Util():setSM0PositionBycFilAnt()
+	endif
+
     DBSelectArea( 'SF1' )
     SF1->( DBGoTo( SF1TMP->RECSF1 ) )
-return A103NFiscal( 'SF1', SF1->( Recno() ), 2 )
+    A103NFiscal( 'SF1', SF1->( Recno() ), 2 )
+
+    if cFilAnt != cFilHist
+		cFilAnt := cFilHist
+		FWSM0Util():setSM0PositionBycFilAnt()
+	endif
+return 
 
 /*/{Protheus.doc} JSFPLEG
 Função para exibição de legendas da rotina
@@ -178,7 +191,24 @@ Chama processo de formação de preços de venda
 @param nOpc, numeric, opção escolhida pelo usuário (1 - Visualizar, 2 - Formação de Preço)
 /*/
 User Function JSFPRECO( cAlias, nRecno, nOpc )
-Return U_JSENTRDC( SF1TMP->F1_DOC, SF1TMP->F1_SERIE, SF1TMP->F1_FORNECE, SF1TMP->F1_LOJA, SF1TMP->F1_TIPO )
+    
+    Local cFilHist := cFilAnt
+    
+    // Troca filial posicionada no sistema caso a filial da nota seja diferente da filial corrente
+    if cFilAnt != SF1TMP->F1_FILIAL
+		cFilAnt := SF1TMP->F1_FILIAL
+		FWSM0Util():setSM0PositionBycFilAnt()
+	endif
+
+    // Acessa tela de formação de preços com a filial da nota
+    U_JSENTRDC( SF1TMP->F1_DOC, SF1TMP->F1_SERIE, SF1TMP->F1_FORNECE, SF1TMP->F1_LOJA, SF1TMP->F1_TIPO )
+
+    if cFilAnt != cFilHist
+		cFilAnt := cFilHist
+		FWSM0Util():setSM0PositionBycFilAnt()
+	endif
+
+Return 
 
 /*/{Protheus.doc} hlp
 Função facilitadora para utilização da função Help do Protheus
