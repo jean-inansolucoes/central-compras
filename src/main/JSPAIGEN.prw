@@ -182,6 +182,8 @@ user function JSDETVER()
     aAdd( aDetVer, { '19','0003','26/02/2026', 'Permitido a usuário visualizar documentos de todas as filiais na tela principal da formação de preços' } )
     aAdd( aDetVer, { '19','0004','26/02/2026', 'Implementado função para criação de campo automática, desde que o acesso seja em modo exclusivo à tabela' } )
     aAdd( aDetVer, { '19','0005','26/02/2026', 'Implementado regra para permitir definir no fornecedor se o mesmo deve ou não entrar na formação de preços.' } )
+    aAdd( aDetVer, { '19','0006','12/03/2026', 'Criado ponto de entrada PEPNC08 para permitir alterar querys de cálculos dos produtos' } )
+    aAdd( aDetVer, { '19','0007','13/03/2026', 'Adicionado data do último cálculo dos produtos para aparecer no cabeçalho do grid de produtos.' } )
 
 return aDetVer
 
@@ -839,6 +841,8 @@ user function JSQRYSAI( cProduto, dDe, dAte, _aFil )
     local cFilHist := cFilAnt
     local nFil     := 0 as numeric
     local cDB      := TCGETDB()
+    local lPEPNC08  := ExistBlock( 'PEPNC08' )
+    local xPEPNC08  := nil
 
     default _aFil    := {}
     default cProduto := ""
@@ -878,6 +882,24 @@ user function JSQRYSAI( cProduto, dDe, dAte, _aFil )
             cQuery += "  AND D2.D2_COD     = '"+ cProduto +"' " + CEOL
         endif
         cQuery += "  AND D2.D_E_L_E_T_ = ' ' " + CEOL
+
+        if lPEPNC08
+            // Ponto de entrada que permite modificar a query de análise das movimentações de saída para o produto
+            // Parâmetro 1: Indica o local da chamada do PE, sendo 1- contagem dos registros de saída do produto
+            //													   2- contagem dos registros de movimentações internas ou OPs para o produto
+            //													   3- soma das quantidades de saída do produto
+            //													   4- soma das quantidades de movimentações internas ou OPs para o produto
+            //													   5- conta quantos documentos de saída foram emitidos no período
+            //													   6- conta quantas movimentações ou ops foram feitas no período
+            //                                                     7- lê movimentações de saída do produto para exibição na tela de detalhamento de saídas
+            //                                                     8- lê movimentações internas e/ou com OPs para o produto         
+            // Parâmetro 2: Indica a query padrão do sistema
+            // Retorno esperado: query completa modificada ou incrementada pronta para execução
+            xPEPNC08 := ExecBlock( 'PEPNC08', .F., .F., { 7, cQuery } )
+            if ValType( xPEPNC08 ) == 'C' .and. ! Empty( xPEPNC08 )
+                cQuery := xPEPNC08
+            endif
+        endif
 
         cQuery += "UNION ALL "+ CEOL
 
@@ -919,6 +941,24 @@ user function JSQRYSAI( cProduto, dDe, dAte, _aFil )
         cQuery += "  AND ( D3.D3_OP     <> '"+ Space( TAMSX3('D3_OP')[1] ) +"' OR D3.D3_CF = 'RE0' ) " + CEOL
         cQuery += "  AND D3.D3_ESTORNO = ' ' " + CEOL
         cQuery += "  AND D3.D_E_L_E_T_ = ' ' " + CEOL
+
+        if lPEPNC08
+            // Ponto de entrada que permite modificar a query de análise das movimentações de saída para o produto
+            // Parâmetro 1: Indica o local da chamada do PE, sendo 1- contagem dos registros de saída do produto
+            //													   2- contagem dos registros de movimentações internas ou OPs para o produto
+            //													   3- soma das quantidades de saída do produto
+            //													   4- soma das quantidades de movimentações internas ou OPs para o produto
+            //													   5- conta quantos documentos de saída foram emitidos no período
+            //													   6- conta quantas movimentações ou ops foram feitas no período
+            //                                                     7- lê movimentações de saída do produto para exibição na tela de detalhamento de saídas
+            //                                                     8 - lê movimentações internas e/ou com OPs para o produto         
+            // Parâmetro 2: Indica a query padrão do sistema
+            // Retorno esperado: query completa modificada ou incrementada pronta para execução
+            xPEPNC08 := ExecBlock( 'PEPNC08', .F., .F., { 8, cQuery } )
+            if ValType( xPEPNC08 ) == 'C' .and. ! Empty( xPEPNC08 )
+                cQuery := xPEPNC08
+            endif
+        endif
 
         if nFil < len( _aFil )
             cQuery += "UNION ALL "+ CEOL

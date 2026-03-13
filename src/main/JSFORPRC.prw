@@ -10,13 +10,10 @@ Função para o processo de formação de preço
 /*/
 user function JSFORPRC()
     
-    // Local cAlias    := 'SF1'
     local aPerg     := {}  as array
     local lCanSave  := .T. as logical
     local lUserSave := .T. as logical
-    // local cFilter   := ""  as character
     local bOk       :={|| .T. }
-    // local aColors   := {}  as array
     local cFornSM0  := "" as character
 	local aFornSM0  := U_JSSUPSM0()
     local oBrowse   as object

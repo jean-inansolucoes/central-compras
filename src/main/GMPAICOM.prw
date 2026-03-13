@@ -408,7 +408,7 @@ User Function GMPAICOM()
 	
 	oLayer:AddLine( "line2", 100-round(((250+60)/aSize[6])*100,0), .T. )
 	oLayer:AddColumn( "colPro", 100, .F., "line2" )
-	oLayer:AddWindow( 'colPro' , 'winPro' , 'Produtos', 100, .F., .F., {|| Nil }, "line2")
+	oLayer:AddWindow( 'colPro' , 'winPro' , 'Produtos | U.C.M.: '+ cLastRun, 100, .F., .F., {|| Nil }, "line2")
 	oWinPro  := oLayer:GetWinPanel( 'colPro' , 'winPro', "line2")
 	oLine := oLayer:GetLinePanel( 'line2' )
 
@@ -5201,6 +5201,8 @@ User Function GMINDPRO( aParam )
 	local lPEPNC04  := ExistBlock( "PEPNC04" )
 	local nEstoque  := 0 as numeric
 	local dHoje     := Date() as date
+	local lPEPNC08  := ExistBlock( 'PEPNC08' )
+	local xPEPNC08  := Nil
 	
 	Private cPerfDef := "" as character
 	Private cPerfil  := "" as character
@@ -5421,6 +5423,22 @@ User Function GMINDPRO( aParam )
 				cQuery += "  AND D2.D2_CLIENTE <> '"+ PADR( SubStr( SM0->M0_CGC, 01, 08 ), TAMSX3('D2_CLIENTE')[1], ' ' ) +"' " + CEOL
 				cQuery += "  AND D2.D_E_L_E_T_ = ' ' " + CEOL
 				
+				if lPEPNC08
+					// Ponto de entrada que permite modificar a query de análise das movimentações de saída para o produto
+					// Parâmetro 1: Indica o local da chamada do PE, sendo 1- contagem dos registros de saída do produto
+					//													   2- contagem dos registros de movimentações internas ou OPs para o produto
+					//													   3- soma das quantidades de saída do produto
+					//													   4- soma das quantidades de movimentações internas ou OPs para o produto
+					//													   5- conta quantos documentos de saída foram emitidos no período
+					//													   6- conta quantas movimentações ou ops foram feitas no período
+					// Parâmetro 2: Indica a query padrão do sistema
+					// Retorno esperado: query completa modificada ou incrementada pronta para execução
+					xPEPNC08 := ExecBlock( 'PEPNC08', .F., .F., { 1, cQuery } )
+					if ValType( xPEPNC08 ) == 'C' .and. ! Empty( xPEPNC08 )
+						cQuery := xPEPNC08
+					endif
+				endif
+
 				DBUseArea( .T., 'TOPCONN', TcGenQry(,,cQuery), 'INDPRO', .F., .T. )
 				if !INDPRO->( EOF() )
 					nQtdProd += INDPRO->QTD_PRODUTO
@@ -5439,6 +5457,22 @@ User Function GMINDPRO( aParam )
 				cQuery += "  AND D3.D3_ESTORNO = ' ' " + CEOL
 				cQuery += "  AND D3.D_E_L_E_T_ = ' ' "
 				
+				if lPEPNC08
+					// Ponto de entrada que permite modificar a query de análise das movimentações de saída para o produto
+					// Parâmetro 1: Indica o local da chamada do PE, sendo 1- contagem dos registros de saída do produto
+					//													   2- contagem dos registros de movimentações internas ou OPs para o produto
+					//													   3- soma das quantidades de saída do produto
+					//													   4- soma das quantidades de movimentações internas ou OPs para o produto
+					//													   5- conta quantos documentos de saída foram emitidos no período
+					//													   6- conta quantas movimentações ou ops foram feitas no período
+					// Parâmetro 2: Indica a query padrão do sistema
+					// Retorno esperado: query completa modificada ou incrementada pronta para execução
+					xPEPNC08 := ExecBlock( 'PEPNC08', .F., .F., { 2, cQuery } )
+					if ValType( xPEPNC08 ) == 'C' .and. ! Empty( xPEPNC08 )
+						cQuery := xPEPNC08
+					endif
+				endif
+
 				DBUseArea( .T., 'TOPCONN', TcGenQry(,,cQuery), 'INDPRO', .F., .T. )
 				if !INDPRO->( EOF() )
 					nQtdProd += INDPRO->QTD_PRODUTO
@@ -5463,6 +5497,21 @@ User Function GMINDPRO( aParam )
 				cQuery += "  AND D2.D2_COD     = '"+ aPerProd[nX][01] +"' " + CEOL
 				cQuery += "  AND D2.D_E_L_E_T_ = ' ' " + CEOL
 				
+				if lPEPNC08
+					// Ponto de entrada que permite modificar a query de análise das movimentações de saída para o produto
+					// Parâmetro 1: Indica o local da chamada do PE, sendo 1- contagem dos registros de saída do produto
+					//													   2- contagem dos registros de movimentações internas ou OPs para o produto
+					//													   3- soma das quantidades de saída do produto
+					//													   4- soma das quantidades de movimentações internas ou OPs para o produto
+					//													   5- conta quantos documentos de saída foram emitidos no período
+					//													   6- conta quantas movimentações ou ops foram feitas no período
+					// Parâmetro 2: Indica a query padrão do sistema
+					// Retorno esperado: query completa modificada ou incrementada pronta para execução
+					xPEPNC08 := ExecBlock( 'PEPNC08', .F., .F., { 3, cQuery } )
+					if ValType( xPEPNC08 ) == 'C' .and. ! Empty( xPEPNC08 )
+						cQuery := xPEPNC08
+					endif
+				endif
 				DBUseArea( .T., 'TOPCONN', TcGenQry(,,cQuery), "MEDCON", .F., .T. )
 				nVenda += MEDCON->QTD_TOTAL
 				MEDCON->( DbCloseArea() )
@@ -5476,6 +5525,21 @@ User Function GMINDPRO( aParam )
 				cQuery += "  AND D3.D3_ESTORNO = ' ' " + CEOL
 				cQuery += "  AND D3.D_E_L_E_T_ = ' ' " 
 
+				if lPEPNC08
+					// Ponto de entrada que permite modificar a query de análise das movimentações de saída para o produto
+					// Parâmetro 1: Indica o local da chamada do PE, sendo 1- contagem dos registros de saída do produto
+					//													   2- contagem dos registros de movimentações internas ou OPs para o produto
+					//													   3- soma das quantidades de saída do produto
+					//													   4- soma das quantidades de movimentações internas ou OPs para o produto
+					//													   5- conta quantos documentos de saída foram emitidos no período
+					//													   6- conta quantas movimentações ou ops foram feitas no período
+					// Parâmetro 2: Indica a query padrão do sistema
+					// Retorno esperado: query completa modificada ou incrementada pronta para execução
+					xPEPNC08 := ExecBlock( 'PEPNC08', .F., .F., { 4, cQuery } )
+					if ValType( xPEPNC08 ) == 'C' .and. ! Empty( xPEPNC08 )
+						cQuery := xPEPNC08
+					endif
+				endif
 				DBUseArea( .T., 'TOPCONN', TcGenQry(,,cQuery), "MEDCON", .F., .T. )
 				nConsumo += MEDCON->QTD_TOTAL
 				MEDCON->( DbCloseArea() )
@@ -5491,6 +5555,21 @@ User Function GMINDPRO( aParam )
 			cQuery += "  AND D2.D2_CLIENTE <> '"+ PADR( SubStr( SM0->M0_CGC, 01, 08 ), TAMSX3('D2_CLIENTE')[1], ' ' ) +"' " + CEOL
 			cQuery += "  AND D2.D_E_L_E_T_ = ' ' " + CEOL
 			
+			if lPEPNC08
+				// Ponto de entrada que permite modificar a query de análise das movimentações de saída para o produto
+				// Parâmetro 1: Indica o local da chamada do PE, sendo 1- contagem dos registros de saída do produto
+				//													   2- contagem dos registros de movimentações internas ou OPs para o produto
+				//													   3- soma das quantidades de saída do produto
+				//													   4- soma das quantidades de movimentações internas ou OPs para o produto
+				//													   5- conta quantos documentos de saída foram emitidos no período
+				//													   6- conta quantas movimentações ou ops foram feitas no período
+				// Parâmetro 2: Indica a query padrão do sistema
+				// Retorno esperado: query completa modificada ou incrementada pronta para execução
+				xPEPNC08 := ExecBlock( 'PEPNC08', .F., .F., { 5, cQuery } )
+				if ValType( xPEPNC08 ) == 'C' .and. ! Empty( xPEPNC08 )
+					cQuery := xPEPNC08
+				endif
+			endif
 			DBUseArea( .T., 'TOPCONN', TcGenQry(,,cQuery), 'INDPRO', .F., .T. )
 			if !INDPRO->( EOF() )
 				nQtdDoc  += INDPRO->QTD_PEDIDOS
@@ -5512,6 +5591,21 @@ User Function GMINDPRO( aParam )
 			cQuery += "  AND D3.D3_ESTORNO = ' ' " + CEOL
 			cQuery += "  AND D3.D_E_L_E_T_ = ' ' "
 			
+			if lPEPNC08
+				// Ponto de entrada que permite modificar a query de análise das movimentações de saída para o produto
+				// Parâmetro 1: Indica o local da chamada do PE, sendo 1- contagem dos registros de saída do produto
+				//													   2- contagem dos registros de movimentações internas ou OPs para o produto
+				//													   3- soma das quantidades de saída do produto
+				//													   4- soma das quantidades de movimentações internas ou OPs para o produto
+				//													   5- conta quantos documentos de saída foram emitidos no período
+				//													   6- conta quantas movimentações ou ops foram feitas no período
+				// Parâmetro 2: Indica a query padrão do sistema
+				// Retorno esperado: query completa modificada ou incrementada pronta para execução
+				xPEPNC08 := ExecBlock( 'PEPNC08', .F., .F., { 6, cQuery } )
+				if ValType( xPEPNC08 ) == 'C' .and. ! Empty( xPEPNC08 )
+					cQuery := xPEPNC08
+				endif
+			endif
 			DBUseArea( .T., 'TOPCONN', TcGenQry(,,cQuery), 'INDPRO', .F., .T. )
 			if !INDPRO->( EOF() )
 				nQtdDoc  += INDPRO->QTD_OP
