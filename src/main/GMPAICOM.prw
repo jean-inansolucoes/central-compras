@@ -3030,19 +3030,20 @@ Função para carregar a análise gráfica de sazonalidade por filial
 /*/
 Static Function fLoadAna( lNoInt )
 	
-	Local aArea  := GetArea()
-	Local cQuery := ""
-	Local aPer   := {}
-	Local dIni   := Nil
-	Local dFim   := Nil
-	Local aMes   := { 'jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez' }
-	Local nX     := 0
-	Local aTemp  := {}
+	Local aArea    := GetArea()
+	Local cQuery   := ""
+	Local aPer     := {}
+	Local dIni     := Nil
+	Local dFim     := Nil
+	Local aMes     :={'jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'}
+	Local nX       := 0
+	Local aTemp    := {}
 	local aCliLoja := {} as array
 	Local cINCli   := "" as character
-	local nAux     := 0 as numeric
-	local nVendido := 0 as numeric
-	local nProduz  := 0 as numeric
+	local nAux     := 0  as numeric
+	local nVendido := 0  as numeric
+	local nProduz  := 0  as numeric
+	local lPEPNC08 := ExistBlock( 'PEPNC08' )
 	// local oData    := JsonObject():New()
 	// local aData    := {}
 	
@@ -3128,6 +3129,22 @@ Static Function fLoadAna( lNoInt )
 			endif
 			cQuery += "  AND D2.D_E_L_E_T_ = ' ' " + CEOL
 
+			if lPEPNC08
+				// Ponto de entrada que permite modificar a query de análise das movimentações de saída para o produto
+				// Parâmetro 1: Indica o local da chamada do PE, sendo 1- contagem dos registros de saída do produto
+				//													   2- contagem dos registros de movimentações internas ou OPs para o produto
+				//													   3- soma das quantidades de saída do produto
+				//													   4- soma das quantidades de movimentações internas ou OPs para o produto
+				//													   5- conta quantos documentos de saída foram emitidos no período
+				//													   6- conta quantas movimentações ou ops foram feitas no período
+				// Parâmetro 2: Indica a query padrão do sistema
+				// Retorno esperado: query completa modificada ou incrementada pronta para execução
+				xPEPNC08 := ExecBlock( 'PEPNC08', .F., .F., { 3, cQuery } )
+				if ValType( xPEPNC08 ) == 'C' .and. ! Empty( xPEPNC08 )
+					cQuery := xPEPNC08
+				endif
+			endif
+
 			DBUseArea( .T., "TOPCONN", TcGenQry(,,cQuery), "TMPVEN" /* cAlias */, .F. /* lShared */, .T. /* lReadOnly */ )
 			nVendido := 0
 			If !TMPVEN->( EOF() )
@@ -3151,6 +3168,22 @@ Static Function fLoadAna( lNoInt )
 			cQuery += "  AND ( D3.D3_OP     <> '"+ Space( TAMSX3('D3_OP')[1] ) +"' OR D3.D3_CF = 'RE0' ) " + CEOL
 			cQuery += "  AND D3.D3_ESTORNO = ' ' " + CEOL
 			cQuery += "  AND D3.D_E_L_E_T_ = ' ' " + CEOL
+
+			if lPEPNC08
+				// Ponto de entrada que permite modificar a query de análise das movimentações de saída para o produto
+				// Parâmetro 1: Indica o local da chamada do PE, sendo 1- contagem dos registros de saída do produto
+				//													   2- contagem dos registros de movimentações internas ou OPs para o produto
+				//													   3- soma das quantidades de saída do produto
+				//													   4- soma das quantidades de movimentações internas ou OPs para o produto
+				//													   5- conta quantos documentos de saída foram emitidos no período
+				//													   6- conta quantas movimentações ou ops foram feitas no período
+				// Parâmetro 2: Indica a query padrão do sistema
+				// Retorno esperado: query completa modificada ou incrementada pronta para execução
+				xPEPNC08 := ExecBlock( 'PEPNC08', .F., .F., { 4, cQuery } )
+				if ValType( xPEPNC08 ) == 'C' .and. ! Empty( xPEPNC08 )
+					cQuery := xPEPNC08
+				endif
+			endif
 		
 			DBUseArea( .T., "TOPCONN", TcGenQry(,,cQuery), "TMPVEN" /* cAlias */, .F. /* lShared */, .T. /* lReadOnly */ )
 			nProduz := 0
@@ -6790,15 +6823,13 @@ Static Function fGrvPed( oCbo, aCbo, cCbo, cFornece, cLoja )
 				aAdd( aCab, { "C7_COND"    , cGetCon, Nil } )
 				aAdd( aCab, { "C7_CONTATO" , cContat, Nil } )
 				aAdd( aCab, { "C7_TPFRETE" , cCboFrt, Nil } )
-				if nValFrt > 0
-					if cCboFrt == 'C'		// CIF
-						aAdd( aCab, { "C7_FRETE"  , nValFrt, Nil } )
-					elseif cCboFrt == 'F'
-						aAdd( aCab, { 'C7_FRETCON', nValFrt, Nil } )
-						if SC7->( FieldPos( 'C7_TRANSP' ) ) > 0 .and. ! Empty( cTransp )
-							aAdd( aCab, { "C7_TRANSP", cTransp, Nil } )
-							aAdd( aCab, { "C7_TRANSLJ", cTransLj, Nil } )
-						endif
+				if cCboFrt == 'C'		// CIF
+					aAdd( aCab, { "C7_FRETE"  , nValFrt, Nil } )
+				elseif cCboFrt == 'F'
+					aAdd( aCab, { 'C7_FRETCON', nValFrt, Nil } )
+					if ! Empty( cTransp )
+						aAdd( aCab, { "C7_TRANSP", cTransp, Nil } )
+						aAdd( aCab, { "C7_TRANSLJ", cTransLj, Nil } )
 					endif
 				endif
 				

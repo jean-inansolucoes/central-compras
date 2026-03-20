@@ -183,7 +183,8 @@ user function JSDETVER()
     aAdd( aDetVer, { '19','0004','26/02/2026', 'Implementado função para criação de campo automática, desde que o acesso seja em modo exclusivo à tabela' } )
     aAdd( aDetVer, { '19','0005','26/02/2026', 'Implementado regra para permitir definir no fornecedor se o mesmo deve ou não entrar na formação de preços.' } )
     aAdd( aDetVer, { '19','0006','12/03/2026', 'Criado ponto de entrada PEPNC08 para permitir alterar querys de cálculos dos produtos' } )
-    aAdd( aDetVer, { '19','0007','13/03/2026', 'Adicionado data do último cálculo dos produtos para aparecer no cabeçalho do grid de produtos.' } )
+    aAdd( aDetVer, { '19','0007','13/03/2026', 'Adicionado data do último cálculo dos produtos para aparecer no cabeçalho do grid de produtos' } )
+    aAdd( aDetVer, { '19','0008','20/03/2026', 'Ajuste na gravação do código da transportadora no pedido de venda' } )
 
 return aDetVer
 
