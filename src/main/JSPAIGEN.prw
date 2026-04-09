@@ -185,12 +185,14 @@ user function JSDETVER()
     aAdd( aDetVer, { '19','0006','12/03/2026', 'Criado ponto de entrada PEPNC08 para permitir alterar querys de cálculos dos produtos' } )
     aAdd( aDetVer, { '19','0007','13/03/2026', 'Adicionado data do último cálculo dos produtos para aparecer no cabeçalho do grid de produtos' } )
     aAdd( aDetVer, { '19','0008','20/03/2026', 'Ajuste na gravação do código da transportadora no pedido de venda' } )
+    aAdd( aDetVer, { '19','0009','01/04/2026', 'Criado ponto de entrada PEPNC09 para permitir guardar os dados do produto antes de alterar seu preço' } )
+    aAdd( aDetVer, { '19','0010','08/04/2026', 'Corrigido validação inconsistente do ambiente do Supabase' } )
 
 return aDetVer
 
 /*/{Protheus.doc} JSSUPSM0
 Função para obter as filiais da empresa que o usuário estiver conectado
-@type function
+@type functionq
 @version 1.0
 @author Jean Carlos Pandolfo Saggin
 @since 11/10/2024

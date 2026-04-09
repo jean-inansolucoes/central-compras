@@ -46,14 +46,12 @@ User Function JSGLBPAR( lCheck )
     // endif
 
     // Carrega os dados do cliente
-    MsAguarde({|| lSupabase := chkActive() }, 'Conectando...', 'Checando conexão com ambiente web...' )
-    if lSupabase
-        MsAguarde({|| nCustomer := getCustomer() }, 'Obtendo dados do cliente...', 'Identificando cliente...' )
-        if nCustomer > 0
-            MsAguarde({|| aContract := getContract() }, 'Obtendo contrato...', 'Verificando contratos vigentes para o cliente...' )
-            if len( aContract ) > 0
-                lChecked := lStruct .and. lSupabase .and. Date() <= aContract[3]
-            endif
+    MsAguarde({|| nCustomer := getCustomer() }, 'Obtendo dados do cliente...', 'Identificando cliente...' )
+    if nCustomer > 0
+        lSupabase := .T.
+        MsAguarde({|| aContract := getContract() }, 'Obtendo contrato...', 'Verificando contratos vigentes para o cliente...' )
+        if len( aContract ) > 0
+            lChecked := lStruct .and. lSupabase .and. Date() <= aContract[3]
         endif
     endif
     
@@ -524,26 +522,6 @@ static function convPar( xValue )
         cValue := AllTrim( xValue )
     endif
 return cValue
-
-/*/{Protheus.doc} chkActive
-Função para checar se a conexão com o supabase está online
-@type function
-@version 1.0
-@author Jean Carlos Pandolfo Saggin
-@since 2/14/2025
-@return logical, lSuccess
-/*/
-static function chkActive()
-
-    local lSuccess := .T. as logical
-    local oResult  as object
-    
-    oResult := U_JSSUPABASE( "HEAD" /* cMethod */ )
-    lSuccess := ValType( oResult ) == 'J'
-    FreeObj( oResult )
-    oResult := nil
-
-return lSuccess
 
 /*/{Protheus.doc} getCustomer
 Obtem o ID do cliente com base nos dados do cadastro de empresas 

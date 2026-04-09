@@ -380,7 +380,7 @@ User Function GMPAICOM()
 			 'A T E N Ç Ã O ! Foi constatado que o agendamento de recálculo dos índices individuais dos produtos '+;
 			 iif( Empty( cLastRun ), 'nunca foi executado!', 'não é executado desde '+ cLastRun ) +'.',;
 			 'Verifique juntamente com a equipe responsável pelo Protheus se o agendamento foi configurado corretamente pois a defasagem nos cálulos dos índices '+;
-			 'pode gerar falhas no processo de análise de compras e, consequentsemente, rupturas indesejadas de estoque.' )
+			 'pode gerar falhas no processo de análise de compras e, consequentemente, rupturas indesejadas de estoque.' )
 	endif
 
 	// Checa índices dos produtos calculados e remove registros em duplicidades
@@ -1388,6 +1388,7 @@ static function priceAdjust( cTab, cProd, nPrice )
 	local aArea    := getArea()
 	local lSuccess := .F. as logical
 	local lExist   := .F. as logical
+	local lPEPNC09 := ExistBlock( 'PEPNC09' )		// Ponto de entrada para permitir guardar os dados do produto antes de alterar seu preço.
 
 	// Antes de aplicar preço, valida existência da tabela de preços
 	if ! ExistCpo( 'DA0', cTab )
@@ -1411,6 +1412,16 @@ static function priceAdjust( cTab, cProd, nPrice )
 				Return lSuccess
 			endif
 		endif
+		
+		if lPEPNC09
+			// Ponto de entrada executado antes da alteração do preço do produto
+			// PARAMIXB[1]: Código da tabela de preço em que está ocorrendo a alteração
+			// PARAMIXB[2]: Código do produto que está tendo seu preço alterado/cadastrado
+			// PARAMIXB[3]: Preço que está sendo aplicado
+			// PARAMIXB[4]: Indica se será gerado um registro novo na tabela (.T.) ou se o preço está sendo alterado (.F.)
+			ExecBlock( 'PEPNC09', .F., .F., { cTab, cProd, nPrice, !lExist } )
+		endif
+
 		RecLock( 'DA1', !lExist )
 		if !lExist
 			DA1->DA1_FILIAL := FWxFilial( 'DA1' )
