@@ -187,6 +187,7 @@ user function JSDETVER()
     aAdd( aDetVer, { '19','0008','20/03/2026', 'Ajuste na gravação do código da transportadora no pedido de venda' } )
     aAdd( aDetVer, { '19','0009','01/04/2026', 'Criado ponto de entrada PEPNC09 para permitir guardar os dados do produto antes de alterar seu preço' } )
     aAdd( aDetVer, { '19','0010','08/04/2026', 'Corrigido validação inconsistente do ambiente do Supabase' } )
+    aAdd( aDetVer, { '19','0011','10/04/2026', 'Adição do termo "SmartSupply" na descrição dos índices de produtos' } )
 
 return aDetVer
 

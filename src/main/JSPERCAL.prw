@@ -46,7 +46,7 @@ static function browseDef()
     
     oBrowse := FWMBrowse():New()
     oBrowse:SetAlias( cMVPNC16 )
-    oBrowse:SetDescription( 'Perfis de Cálculo' )
+    oBrowse:SetDescription( 'SmartSupply - Perfis de Cálculo - '+ U_JSGETVER() )
     oBrowse:SetMenuDef( 'JSPERCAL' )
 
 return oBrowse

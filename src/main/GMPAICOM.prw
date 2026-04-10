@@ -386,7 +386,7 @@ User Function GMPAICOM()
 	// Checa índices dos produtos calculados e remove registros em duplicidades
 	// Processa({|| checkZB3( CtoD( SubStr( cLastRun, 1, 10 ) ) ) }, 'Aguarde', 'Checando índices de produtos...' ) 
 
-	DEFINE MSDIALOG oDlgCom TITLE AllTrim( SM0->M0_FILIAL ) +" | Painel de Compra - "+ U_JSGETVER() FROM 000, 000  TO aSize[06], aSize[05] COLORS 0, 16777215 PIXEL STYLE DS_MODALFRAME
+	DEFINE MSDIALOG oDlgCom TITLE AllTrim( SM0->M0_FILIAL ) +" | SmartSupply - Painel de Compras - "+ U_JSGETVER() FROM 000, 000  TO aSize[06], aSize[05] COLORS 0, 16777215 PIXEL STYLE DS_MODALFRAME
 	oDlgCom:lEscClose := .F.		// Desabilita fechamento da tela com tecla ESC
 
 	// Group para separar a tela em duas partes na vertical

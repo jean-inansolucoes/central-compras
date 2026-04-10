@@ -30,7 +30,7 @@ user function JSFORPRC()
     local lSuccess  := .T. as logical
 
     Private aRotina   := {} 
-    Private cCadastro := "Formação de Preço - "+ U_JSGETVER()
+    Private cCadastro := "SmartSupply - Formação de Preços - "+ U_JSGETVER()
     Private INCLUI    := .F.
     Private ALTERA    := .F.
 

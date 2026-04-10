@@ -135,7 +135,7 @@ user function JSMANPAR( nOpc )
 
     oDlgPar := FWDialogModal():New()
 	oDlgPar:SetEscClose( .T. )
-	oDlgPar:SetTitle( 'Painel de Compras - '+ U_JSGETVER() )
+	oDlgPar:SetTitle( 'SmartSupply - Parâmetros Internos - '+ U_JSGETVER() )
 	oDlgPar:SetSubTitle( 'Parâmetros Internos do Painel de Compras' )
 	oDlgPar:EnableAllClient()
 	oDlgPar:CreateDialog()

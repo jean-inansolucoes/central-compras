@@ -12,7 +12,7 @@ User Function JSINDPRO()
 
     Local cAlias := AllTrim( SuperGetMv( 'MV_X_PNC02',,"" ) )   // Alias da tabela de índices de produtos
 
-    Private cCadastro := "Índices de Produtos"
+    Private cCadastro := "SmartSupply - Índices de Produtos - "+ U_JSGETVER()
     Private aRotina   := {}
 
     AAdd( aRotina, { 'Visualizar', "AxVisual", 0, 2 } )
