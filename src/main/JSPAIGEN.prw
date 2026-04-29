@@ -188,6 +188,10 @@ user function JSDETVER()
     aAdd( aDetVer, { '19','0009','01/04/2026', 'Criado ponto de entrada PEPNC09 para permitir guardar os dados do produto antes de alterar seu preço' } )
     aAdd( aDetVer, { '19','0010','08/04/2026', 'Corrigido validação inconsistente do ambiente do Supabase' } )
     aAdd( aDetVer, { '19','0011','10/04/2026', 'Adição do termo "SmartSupply" na descrição dos índices de produtos' } )
+    aAdd( aDetVer, { '19','0012','22/04/2026', 'Adição de botão na rotina de formação de preços para ignorar fornecedor' } )
+    aAdd( aDetVer, { '19','0013','22/04/2026', 'Ajustado leitura do campo de lucro na tela de formação de preços para que o sistema entenda o valor individualmente para cada produto' } )
+    aAdd( aDetVer, { '19','0014','28/04/2026', 'Correção da leitura da última nota de entrada para o produto na tela de formação de preços' } )
+    aAdd( aDetVer, { '19','0015','28/04/2026', 'Remoção de variáveis estáticas declaradas e não utilizadas' } )
 
 return aDetVer
 

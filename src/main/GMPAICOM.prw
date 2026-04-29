@@ -7,19 +7,19 @@
 #include 'fwmvcdef.ch'
 
 #define CEOL CHR( 13 ) + CHR( 10 )				// ENTER
-#define NESP 2									// ESPAÇO EM MM ENTRE OS OBJETOS NA TELA
+// #define NESP 2									// ESPAÇO EM MM ENTRE OS OBJETOS NA TELA
 #define NPERCSUP 310/MsAdvSize()[6]				// Percentual da tela que a área superior deve ocupar (cáculo para tonar o tamanho fixo)
 #define CCARCOM "carrinho.bmp"					// IMAGEM REFERENTE AO CARRINHO DE COMPRAS EXIBIDO NA ROTINA
 #define CWHITE  "white.bmp"						// IMAGEM EM BRANCO PARA CARREGAR QUANDO CARRINHO ESTIVER SEM ITENS
-#define CSUBIMG "images"						// DIRETORIO ONDE
-#define CSUBLOG "logs"							// DIRETORIO DE GRAVACAO DOS LOGS DE EXECUÇÕES DA ROTINA
-#define CIMGMRK "LBOK"							// BITMAP PARA INDICAR QUE A LINHA ESTÁ SELECIONADA
-#define CIMGNOMRK "LBNO"						// BITMAP PARA INDICAR QUE O REGISTRO ESTÁ DESMARCARDO
-#define CLOOKUPICON "FWSKIN_ICON_LOOKUP.PNG"	// icone de pesquisa
-#define CIMGNOT "notificacao.png"				// IMAGEM PARA EXIBIÇÃO DE NOTIFICAÇÕES                    
+// #define CSUBIMG "images"						// DIRETORIO ONDE
+// #define CSUBLOG "logs"							// DIRETORIO DE GRAVACAO DOS LOGS DE EXECUÇÕES DA ROTINA
+// #define CIMGMRK "LBOK"							// BITMAP PARA INDICAR QUE A LINHA ESTÁ SELECIONADA
+// #define CIMGNOMRK "LBNO"						// BITMAP PARA INDICAR QUE O REGISTRO ESTÁ DESMARCARDO
+// #define CLOOKUPICON "FWSKIN_ICON_LOOKUP.PNG"	// icone de pesquisa
+// #define CIMGNOT "notificacao.png"				// IMAGEM PARA EXIBIÇÃO DE NOTIFICAÇÕES                    
 #define CSEPARA "|"								// CARACTERE UTILIZADO COMO SEPARADOR DO CONTEUDO DA FORMULA
 #define DIAS_LT_FOR 365							// Quantidade de dias para análise do prazo médio de entrega do produto para o fornecedor padrão
-#define CBTNSTYLE btnStyle()					// Estilo CSS para os botões da aplicação
+// #define CBTNSTYLE btnStyle()					// Estilo CSS para os botões da aplicação
 #define LG_CRITICO "BR_VERMELHO"				// Legenda de itens críticos
 #define LG_ALTO    "BR_LARANJA"					// Legenda de itens de alto giro
 #define LG_MEDIO   "BR_AMARELO"					// Legenda para itens de giro mediano
@@ -27,7 +27,7 @@
 #define LG_SEMGIRO "BR_BRANCO"					// Legenda para itens considerados sem giro
 #define LG_SOLICIT "BR_VIOLETA"					// Legenda para itens obtidos por solicitação
 #define LBL_TOP	   .T.							// Posição do label de topo
-#define LBL_LEFT   .F.							// Seta posição da label à esquerda do get
+// #define LBL_LEFT   .F.							// Seta posição da label à esquerda do get
 #define LG_OBS     "notificacao.png"			// Legenda para itens com observação preenchida
 #define LG_NO_OBS  "white.bmp" 					// Legenda para itens sem observação preenchida
  
@@ -565,8 +565,8 @@ static function entryDocs( cProduto, cDoc, cSerie, cFornece, cLoja, cTipo )
 	local lEnable  := .T. as logical
 	local cAlias   := "SD1TMP" as character
 	local oTmp     as object
-	local cFornSM0 := "" as character
 	local aFornSM0 := U_JSSUPSM0()
+	local aLast    := {} as array
 	
 	// Última compra
 	local oGetUPr  as object
@@ -687,7 +687,7 @@ static function entryDocs( cProduto, cDoc, cSerie, cFornece, cLoja, cTipo )
 	Private nGetCuM := 0
 
 	// Saída
-	Private nGetLuc := GetMV( 'MV_X_PNC05',,0 )
+	Private nGetLuc := 0
 	Private nGetPCV := GetMV( 'MV_TXPIS'  ,,0 ) + GetMV( 'MV_TXCOFIN',,0 ) 										// PIS/COFINS Venda
 	Private nGetICV := iif( GetMv( 'MV_X_PNC18', .T. ), GetMV( 'MV_X_PNC18' ), GetMV( 'MV_ICMPAD' ) ) 			// ICMS Venda (formação de preços)
 	Private nGetOpe := GetMV( 'MV_X_PNC06',,0 )																	// Despesas Operacionais Venda
@@ -717,8 +717,9 @@ static function entryDocs( cProduto, cDoc, cSerie, cFornece, cLoja, cTipo )
 	Private cUFFor  := ""
 	Private oBrwDoc     as object
 	Private oDlgDoc     as object
-	Private cPrdAlt := "" as character
+	Private cPrdAlt   := "" as character
 	Private lValueChg := .F. as logical
+	Private cFornSM0  := "" as character
 
 	default cProduto := ""
 	default cDoc     := ""
@@ -996,6 +997,17 @@ static function entryDocs( cProduto, cDoc, cSerie, cFornece, cLoja, cTipo )
 		endif
 	else
 		cPrdAlt := SD1TMP->D1_COD
+	endif
+
+	aLast := getLastDoc( SD1TMP->D1_COD )
+	if Len( aLast ) > 0
+		nGetUPr := aLast[1]
+		nGetUQt := aLast[2]
+		dGetUDt := aLast[3]
+		cGetUPz := aLast[4]
+		cGetNF  := aLast[5]
+		cGetUFi := aLast[6]
+		cGetUFo := aLast[7]
 	endif
 
 	// Documentos de entrada ligados ao produto atual
@@ -8533,7 +8545,14 @@ static function someChange( lReset )
 		nValFin := Round(SD1TMP->VALFIN / SD1TMP->D1_QUANT, 2)
 		nGetFin := Round( nValFin / SD1TMP->D1_VUNIT * 100,2)
 		nOutFre := SD1TMP->VALFRT / SD1TMP->D1_QUANT
+		nGetLuc := getLucro( SD1TMP->D1_COD, SuperGetMV( 'MV_X_PNC05',,0 ) )
 		
+		cGetCod := SD1TMP->D1_COD
+		cGetDes := RetField( 'SB1', 1, FWxFilial( 'SB1' ) + SD1TMP->D1_COD, 'B1_DESC' )
+		cGetUM  := RetField( 'SB1', 1, FWxFilial( 'SB1' ) + SD1TMP->D1_COD, 'B1_UM' )
+		cGetNCM := RetField( 'SB1', 1, FWxFilial( 'SB1' ) + SD1TMP->D1_COD, 'B1_POSIPI' )
+		nGetIPS := RetField( 'SB1', 1, FWxFilial( 'SB1' ) + SD1TMP->D1_COD, 'B1_IPI' )
+
 		// PE para substituir produto que vai receber o preço calculado pela rotina de formação de preços
 		// Utilizado para os casos em que o preço de venda é calculado sobre o custo da matéria-prima, mas o produto que é vendido é o PA
 		if ExistBlock( 'PEPNC06' )
@@ -8665,7 +8684,7 @@ static function someChange( lReset )
 	nGetPCI := nGetPrc + ( nGetPrc * (nGetIPS/100) )
 
 	// Obtem os dados da ultima nota	
-	aLast   := getLastDoc( cGetCod )
+	aLast   := getLastDoc( SD1TMP->D1_COD )
 	if Len( aLast ) > 0
 		nGetUPr := aLast[1]
 		nGetUQt := aLast[2]
@@ -8699,20 +8718,22 @@ static function getLastDoc( cProduto )
 	local cQuery := "" as character
 
 	// Query para identificar a ultima nota
-	cQuery := "SELECT D1.D1_COD, MAX(D1.D1_EMISSAO) D1_EMISSAO, COALESCE(MAX(D1.R_E_C_N_O_),0) RECSD1 "
+	cQuery := "SELECT COALESCE(MAX(D1.R_E_C_N_O_),0) RECSD1 "
 	cQuery += "FROM "+ RetSqlName( 'SD1' ) +" D1 "
+	cQuery += "INNER JOIN "+ RetSqlName( 'SF4' ) +" F4 ON F4.F4_FILIAL = '"+ FWxFilial( 'SF4' ) +"' AND F4.F4_CODIGO = D1.D1_TES AND F4.D_E_L_E_T_ = ' ' "
 	cQuery += "WHERE D1.D1_COD     = '"+ cProduto +"' "
 	cQuery += "  AND D1.D1_TIPO    = 'N' "			// Somente notas do tipo normal
-	cQuery += "  AND D1.D1_TES    <> '"+ Space( TAMSX3( 'D1_TES' )[1] ) +"' "
+	cQuery += "  AND D1.D1_FORNECE NOT IN ( "+ cFornSM0 +" ) "	
+	cQuery += "  AND D1.D1_TES     <> '"+ Space( TAMSX3( 'D1_TES' )[1] ) +"' "
+	cQuery += "  AND F4.F4_DUPLIC  = 'S' "
 	cQuery += "  AND D1.D_E_L_E_T_ = ' ' "
-	cQuery += "GROUP BY D1.D1_COD "
 
 	DBUseArea( .T., 'TOPCONN', TcGenQry(,,cQuery), 'LASTD1', .F., .T. )
-	if ! LASTD1->( EOF() )
+	if ! LASTD1->( EOF() ) .and. LASTD1->RECSD1 > 0
 		
 		// Posiciona no registro físico
 		DBSelectArea( 'SD1' )
-		SD1->( DBGoTo( SD1TMP->RECSD1 ) )
+		SD1->( DBGoTo( LASTD1->RECSD1 ) )
 
 		aAdd( aData, ( SD1->D1_TOTAL - SD1->D1_DESC ) / SD1->D1_QUANT /* nGetUPr */ )
 		aAdd( aData, SD1->D1_QUANT /* nGetUQt */ )

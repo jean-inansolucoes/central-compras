@@ -16,14 +16,10 @@ user function JSFORPRC()
     local bOk       :={|| .T. }
     local cFornSM0  := "" as character
 	local aFornSM0  := U_JSSUPSM0()
-    local oBrowse   as object
-    local cAliasTMP := "SF1TMP"
-    local cQuery    := "" as character
     local aFields   := { "F1_FILIAL", "F1_DOC", "F1_SERIE", "F1_X_FPRC", "F1_TIPO", "F1_ESPECIE", "F1_FORNECE", "F1_LOJA", "A2_NOME",;
                          "F1_COND", "F1_DTDIGIT", "F1_EMISSAO", "F1_VALMERC" }
     local aFieldBrw := aClone( aFields )
     local oTable    as object
-    local aStruct   := {} as array
     local aColumns  := {} as array
     local aFilter   := {} as array
     local cCBox     := "" as character
@@ -33,6 +29,10 @@ user function JSFORPRC()
     Private cCadastro := "SmartSupply - Formação de Preços - "+ U_JSGETVER()
     Private INCLUI    := .F.
     Private ALTERA    := .F.
+    Private oBrowse   as object
+    Private cAliasTMP := "SF1TMP"
+    Private cQuery    := "" as character
+    Private aStruct   := {} as array
 
     // Chega estrutura de dicionário de dados para saber se está tudo Ok antes de iniciar
     MsAguarde( {|| lSuccess := checkStruct() }, 'Aguarde...', 'Checando estruturas de dados...' )
@@ -108,9 +108,10 @@ user function JSFORPRC()
 
     cQuery += "WHERE F1.F1_EMISSAO BETWEEN '"+ DtoS( MV_PAR01 ) +"' AND '"+ DtoS( MV_PAR02 ) +"' "
     cQuery += "  AND F1.F1_DTDIGIT BETWEEN '"+ DtoS( MV_PAR03 ) +"' AND '"+ DtoS( MV_PAR04 ) +"' "
-    cQuery += "  AND F1.F1_TIPO     = 'N' " // Apenas notas do tipo N-Normal
+    cQuery += "  AND F1.F1_TIPO     = 'N' "                     // Apenas notas do tipo N-Normal
+    cQuery += "  AND F1.F1_STATUS   = 'A' "                     // Apenas notas já classificadas fiscalmente
     cQuery += "  AND F1.F1_FORNECE NOT IN ( "+ cFornSM0 +" ) "
-    if !Empty( MV_PAR05 )       // Fornecedor
+    if !Empty( MV_PAR05 )                                       // Fornecedor
         cQuery += "  AND F1.F1_FORNECE = '"+ MV_PAR05 +"' "
     endif
 
@@ -118,7 +119,7 @@ user function JSFORPRC()
         cQuery += "  AND F1.F1_LOJA = '"+ MV_PAR06 +"' "
     endif
     if ( ValType(MV_PAR07) == "N" .and. MV_PAR07 == 2 ) .or. ( ValType( MV_PAR07 ) == 'C' .and. MV_PAR07 == 'Apenas Pendentes' )            // Apenas pendentes
-        cQuery += "  AND F1.F1_X_FPRC <> 'S' "  // Exibe apenas documentos pendentes
+        cQuery += "  AND F1.F1_X_FPRC <> 'S' "                  // Exibe apenas documentos pendentes
     ENDIF
     cQuery += "  AND F1.D_E_L_E_T_ = ' ' "
 
@@ -130,6 +131,7 @@ user function JSFORPRC()
 
     aAdd( aRotina, { OemToAnsi("Visualizar"), "U_JSVISNF", 0 , 2, 0, nil })
     aAdd( aRotina, { 'Form. Preço', 'U_JSFPRECO', 0, 2, 0, Nil } )
+    aAdd( aRotina, { 'Ignorar Fornecedor', 'U_JSFORIGN()', 0, 2, 0, Nil } )
     aAdd( aRotina, { 'Legenda', 'U_JSFPLEG', 0, 2, 0, Nil } )
 
     oBrowse:= FWMBrowse():New()
@@ -148,6 +150,39 @@ user function JSFORPRC()
     oTable:Delete()
     
 return Nil
+
+/*/{Protheus.doc} JSFORIGN
+Função para ignorar dados no processo de formação de preços 
+@type function
+@version 12.1.2510
+@author Jean Carlos Pandolfo Saggin
+@since 22/04/2026
+/*/
+user function JSFORIGN()
+    
+    // Pergunta ao usuário se realmente quer ignorar
+    if ! Empty( SF1TMP->F1_FORNECE )
+        if MsgYesNo( 'Está certo(a) de que gostaria de ignorar os documentos relacionados ao fornecedor ' +AllTrim( SF1TMP->A2_NOME ) +' no processo de formação de preços?', 'A T E N Ç Ã O !' )
+            
+            DBSelectArea( 'SA2' )
+            SA2->( DBSetOrder( 1 ) )
+            if SA2->( DBSeek( FWxFilial( 'SA2' ) + SF1TMP->F1_FORNECE + SF1TMP->F1_LOJA ) )
+                RecLock( 'SA2', .F. )
+                SA2->A2_X_FPRC := 'N'
+                SA2->( MsUnlock() )
+            endif
+            
+            DBSelectArea( cAliasTMP )
+            ZAP
+
+            // Atualiza tabela temporária com dados atualizados do banco para refletir a mudança realizada
+            Processa({|| SQLToTrb( cQuery, aStruct, cAliasTMP ) }, 'Aguarde...', 'Atualizando dados para formação de preços...' )
+            oBrowse:UpdateBrowse()
+
+        endif
+    endif
+    
+return nil
 
 /*/{Protheus.doc} JSVISNF
 Função para chamar processo de visualização do documento fiscal de entrada
