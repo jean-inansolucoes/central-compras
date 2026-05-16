@@ -192,6 +192,9 @@ user function JSDETVER()
     aAdd( aDetVer, { '19','0013','22/04/2026', 'Ajustado leitura do campo de lucro na tela de formação de preços para que o sistema entenda o valor individualmente para cada produto' } )
     aAdd( aDetVer, { '19','0014','28/04/2026', 'Correção da leitura da última nota de entrada para o produto na tela de formação de preços' } )
     aAdd( aDetVer, { '19','0015','28/04/2026', 'Remoção de variáveis estáticas declaradas e não utilizadas' } )
+    aAdd( aDetVer, { '19','0016','28/04/2026', 'Tratativas iniciais para processamento dos produtos usando conceito Demand Driven MRP' } )
+    aAdd( aDetVer, { '19','0017','11/05/2026', 'Adição de telas adicionais para melhor detalhamento de dados das análises dos produtos do tipo PA' } )
+    aAdd( aDetVer, { '19','0018','15/05/2026', 'Adição de tela para exibição de detalhes das necessidades de suprimentos das MPs para fabricação dos PAs' } )
 
 return aDetVer
 
@@ -464,12 +467,14 @@ Função para montagem de query de análise do MRP para Painel de Compras
 @param aConf, array, vetor de configurações do painel
 @param aFilters, array, vetor de filtros aplicados na pesquisa dos produtos a serem calculados
 @param cPedSol, character, Indica o tipo de pedido que vai ser gerado 1-Pedido ou 2-Solicitacao
+@param aCustom, array, campos customizados pelo cliente
+@param aMPs, array, array contendo os itens específicos que estão sendo analisados (MPs)
 @return character, cQuery
 /*/
-user function JSQRYINF( aConf, aFilters, cPedSol, aCustom )
+user function JSQRYINF( aConf, aFilters, cPedSol, aCustom, aMPs )
     
-    Local cTmp     := Upper( AllTrim( aFilters[1] ) )
-	Local aTmp     := StrTokArr( cTmp, ' ' )
+    Local cTmp     := ""
+	Local aTmp     := {}
     local cQuery   := "" as character
     local cZB3     := AllTrim( SuperGetMv( 'MV_X_PNC02' ,,"" ) ) // Alias da tabela de índices de produtos
     local nX       := 0  as numeric
@@ -478,25 +483,34 @@ user function JSQRYINF( aConf, aFilters, cPedSol, aCustom )
     local aAux     := {} as array
     local y        := 0  as numeric
     local dDtCalc  := CtoD( SubStr( GetMv( 'MV_X_PNC12',,DtoC(date()) ), 01, 10 ) )
-    local lLike    := At( '*', aFilters[5] ) > 0
+    local lLike    := iif( len( aMPs ) == 0, At( '*', aFilters[5] ) > 0, .F. )
     local cFilHist := cFilAnt
     local nFil     := 0 as numeric
     local cDB      := TCGetDB()
     local cFdGroup := AllTrim( SuperGetMv( 'MV_X_PNC13',,'B1_GRUPO' ) )
+    local cMPs     := "" as character
 
-    default aConf    := {}
+    default aConf    := U_JSGETCFG( .T. /* lAuto */)
     default aFilters := {}
     default cPedSol  := '1'
     default aCustom  := {}
+    default aMPs     := {} 
 
     // Quando não vier parâmetros, retorna query vazia
     if !len( aConf ) > 0 .and. !len( aFilters ) > 0
         return cQuery
     endif
 
-    aAux := StrTokArr(AllTrim(aFilters[2]),'/')
-	// Cria expressão para a query SQL
-	aEval( aAux, {|x| y++, cTypes += "'"+ x +"'" + iif( y < len( aAux ),',','' ) } )
+    // Quando as MPs vierem preenchidas, monta uma string para informar os códigos na query de leitura dos dados
+    if len( aMPs ) > 0
+        aEval( aMPs, {|x| cMPs += iif( !Empty( cMPs ), ',', '' ) +"'"+ x[1] +"'" } )
+    else
+        cTmp := Upper( AllTrim( aFilters[1] ) )
+        aTmp := StrTokArr( cTmp, ' ' )
+        aAux := StrTokArr(AllTrim(aFilters[2]),'/')
+        // Cria expressão para a query SQL
+        aEval( aAux, {|x| y++, cTypes += "'"+ x +"'" + iif( y < len( aAux ),',','' ) } )
+    endif
 
     // Monta string referente aos armazens que serão utilizados para somatório dos saldos dos produtos
 	aAux    := StrTokArr( AllTrim( aConf[16] ), '/' )
@@ -516,8 +530,8 @@ user function JSQRYINF( aConf, aFilters, cPedSol, aCustom )
     for nFil := 1 to len( _aFil )
         cFilAnt := _aFil[nFil]
         
-        cQuery += "SELECT '"+ cFilAnt +"' FILIAL, B1.B1_COD, B1.B1_DESC, B1.B1_UM, B1.B1_LM, B1.B1_QE, B1.B1_LE, "
-        if ! Empty( aFilters[3] )
+        cQuery += "SELECT '"+ cFilAnt +"' FILIAL, B1.B1_COD, B1.B1_DESC, B1.B1_TIPO, B1.B1_UM, B1.B1_LM, B1.B1_QE, B1.B1_LE, "
+        if len( aMPs ) > 0 .or. ! Empty( aFilters[3] )
             cQuery += "COALESCE(" +iif( aConf[22] == '1', "B1.B1_PROC", "A5.A5_FORNECE") +",'"+ Space( TAMSX3('A5_FORNECE')[1] ) +"') AS A5_FORNECE, " + CEOL
             cQuery += "COALESCE("+ iif( aConf[22] == '1', "B1.B1_LOJPROC", "A5.A5_LOJA") +",'"+ Space( TAMSX3('A5_LOJA')[1] ) +"') AS A5_LOJA, " + CEOL
         else
@@ -538,12 +552,12 @@ user function JSQRYINF( aConf, aFilters, cPedSol, aCustom )
         cQuery += "  AND B2.B2_LOCAL  IN ( '"+ cLocais +"' ) " + CEOL
         cQuery += "  AND B2.D_E_L_E_T_ = ' ' ),0) EMPENHO, " + CEOL
         
-        // Identifica o lead-time do fornecedor
-        if SA2->( FieldPos( 'A2_X_LTIME' ) ) > 0 .AND. ! Empty( aFilters[3] )
-            cQuery += " A2.A2_X_LTIME, "+ CEOL
-        else
-            cQuery += " 0 A2_X_LTIME, "+ CEOL
-        endif
+        // // Identifica o lead-time do fornecedor
+        // if SA2->( FieldPos( 'A2_X_LTIME' ) ) > 0
+        //     cQuery += " A2.A2_X_LTIME, "+ CEOL
+        // else
+        //     cQuery += " 0 AS A2_X_LTIME, "+ CEOL
+        // endif
 
         cQuery += "B1.B1_PE, " + CEOL
         cQuery += "B1.B1_EMIN, " + CEOL
@@ -582,7 +596,14 @@ user function JSQRYINF( aConf, aFilters, cPedSol, aCustom )
 
         if ! isInCallStack( 'U_GMINDPRO' )
             cQuery += ", " + CEOL
-            cQuery += "COALESCE( "+ cZB3 +"_CONMED,0.0001) "+ cZB3 +"_CONMED, " + CEOL
+            // Quando MPs, consumo médio deve ser o cálculo do consumo médio do produto previsto para os próximos X dias
+            if len( aMPs ) > 0
+                cQuery += "CASE "+ CEOL
+                aEval( aMPs, {|x| cQuery += "WHEN B1.B1_COD = '"+ x[1] +"' THEN "+ cValToChar( x[2] ) +" "+ CEOL } )
+                cQuery += "END "+ cZB3 +"_CONMED, " + CEOL
+            else
+                cQuery += "COALESCE( "+ cZB3 +"_CONMED,0.0001) "+ cZB3 +"_CONMED, " + CEOL
+            endif
             cQuery += "COALESCE( "+ cZB3 +"_INDINC,0) "+ cZB3 +"_INDINC " + CEOL
         endif
 
@@ -594,18 +615,18 @@ user function JSQRYINF( aConf, aFilters, cPedSol, aCustom )
 
         cQuery += "FROM "+ RetSqlName( 'SB1' ) +" B1 " + CEOL
         
-        if ! Empty( aFilters[3] )   
+        if len( aMPs ) > 0 .or. ! Empty( aFilters[3] )
             
-            if aConf[22] $ '2|3'    // 2=Prod.x Fornecedor ou 3=Hist.Compras 
+            if aConf[22] $ '2|3' .or. len( aMPs ) > 0   // 2=Prod.x Fornecedor ou 3=Hist.Compras 
                 
                 // Se o fornecedor for informado, o join é exato, do contrário, apresenta os produtos sem fornecedor
                 cQuery += "INNER JOIN "+ RetSqlName( 'SA5' ) +" A5 " + CEOL
                 cQuery += " ON A5.A5_FILIAL = '"+ FWxFilial( 'SA5' ) +"' "+ CEOL
                 cQuery += "AND A5.A5_PRODUTO = B1.B1_COD " + CEOL
-                if ! Empty( aFilters[3] )      // Quando fornecedor é informado, faz join com a tabela de fornecedores para filtrar apenas os produtos do fornecedor informado
+                if len( aMPs ) == 0 .and. ! Empty( aFilters[3] )      // Quando fornecedor é informado, faz join com a tabela de fornecedores para filtrar apenas os produtos do fornecedor informado
                     cQuery += "AND A5.A5_FORNECE = '"+ aFilters[3] +"' " + CEOL
                 endif
-                if ! Empty( aFilters[6] )   // Quando loja é informada, utiliza também no filtro
+                if len( aMPs ) == 0 .and. ! Empty( aFilters[6] )   // Quando loja é informada, utiliza também no filtro
                     cQuery += "AND A5.A5_LOJA = '"+ aFilters[6] +"' " + CEOL
                 endif
                 cQuery += "AND A5.D_E_L_E_T_ = ' ' " + CEOL
@@ -649,35 +670,39 @@ user function JSQRYINF( aConf, aFilters, cPedSol, aCustom )
 
         cQuery += "WHERE B1.B1_FILIAL  = '"+ FWxFilial( 'SB1' ) +"' "+ CEOL 
         
-        if ! Empty( aFilters[5] )
+        if len( aMPs ) == 0 .and. ! Empty( aFilters[5] ) 
             cQuery += "  AND B1.B1_COD "+ iif( lLike, 'LIKE', '=' ) +" '"+ StrTran( iif( lLike, AllTrim(aFilters[5]), aFilters[5]),'*','%') +"' "+ CEOL                 // Filtra pelo código do produto
+        elseif len( aMPs ) > 0
+            cQuery += "  AND B1.B1_COD IN ( "+ cMPs +" ) " + CEOL
         endif
         
         // Filtra pelo grupo do produto que determina sua classificação quanto a tabela de preços do fornecedor
         // ESPECIFICO GMAD MADECENTER
-        if SB1->( FieldPos( 'B1_XGPTP' ) ) > 0
+        if SB1->( FieldPos( 'B1_XGPTP' ) ) > 0 .and. len( aMPs ) == 0
             if len(aFilters) >= 8 .and. ValType(aFilters[7]) == 'C' .and. ! Empty( aFilters[7] )
                 cQuery += "  AND B1.B1_XGPTP LIKE '"+ AllTrim(aFilters[7]) +"%' " + CEOL			// Filtra pelo grupo de produtos
             endif
         endif
 
         cQuery += "  AND B1.B1_MSBLQL  <> '1' " + CEOL				// Faz leitura apenas dos itens ativos
-        cQuery += "  AND B1.B1_TIPO IN ( "+ cTypes +" ) " + CEOL	// Desconsidera produtos acabado e serviços da análise do MRP
+        if len( aMPs ) == 0
+            cQuery += "  AND B1.B1_TIPO IN ( "+ cTypes +" ) " + CEOL	// Considera apenas tipos de produtos informados pelo usuário
+        endif
         cQuery += "  AND B1.B1_MRP     = 'S' " + CEOL				// Apenas os produtos que devem entrar no MRP
         
-        if ValType( aTmp ) == 'A' .and. Len( aTmp ) > 0
+        if ValType( aTmp ) == 'A' .and. Len( aTmp ) > 0 .and. len( aMPs ) == 0
             For nX := 1 to Len( aTmp )
                 cQuery += "  AND B1.B1_DESC LIKE '%"+ aTmp[nX] +"%' " + CEOL
-            Next nX 
+            Next nX
         EndIf
 
         // Verifica se o filtro de fornecedor padrão foi informado na pesquisa de produtos
-        if ! Empty( aFilters[4] )
+        if len( aMPs ) == 0 .and. ! Empty( aFilters[4] ) 
             cQuery += "  AND B1."+ cFdGroup +" LIKE '"+ aFilters[4] +"%' " + CEOL
         endif
 
         // Tratativa de segurança para evitar filtro vazio quando usuário apertar botão de cancelar
-        if aFilters[len(aFilters)]
+        if len( aMPs ) == 0 .and. aFilters[len(aFilters)]
             cQuery += "  AND 0=1 " + CEOL
         endif
         
@@ -1034,3 +1059,504 @@ Função para devolver ao requisitante a API key de comunicação com o banco
 User Function JSGETKEY()
 return "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1xZHhwbnZlenVtbGxkZXVzYm1oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Mzk1NjQxMjIsImV4cCI6MjA1NTE0MDEyMn0._bjK4yUSX6jlkWYKdwg4ou0VUBjJpIHkD5jZb4o3lqY"
  
+ /*/{Protheus.doc} JSGETCFG
+Função para leitura das configurações internas da rotina do painel de compras
+@type function
+@version 1.0
+@author Jean Carlos Pandolfo Saggin
+@since 18/07/2019
+@param lAuto, logical, indica se a chamada da função foi realizada por rotina automática
+/*/
+user function JSGETCFG( lAuto )
+
+    Local aArea   := GetArea()
+	Local cAliCfg := AllTrim( SuperGetMv( 'MV_X_PNC03',,"999" ) ) 
+	local cAlias  := "" as character
+	Local cPref   := cAliCfg + '->' + cAliCfg + '_'
+	local cTable  := "PNC_CONFIG_"+ cEmpAnt
+	local aStruct := U_JSGETSTR( cTable )
+	local nStruct := 0 as numeric
+	local aAcho   := {} as array
+	
+	Private cCadastro := ""
+    Private cDictVer  := Alltrim(SuperGetMv( 'MV_X_PNC20',,"00" ))
+	
+	Default lAuto := .F.
+	
+	// Verifica se o dicionário que está rodando no ambiente do cliente é compatível com tabelas de configurações via topconnect
+	if !Empty(cDictVer) .and. cDictVer > "00"
+		
+		cAlias := GetNextAlias()
+		cPref     := cAlias + '->' 
+        
+		DBUseArea( .T., 'TOPCONN', cTable, cAlias, .F., .F. )
+		( cAlias )->( DBSetIndex( cTable + '_01' ) )
+
+		// Caso não tenha encontrado registro referente a filial corrente, busca registro na tabela anterior
+		if ! ( cAlias )->( DBSeek( cFilAnt ) )
+			DbSelectArea( cAliCfg )
+			( cAliCfg )->( DbSetOrder( 1 ) )
+			If ( cAliCfg )->( DbSeek( FWxFilial( cAliCfg ) ) )
+
+				RecLock( cAlias, .T. )
+				for nStruct := 1 to len( aStruct )
+					// Antes de realizar atribuição dos dados, verifica se existe a correlação entre os campos
+					if ( cAlias )->( FieldPos( aStruct[nStruct][1] ) ) > 0 .and. ( cAliCfg )->( FieldPos( cAliCfg + '_'+ aStruct[nStruct][2] ) ) > 0
+						( cAlias )->( FieldPut( FieldPos( aStruct[nStruct][1] ), ( cAliCfg )->( FieldGet( cAliCfg + '_'+ aStruct[nStruct][2] ) ) ) )
+					endif
+				next nStruct
+				(cAlias)->(MsUnlock())
+
+			endif
+		endif
+
+		// Verifica se foi possível identificar o cadastro das configurações
+		if ( cAlias )->( DBSeek( cFilAnt ) )
+			
+			cPref := cAlias + '->'
+			aAdd( aConfig, &( cPref + 'PRJEST' ) )		// [01] - Projeção padrão de estoque em dias
+			aAdd( aConfig, &( cPref + 'ITECRI' ) )		// [02] - Classificação de giro: Traz Itens críticos pré-selecionado?
+			aAdd( aConfig, &( cPref + 'ITEALT' ) )		// [03] - Classificação de giro: Traz Itens alto giro pré-selecionado?
+			aAdd( aConfig, &( cPref + 'ITEMED' ) )		// [04] - Classificação de giro: Traz Itens médio giro pré-selecionado?
+			aAdd( aConfig, &( cPref + 'ITEBAI' ) )		// [05] - Classificação de giro: Traz Itens baixo giro pré-selecionado?
+			aAdd( aConfig, &( cPref + 'ITESEM' ) )		// [06] - Classificação de giro: Traz Itens sem giro pré-selecionado?
+			aAdd( aConfig, &( cPref + 'ITESOB' ) )		// [07] - Classificação de giro: Traz Itens sob demanda pré-selecionado?
+			aAdd( aConfig, &( cPref + 'TIPANA' ) )		// [08] - Tipo de análise de sazonalidade do produto
+			aAdd( aConfig, &( cPref + 'QTDANA' ) )		// [09] - Qtde de períodos para análise de sazonalidade do produto
+			aAdd( aConfig, &( cPref + 'INDCRI' ) )		// [10] - Indice de insidência para produtos considerados críticos
+			aAdd( aConfig, &( cPref + 'INDALT' ) )		// [11] - Indice de insidência para produtos considerados de alto giro
+			aAdd( aConfig, &( cPref + 'INDMED' ) )		// [12] - Indice de insidência para produtos considerados de medio giro
+			aAdd( aConfig, &( cPref + 'INDBAI' ) )		// [13] - Indice de insidência para produtos considerados de baixo giro
+			aAdd( aConfig, &( cPref + 'TMPGIR' ) )		// [14] - Quantidade de tempo (em dias) para cálculo de giro dos produtos
+			aAdd( aConfig, &( cPref + 'TPDIAS' ) )		// [15] - Tipo de dias (U=Uteis ou C=Corridos)
+			aAdd( aConfig, &( cPref + 'LOCAIS' ) ) 		// [16] - Locais de estoque que o sistema vai realizar o somatório do saldo x produto
+			aAdd( aConfig, &( cPref + 'USPDES' ) )		// [17] - Usuários a serem notificados quando um produto for sinalizado como descontinuado
+
+			if ( cAlias )->( FieldPos( cAlias + '_JUSPAD'  ) ) > 0
+				aAdd( aConfig, &( cPref + 'JUSPAD' ) )	// [18] - Codigo da justificativa padrão para eventos não analisado de dias anteriores
+			else
+				aAdd( aConfig, ' ' )						
+			endif
+			
+			// Valida existência do campo antes de prosseguir
+			if ( cAlias )->( FieldPos( cAlias + '_PRILE'  ) ) > 0	// [19] - Indica se prioriza lote econômico para sugestão da quantidade de compra
+				aAdd( aConfig, &( cPref + 'PRILE'  ) )		
+			else
+				aAdd( aConfig, 'S' )					// [19] - Indica se prioriza lote econômico para sugestão da quantidade de compra
+			endif
+
+			if ( cAlias )->( FieldPos( cAlias + '_CRIT' ) ) > 0
+				aAdd( aConfig, StrTran( &( cPref + 'CRIT' ), ' ', '1' ) )		// Default 1=preço
+			else
+				aAdd( aConfig, '1' )					// [20] - Critério de escolha do melhor fornecedor 1=Preço 2=L.Time
+			endif
+
+			if ( cAlias )->( FieldPos( cAlias + '_TIPOS' ) ) > 0 .and. ! Empty( &( cPref + 'TIPOS' ) )
+				aAdd( aConfig, &( cPref + 'TIPOS' ) )
+			else
+				aAdd( aConfig, 'MP/ME' )				// [21] - Tipos de produtos a serem considerados para a central de compras separados por "/"
+			endif
+
+			if ( cAlias )->( FieldPos( cAlias + '_RELFOR' ) ) > 0 .and. !Empty( &( cPref + 'RELFOR' ) )
+				aAdd( aConfig, &( cPref + 'RELFOR' ) )
+			else
+				aAdd( aConfig, '1' )					// [22] - Indica a relação entre os produtos e o fornecedor (1=Fabricante 2=Prod.x Fornecedor ou 3=Hist.Compra)
+			endif
+
+			if ( cAlias )->( FieldPos( cAlias + '_MAILWF' ) ) > 0
+				aAdd( aConfig, &( cPref + 'MAILWF' ) )	// [23] - E-mail para envio de notificações de workflow
+			else
+				aAdd( aConfig, " " )
+			endif
+
+			if ( cAlias )->( FieldPos( cAlias + '_EMSATU' ) ) > 0
+				aAdd( aConfig, StrTran(&( cPref + 'EMSATU' )," ", "S" ) )	// [24] - Indica se deve deduzir empenho para compor o saldo atual do produto (default "S")
+			else
+				aAdd( aConfig, "S" )
+			endif
+
+			if ( cAlias )->( FieldPos( cAlias + '_DHIST' ) ) > 0 .and. &( cPref + 'DHIST' ) > 0
+				aAdd( aConfig, &( cPref + 'DHIST' ) )						// [25] - Indica o tempo em dias que o sistema deve manter gravado referente aos cálculos executados por produto
+			else
+				aAdd( aConfig, 30 )
+			endif
+
+			if ( cAlias )->( FieldPos( cAlias + '_LOCPAD' ) ) > 0
+				aAdd( aConfig, &( cPref + 'LOCPAD' ) )						// [26] - Indica um ID de armazém padrão (NNR) para compras quando o armazém utilizado pela empresa for diferente do armazém padrão do produto
+			endif
+
+			if ( cAlias )->( FieldPos( cAlias + '_TPDOC' ) ) > 0
+				aAdd( aConfig, iif( Empty( &( cPref + 'TPDOC' ) ), '1', &( cPref + 'TPDOC' ) ) )	// [27] - Indica o tipo de documento que será gerado no ato do fechamento do carrinho
+			else
+				aAdd( aConfig, '1' )
+			endif
+
+			if ( cAlias )->( FieldPos( cAlias + '_MDPED' ) ) > 0
+				aAdd( aConfig, iif( Empty( &( cPref + 'MDPED' ) ), 'N', &( cPref + 'MDPED' ) ) )	// [28] - Indica qual modelo do relatório de pedido de compras a ser utilizado N=Normal ou C=Customizado
+			else
+				aAdd( aConfig, 'N' )		// N=Normal ou C=Custom
+			endif
+
+			if ( cAlias )->( FieldPos( cAlias + '_CMT' ) ) > 0
+				aAdd( aConfig, iif( Empty( &( cPref + 'CMT' ) ), 'S', &( cPref + 'CMT' ) ) )		// [29] - Indica se ativa ou não a função Continuar mais tarde...
+			else
+				aAdd( aConfig, 'S' )		// S=Sim ou N=Não
+			endif
+
+		Elseif !lAuto
+			If Aviso( 'Criar configurações?','Os parâmetros internos ainda não foram configurados, deseja configurá-los agora?', {'Sim','Deixa pra lá'}, 3 ) == 1
+
+				aAcho := {}
+				aEval( aStruct, {|x| aAdd( aAcho, x[1] ) } )
+				
+				cCadastro := "Painel de Compras - Parâmetros"
+				if U_JSMANPAR(/* nOpc - 3-Incluir, 4-Alterar */)
+					fLoadCfg()
+				EndIf
+			EndIf
+		endif
+
+	else
+
+		// OBSOLETO //
+		DbSelectArea( cAliCfg )
+		( cAliCfg )->( DbSetOrder( 1 ) )
+		If ( cAliCfg )->( DbSeek( FWxFilial( cAliCfg ) ) )
+			aAdd( aConfig, &( cPref + 'PRJEST' ) )		// [01] - Projeção padrão de estoque em dias
+			aAdd( aConfig, &( cPref + 'ITECRI' ) )		// [02] - Classificação de giro: Traz Itens críticos pré-selecionado?
+			aAdd( aConfig, &( cPref + 'ITEALT' ) )		// [03] - Classificação de giro: Traz Itens alto giro pré-selecionado?
+			aAdd( aConfig, &( cPref + 'ITEMED' ) )		// [04] - Classificação de giro: Traz Itens médio giro pré-selecionado?
+			aAdd( aConfig, &( cPref + 'ITEBAI' ) )		// [05] - Classificação de giro: Traz Itens baixo giro pré-selecionado?
+			aAdd( aConfig, &( cPref + 'ITESEM' ) )		// [06] - Classificação de giro: Traz Itens sem giro pré-selecionado?
+			aAdd( aConfig, &( cPref + 'ITESOB' ) )		// [07] - Classificação de giro: Traz Itens sob demanda pré-selecionado?
+			aAdd( aConfig, &( cPref + 'TIPANA' ) )		// [08] - Tipo de análise de sazonalidade do produto
+			aAdd( aConfig, &( cPref + 'QTDANA' ) )		// [09] - Qtde de períodos para análise de sazonalidade do produto
+			aAdd( aConfig, &( cPref + 'INDCRI' ) )		// [10] - Indice de insidência para produtos considerados críticos
+			aAdd( aConfig, &( cPref + 'INDALT' ) )		// [11] - Indice de insidência para produtos considerados de alto giro
+			aAdd( aConfig, &( cPref + 'INDMED' ) )		// [12] - Indice de insidência para produtos considerados de medio giro
+			aAdd( aConfig, &( cPref + 'INDBAI' ) )		// [13] - Indice de insidência para produtos considerados de baixo giro
+			aAdd( aConfig, &( cPref + 'TMPGIR' ) )		// [14] - Quantidade de tempo (em dias) para cálculo de giro dos produtos
+			aAdd( aConfig, &( cPref + 'TPDIAS' ) )		// [15] - Tipo de dias (U=Uteis ou C=Corridos)
+			aAdd( aConfig, &( cPref + 'LOCAIS' ) ) 		// [16] - Locais de estoque que o sistema vai realizar o somatório do saldo x produto
+			aAdd( aConfig, &( cPref + 'USPDES' ) )		// [17] - Usuários a serem notificados quando um produto for sinalizado como descontinuado
+
+			if ( cAliCfg )->( FieldPos( cAliCfg + '_JUSPAD'  ) ) > 0
+				aAdd( aConfig, &( cPref + 'JUSPAD' ) )	// [18] - Codigo da justificativa padrão para eventos não analisado de dias anteriores
+			else
+				aAdd( aConfig, ' ' )						
+			endif
+			
+			// Valida existência do campo antes de prosseguir
+			if ( cAliCfg )->( FieldPos( cAliCfg + '_PRILE'  ) ) > 0	// [19] - Indica se prioriza lote econômico para sugestão da quantidade de compra
+				aAdd( aConfig, &( cPref + 'PRILE'  ) )		
+			else
+				aAdd( aConfig, 'S' )					// [19] - Indica se prioriza lote econômico para sugestão da quantidade de compra
+			endif
+
+			if ( cAliCfg )->( FieldPos( cAliCfg + '_CRIT' ) ) > 0
+				aAdd( aConfig, StrTran( &( cPref + 'CRIT' ), ' ', '1' ) )		// Default 1=preço
+			else
+				aAdd( aConfig, '1' )					// [20] - Critério de escolha do melhor fornecedor 1=Preço 2=L.Time
+			endif
+
+			if ( cAliCfg )->( FieldPos( cAliCfg + '_TIPOS' ) ) > 0 .and. ! Empty( &( cPref + 'TIPOS' ) )
+				aAdd( aConfig, &( cPref + 'TIPOS' ) )
+			else
+				aAdd( aConfig, 'MP/ME' )				// [21] - Tipos de produtos a serem considerados para a central de compras separados por "/"
+			endif
+
+			if ( cAliCfg )->( FieldPos( cAliCfg + '_RELFOR' ) ) > 0 .and. !Empty( &( cPref + 'RELFOR' ) )
+				aAdd( aConfig, &( cPref + 'RELFOR' ) )
+			else
+				aAdd( aConfig, '1' )					// [22] - Indica a relação entre os produtos e o fornecedor (1=Fabricante 2=Prod.x Fornecedor ou 3=Hist.Compra)
+			endif
+
+			if ( cAliCfg )->( FieldPos( cAliCfg + '_MAILWF' ) ) > 0
+				aAdd( aConfig, &( cPref + 'MAILWF' ) )	// [23] - E-mail para envio de notificações de workflow
+			else
+				aAdd( aConfig, " " )
+			endif
+
+			if ( cAliCfg )->( FieldPos( cAliCfg + '_EMSATU' ) ) > 0
+				aAdd( aConfig, StrTran(&( cPref + 'EMSATU' )," ", "S" ) )	// [24] - Indica se deve deduzir empenho para compor o saldo atual do produto (default "S")
+			else
+				aAdd( aConfig, "S" )
+			endif
+
+			if ( cAliCfg )->( FieldPos( cAliCfg + '_DHIST' ) ) > 0 .and. &( cPref + 'DHIST' ) > 0
+				aAdd( aConfig, &( cPref + 'DHIST' ) )						// [25] - Indica o tempo em dias que o sistema deve manter gravado referente aos cálculos executados por produto
+			else
+				aAdd( aConfig, 30 )
+			endif
+
+			if ( cAliCfg )->( FieldPos( cAliCfg + '_LOCPAD' ) ) > 0
+				aAdd( aConfig, &( cPref + 'LOCPAD' ) )						// [26] - Indica um ID de armazém padrão (NNR) para compras quando o armazém utilizado pela empresa for diferente do armazém padrão do produto
+			endif
+
+			if ( cAliCfg )->( FieldPos( cAliCfg + '_TPDOC' ) ) > 0
+				aAdd( aConfig, iif( Empty( &( cPref + 'TPDOC' ) ), '1', &( cPref + 'TPDOC' ) ) )	// [27] - Indica o tipo de documento que será gerado no ato do fechamento do carrinho
+			else
+				aAdd( aConfig, '1' )
+			endif
+
+			if ( cAliCfg )->( FieldPos( cAliCfg + '_MDPED' ) ) > 0
+				aAdd( aConfig, iif( Empty( &( cPref + 'MDPED' ) ), 'N', &( cPref + 'MDPED' ) ) )	// [28] - Indica qual modelo do relatório de pedido de compras a ser utilizado N=Normal ou C=Customizado
+			else
+				aAdd( aConfig, 'N' )		// N=Normal ou C=Custom
+			endif
+
+			if ( cAliCfg )->( FieldPos( cAliCfg + '_CMT' ) ) > 0
+				aAdd( aConfig, iif( Empty( &( cPref + 'CMT' ) ), 'S', &( cPref + 'CMT' ) ) )		// [29] - Indica se ativa ou não a função Continuar mais tarde...
+			else
+				aAdd( aConfig, 'S' )		// S=Sim ou N=Não
+			endif
+		endif
+	endif
+
+	// Esvazia vetor antes de iniciar a leitura dos dados
+	aConfig := {}
+	
+	// Valida existência do alias criado no ambiente para poder prosseguir
+	if cEmpAnt != Nil .and. cFilAnt != Nil
+		If Empty( cAliCfg ) .or. cAliCfg == "999"
+			Return ( Nil )	
+		EndIf
+	Else
+		Return ( Nil )
+	EndIf
+	
+	DbSelectArea( cAliCfg )
+	( cAliCfg )->( DbSetOrder( 1 ) )
+	If ( cAliCfg )->( DbSeek( FWxFilial( cAliCfg ) ) )
+		
+		aAdd( aConfig, &( cPref + 'PRJEST' ) )		// [01] - Projeção padrão de estoque em dias
+		aAdd( aConfig, &( cPref + 'ITECRI' ) )		// [02] - Classificação de giro: Traz Itens críticos pré-selecionado?
+		aAdd( aConfig, &( cPref + 'ITEALT' ) )		// [03] - Classificação de giro: Traz Itens alto giro pré-selecionado?
+		aAdd( aConfig, &( cPref + 'ITEMED' ) )		// [04] - Classificação de giro: Traz Itens médio giro pré-selecionado?
+		aAdd( aConfig, &( cPref + 'ITEBAI' ) )		// [05] - Classificação de giro: Traz Itens baixo giro pré-selecionado?
+		aAdd( aConfig, &( cPref + 'ITESEM' ) )		// [06] - Classificação de giro: Traz Itens sem giro pré-selecionado?
+		aAdd( aConfig, &( cPref + 'ITESOB' ) )		// [07] - Classificação de giro: Traz Itens sob demanda pré-selecionado?
+		aAdd( aConfig, &( cPref + 'TIPANA' ) )		// [08] - Tipo de análise de sazonalidade do produto
+		aAdd( aConfig, &( cPref + 'QTDANA' ) )		// [09] - Qtde de períodos para análise de sazonalidade do produto
+		aAdd( aConfig, &( cPref + 'INDCRI' ) )		// [10] - Indice de insidência para produtos considerados críticos
+		aAdd( aConfig, &( cPref + 'INDALT' ) )		// [11] - Indice de insidência para produtos considerados de alto giro
+		aAdd( aConfig, &( cPref + 'INDMED' ) )		// [12] - Indice de insidência para produtos considerados de medio giro
+		aAdd( aConfig, &( cPref + 'INDBAI' ) )		// [13] - Indice de insidência para produtos considerados de baixo giro
+		aAdd( aConfig, &( cPref + 'TMPGIR' ) )		// [14] - Quantidade de tempo (em dias) para cálculo de giro dos produtos
+		aAdd( aConfig, &( cPref + 'TPDIAS' ) )		// [15] - Tipo de dias (U=Uteis ou C=Corridos)
+		aAdd( aConfig, &( cPref + 'LOCAIS' ) ) 		// [16] - Locais de estoque que o sistema vai realizar o somatório do saldo x produto
+		aAdd( aConfig, &( cPref + 'USPDES' ) )		// [17] - Usuários a serem notificados quando um produto for sinalizado como descontinuado
+
+		if ( cAliCfg )->( FieldPos( cAliCfg + '_JUSPAD'  ) ) > 0
+			aAdd( aConfig, &( cPref + 'JUSPAD' ) )	// [18] - Codigo da justificativa padrão para eventos não analisado de dias anteriores
+		else
+			aAdd( aConfig, ' ' )						
+		endif
+		
+		// Valida existência do campo antes de prosseguir
+		if ( cAliCfg )->( FieldPos( cAliCfg + '_PRILE'  ) ) > 0	// [19] - Indica se prioriza lote econômico para sugestão da quantidade de compra
+			aAdd( aConfig, &( cPref + 'PRILE'  ) )		
+		else
+			aAdd( aConfig, 'S' )					// [19] - Indica se prioriza lote econômico para sugestão da quantidade de compra
+		endif
+
+		if ( cAliCfg )->( FieldPos( cAliCfg + '_CRIT' ) ) > 0
+			aAdd( aConfig, StrTran( &( cPref + 'CRIT' ), ' ', '1' ) )		// Default 1=preço
+		else
+			aAdd( aConfig, '1' )					// [20] - Critério de escolha do melhor fornecedor 1=Preço 2=L.Time
+		endif
+
+		if ( cAliCfg )->( FieldPos( cAliCfg + '_TIPOS' ) ) > 0 .and. ! Empty( &( cPref + 'TIPOS' ) )
+			aAdd( aConfig, &( cPref + 'TIPOS' ) )
+		else
+			aAdd( aConfig, 'MP/ME' )				// [21] - Tipos de produtos a serem considerados para a central de compras separados por "/"
+		endif
+
+		if ( cAliCfg )->( FieldPos( cAliCfg + '_RELFOR' ) ) > 0 .and. !Empty( &( cPref + 'RELFOR' ) )
+			aAdd( aConfig, &( cPref + 'RELFOR' ) )
+		else
+			aAdd( aConfig, '1' )					// [22] - Indica a relação entre os produtos e o fornecedor (1=Fabricante 2=Prod.x Fornecedor ou 3=Hist.Compra)
+		endif
+
+		if ( cAliCfg )->( FieldPos( cAliCfg + '_MAILWF' ) ) > 0
+			aAdd( aConfig, &( cPref + 'MAILWF' ) )	// [23] - E-mail para envio de notificações de workflow
+		else
+			aAdd( aConfig, " " )
+		endif
+
+		if ( cAliCfg )->( FieldPos( cAliCfg + '_EMSATU' ) ) > 0
+			aAdd( aConfig, StrTran(&( cPref + 'EMSATU' )," ", "S" ) )	// [24] - Indica se deve deduzir empenho para compor o saldo atual do produto (default "S")
+		else
+			aAdd( aConfig, "S" )
+		endif
+
+		if ( cAliCfg )->( FieldPos( cAliCfg + '_DHIST' ) ) > 0 .and. &( cPref + 'DHIST' ) > 0
+			aAdd( aConfig, &( cPref + 'DHIST' ) )						// [25] - Indica o tempo em dias que o sistema deve manter gravado referente aos cálculos executados por produto
+		else
+			aAdd( aConfig, 30 )
+		endif
+
+		if ( cAliCfg )->( FieldPos( cAliCfg + '_LOCPAD' ) ) > 0
+			aAdd( aConfig, &( cPref + 'LOCPAD' ) )						// [26] - Indica um ID de armazém padrão (NNR) para compras quando o armazém utilizado pela empresa for diferente do armazém padrão do produto
+		endif
+
+		if ( cAliCfg )->( FieldPos( cAliCfg + '_TPDOC' ) ) > 0
+			aAdd( aConfig, iif( Empty( &( cPref + 'TPDOC' ) ), '1', &( cPref + 'TPDOC' ) ) )	// [27] - Indica o tipo de documento que será gerado no ato do fechamento do carrinho
+		else
+			aAdd( aConfig, '1' )
+		endif
+
+		if ( cAliCfg )->( FieldPos( cAliCfg + '_MDPED' ) ) > 0
+			aAdd( aConfig, iif( Empty( &( cPref + 'MDPED' ) ), 'N', &( cPref + 'MDPED' ) ) )	// [28] - Indica qual modelo do relatório de pedido de compras a ser utilizado N=Normal ou C=Customizado
+		else
+			aAdd( aConfig, 'N' )		// N=Normal ou C=Custom
+		endif
+
+		if ( cAliCfg )->( FieldPos( cAliCfg + '_CMT' ) ) > 0
+			aAdd( aConfig, iif( Empty( &( cPref + 'CMT' ) ), 'S', &( cPref + 'CMT' ) ) )		// [29] - Indica se ativa ou não a função Continuar mais tarde...
+		else
+			aAdd( aConfig, 'S' )		// S=Sim ou N=Não
+		endif
+
+		// Ajusta quantidade de dias de análise de giro conforme quantidade de tempo em que a unidade iniciou suas operações
+		// Exemplo: de nada adianta informar 180 dias de análise de giro, se a unidade tem apenas 30 dias de operação
+		aConfig[14] := checkIniOper( aConfig[14], aConfig[15] )
+		
+	Elseif !lAuto
+		If Aviso( 'Criar configurações?','Os parâmetros internos do painel de compras ainda não foram configurados, deseja configurá-los agora?', {'Sim','Deixa pra lá'}, 3 ) == 1
+			
+			cCadastro := "Parâmetros do painel de compras"
+			if AxInclui( cAliCfg, 0, 3 ) == 1
+				aConfig := U_JSGETCFG( .F. /*lAuto*/ )
+			EndIf
+		EndIf
+	EndIf
+	
+	RestArea( aArea )
+return aConfig
+
+/*/{Protheus.doc} checkIniOper
+Função para checar data de início das operações de venda da unidade
+@type function
+@version 12.1.2410
+@author Jean Carlos Pandolfo Saggin
+@since 21/01/2026
+@param nDias, numeric, quantidade de dias configurado para análise de giro dos produtos
+@param cTpDias, character, tipo de período (U-Uteis ou C-Corridos)
+@return numeric, nRightDays
+/*/
+static function checkIniOper( nDias, cTpDias )
+	
+	local nRightDays := nDias
+	local cQuery     := ""
+	local cTemp      := "" as character
+	local nDUteis    := 0 as numeric
+	local nAux       := 0 as numeric
+	
+	// Query para leitura da primeira nota de saída da unidade
+	cQuery := "SELECT MIN(D2.D2_EMISSAO) FIRST_DATE FROM "+ RetSqlName( 'SD2' ) +" D2 "
+	cQuery += "WHERE D2.D2_FILIAL  = '"+ FWxFilial( 'SD2' ) +"' "
+	cQuery += "  AND D2.D2_TIPO    = 'N' "
+	cQuery += "  AND D2.D_E_L_E_T_ = ' ' "
+	cTemp := MpSysOpenQuery( cQuery )
+	TcSetField( cTemp, 'FIRST_DATE' , 'D' )
+
+	DBSelectArea( cTemp )
+	if cTpDias == 'C'		// Corridos
+		nRightDays := iif( ( Date() - ( cTemp )->FIRST_DATE ) + 1 < nDias, ( Date() - ( cTemp )->FIRST_DATE ) + 1, nDias )	
+	elseif cTpDias == 'U'
+		nDUteus := 0
+		nAux    := 0
+		while nDUteis < nDias .or. (Date() - (nAux-1)) < ( cTemp )->FIRST_DATE
+			nDUteis := DateWorkDay( Date() - nAux, Date(), .T. /* lSaturday */, .F. /* lSunday */, .F. /* lHoliday */ )
+			nAux++
+		end
+		nRightDays := iif( nDUteis < nDias, nDUteis, nDias )
+	endif
+	( cTemp )->( DBCloseArea() )
+
+	// Exibe mensagem no conout quando quantidade de dias pra análise de giro for alterada em virtude da data de início das operações
+	if nDias != nRightDays
+		if isInCallStack( 'fManPar' )
+			MsgAlert( 'A quantidade de dias de análise de giro informada foi de ['+ cValToChar( nDias ) +;
+					'] dias, no entanto o sistema considerará apenas ['+ cValToChar( nRightDays ) +;
+					'] dias devido a data de início das operações', 'A T E N Ç A O !' )
+		else
+			ConOut( 'GMPAICOM - Dias de análise de giro alterada de ['+ cValToChar( nDias ) +'] para ['+ cValToChar( nRightDays ) +'] dias' )
+		endif
+	endif
+
+return nRightDays
+
+/*/{Protheus.doc} U_JSMAINFD
+Retorna os campos do grid principal de produtos
+@type function
+@version 12.1.2510
+@author Jean Carlos Pandolfo Saggin
+@since 12/05/2026
+@return array, aFields
+/*/
+user function JSMAINFD()
+    
+    local aFields := {"B1_COD",;
+                      "B1_DESC",;
+                      "B1_TIPO",;
+                      "B1_UM",;
+                      "NECCOMP",;
+                      "QTDBLOQ",;
+                      "PRCNEGOC",;
+                      "ULTPRECO",;
+                      "PRCVEN",;
+                      "CONSMED",;
+                      "DURACAO",;
+                      "DURAPRV",;
+                      "ESTOQUE",;
+                      "EMPENHO",;
+                      "QTDSOL",;
+                      "QTDCOMP",;
+                      "LEADTIME",;
+                      "TPLDTIME",;
+                      "PREVENT",;
+                      "B1_LM",;
+                      "B1_QE",;
+                      "B1_LE",;
+                      "B1_EMIN",;
+                      "A5_FORNECE",;
+                      "A5_LOJA";
+                      }
+    
+    local aAlter := {"NECCOMP",;
+                    "QTDBLOQ",;
+                    "PRCNEGOC",;
+                    "B1_LM",; 
+                    "B1_QE",; 
+                    "B1_LE",; 
+                    "A5_FORNECE",; 
+                    "B1_UM",; 
+                    "LEADTIME",; 
+                    "B1_DESC",; 
+                    "B1_EMIN"; 
+                    }
+
+return { aFields, aAlter }
+
+/*/{Protheus.doc} JSISPA
+Verifica se o produto é do tipo PA ou se o mesmo possui estrutura de produção
+@type function
+@version 12.1.2510
+@author Jean Carlos Pandolfo Saggin
+@since 10/05/2026
+@param cProduct, character, código do produto para checar se o mesmo é um PA ou produto a ser produzido
+@return logical, lIsPA
+/*/
+user function JSISPA( cProduct )
+	
+	local aArea := getArea()
+	local lIsPA := .F. as logical
+
+	DBSelectArea( 'SG1' )
+	SG1->( DBSetOrder( 1 ) )    // G1_FILIAL + G1_COMP + G1_COD
+	lIsPA := SG1->( DBSeek( FWxFilial( 'SG1' ) + cProduct ) )
+
+	restArea( aArea )
+return lIsPA
