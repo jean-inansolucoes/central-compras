@@ -20,6 +20,7 @@ user function JSORDPRD()
     local lChange  := .F. as logical
     local oDlg            as object
     local oMain           as object
+	local oOPs            as object
     local bValid   := {|| .T. }
     local bOk      := {|| lChange := .T., oDlg:End()}
     local bCancel  := {|| oDlg:End() }
@@ -33,7 +34,10 @@ user function JSORDPRD()
 	local bBkpAlX  as codeblock
 
 	// Botões a serem exibidos na tela de exibição das PAs
-	aAdd( aButtons, { , 'Matéria-Prima', {|| showMP() }, 'Clique para exibir as MPs ligadas à PA...',,.T. /* lShowBar */, .T. /* lShowConfig */ } )
+	aAdd( aButtons, { , 'Matéria-Prima (Tudo)', {|| iif( showMP(),; 
+													Processa( {|| createOPs( oOPs ) }, 'Aguarde!', 'Gerando OPs...' ), Nil ) }, 'Clique para exibir as MPs ligadas à PA',,.T. /* lShowBar */, .T. /* lShowConfig */ } )
+	aAdd( aButtons, { , 'MPs c/ Nec. Compra', {|| iif( showMP(.F. /* lAll */),; 
+													Processa( {|| createOPs( oOPs ) }, 'Aguarde!', 'Gerando OPs...' ), Nil ) }, 'Exibe apenas as MPs ligadas às PAs marcadas e que tenham necessidade de compra',,.T. /* lShowBar */, .T. /* lShowConfig */ } )
 	aAdd( aButtons, { , 'Remover da Lista', {|| iif( removePA(), oOPs:UpdateBrowse(), Nil ) },; 
 		'Remove o PA da lista para não gerar Ordem de Produção',,.T. /* lShowBar */, .T. /* lShowConfig */ } )
 
@@ -78,6 +82,137 @@ user function JSORDPRD()
 	bBkpAlX := SetKey( K_ALT_X, bBkpAlX )
 
 return lChange
+
+/*/{Protheus.doc} createOPs
+Função que cria as OPs baseado nos registros marcados da tabela temporária TMPSC2
+@type function
+@version 12.1.2510
+@author Jean Carlos Pandolfo Saggin
+@since 19/05/2026
+@param oBrw, object, Objeto do browse
+@return logical, lSuccess, indica se houve sucesso no processo de inclusão das OPs
+/*/
+static function createOPs( oBrw )
+	
+	local lSuccess := .T. as logical
+	local nRecAtu  := TMPSC2->(Recno())
+	local aOrdPrd  := {} as array
+	local aRetJob  := {} as array
+	local aOPs     := {} as array
+	local cMsg     := "" as character
+	local nReg     := 0 as numeric
+	
+	DBSelectArea( 'TMPSC2' )
+	TMPSC2->( DBGoTop() )
+	
+	// Soma quantidade de registros existentes na tabela e que estejam marcados
+	DBEval({|| iif( TMPSC2->MARK, nReg++, Nil ) })
+	TMPSC2->( DBGoTop() )
+
+	while ! TMPSC2->( EOF() ) .and. lSuccess
+		
+		if TMPSC2->MARK
+
+			IncProc( 'Incluindo OP ref. produto '+  AllTrim(TMPSC2->B1_DESC) +'...' )
+			aOrdPrd := MakeOp()
+			aRetJob := StartJob( 'U_JSINCOP',;
+								 GetEnvServer(),;
+								 .T. /* lWait */,;
+								 aOrdPrd,;
+								 cEmpAnt,;
+								 cFilAnt ) 
+			lSuccess := ValType( aRetJob ) == 'A' .and. len(aRetJob) == 2 .and. !Empty( aRetJob[1] )
+			if lSuccess 
+				aAdd( aOPs, { TMPSC2->( Recno() ), aRetJob[1] } )
+			else
+				hlp( 'OP_FAILED',;
+					'Falha na Inclusão da Ordem de Produção',;
+					aRetJob[2] )
+			endif
+
+		endif
+		TMPSC2->( DBSkip() )
+	enddo
+	
+	// Verifica se conseguiu gerar alguma OP
+	if len( aOPs ) > 0
+	
+		// Após inclusão da OP, elimina os registros da tabela temporária
+		cMsg := "Foram geradas as OPs: "+ CHR(13)+CHR(10)
+		aEval( aOPs, {|x| TMPSC2->( DBGoTo( x[1] ) ),;
+						  RecLock( 'TMPSC2', .F. ),;
+						  TMPSC2->( DBDelete() ),;
+						  TMPSC2->( MsUnlock() ),;
+						  cMsg += x[2] + chr(13)+ chr(10) } )
+		oBrw:Refresh()
+		oBrw:UpdateBrowse()
+		
+		MsgInfo( cMsg, 'Resumo de OPs Geradas' )
+
+	else
+		// Se não incluiu nenhuma OP, devolve o registro que estava posicionado
+		TMPSC2->( DBGoTo( nRecAtu ) )
+	endif
+
+return lSuccess
+
+/*/{Protheus.doc} hlp
+Função facilitadora para utilização da função Help do Protheus
+@type function
+@version 1.0
+@author Jean Carlos Pandolfo Saggin
+@since 08/04/2024
+@param cTitle, character, Titulo da janela
+@param cFail, character, Informações sobre a falha
+@param cHelp, character, Informações com texto de ajuda
+/*/
+static function hlp( cTitle, cFail, cHelp )
+return Help( ,, cTitle,, cFail, 1, 0, NIL, NIL, NIL, NIL, NIL,{ cHelp } )
+
+/*/{Protheus.doc} makeOP
+Cria o Vetor da OP
+@type function
+@version 12.1.2410
+@author JS Soluções
+@since 3/13/2025
+@return array, aOrdPrd
+/*/
+static function makeOP()
+
+    local cOP     := Space( TAMSX3('C2_NUM')[1] ) as character
+    local aOrdPrd := {} as array
+
+    DBSelectArea( 'SC2' )
+    SC2->( DbSetOrder( 1 ) )
+
+    cOP := GetSXENum( 'SC2', 'C2_NUM', ,1 )
+    ConfirmSX8()
+    
+    // Valida existência do número da OP antes de prosseguir
+    while SC2->( DBSeek( FWxFilial( 'SC2' ) + cOP ) )
+        cOP := GetSXENum( 'SC2', 'C2_NUM', ,1 )
+        ConfirmSX8()
+    end
+
+    aAdd( aOrdPrd, { "C2_FILIAL" , FWxFilial( "SC2" ), Nil } )
+    aAdd( aOrdPrd, { "C2_NUM"    , cOP, Nil } )
+    aAdd( aOrdPrd, { "C2_PRODUTO", TMPSC2->C2_PRODUTO, Nil } )
+    aAdd( aOrdPrd, { "C2_ITEM"   , "01", Nil } )
+    aAdd( aOrdPrd, { "C2_SEQUEN" , "001", Nil } )
+    aAdd( aOrdPrd, { "C2_QUANT"  , TMPSC2->C2_QUANT, Nil } )
+    aAdd( aOrdPrd, { "C2_DATPRI" , dDataBase, Nil } )
+    aAdd( aOrdPrd, { "C2_DATPRF" , dDataBase, Nil } )
+    aAdd( aOrdPrd, { "C2_OBS"    , "OP Gerada por "+ cUserName +" via SmartSupply", Nil  } )
+    aAdd( aOrdPrd, { "C2_EMISSAO", dDataBase, Nil } )
+    aAdd( aOrdPrd, { "C2_TPOP"   , 'F' /*F=Firme ou P=Prevista*/, Nil } )
+    aAdd( aOrdPrd, { "C2_STATUS" , 'N' /*N=Normal ou U=Suspensa ou S=Sacramentada*/, Nil } )
+    // aAdd( aOrdPrd, { "C2_X_PROGR", iif( lMVC, oOP:GetValue( _cAliCb +'_CDPLAN' ), &( _cAliCb +'->'+ _cAliCb +'_CDPLAN' ) ), Nil } )
+    // aAdd( aOrdPrd, { "C2_X_IDAPO", iif( lMVC, oOP:GetValue( _cAliCb +'_ID' ), &( _cAliCb +'->'+ _cAliCb +'_ID' ) ), Nil } )
+    aAdd( aOrdPrd, {"AUTEXPLODE" , "S" , NIL} )
+    
+    SC2->( DbSetOrder( 1 ) )
+
+return aOrdPrd
 
 /*/{Protheus.doc} removePA
 Remove os itens selecionados da lista de PAs
@@ -185,7 +320,7 @@ static function showMP( lAll )
 	local aBkpFil := {} as array
 
 	local bValid   := {|| .T. }
-	local bOk      := {|| MsgInfo('Se vire desenvolver o que acontece a partir daqui... ', 'Not Implemented'), oDlg:End() }
+	local bOk      := {|| lChange := add2Car( aData, oBrw ), oDlg:End() }
 	local bCancel  := {|| oDlg:End() }
 	local aButtons := {} as array
 	local bInit    := {|| EnchoiceBar( oDlg, bOk, bCancel,,aButtons ) }
@@ -239,10 +374,10 @@ static function showMP( lAll )
 	aEval( aTemp2, {|x| aAdd( aMPs, { x[1], x[2] / nSpinBx } ) } )
 
 	// Chama processamento do cálculo das MPs para mostrar ao usuário
-	aData := U_JSCALCMP( aMPs )
+	aData := U_JSCALCMP( aMPs, lAll )
 
 	// Limpa conteúdo das teclas de atalho para evitar conflitos com a rotina principal do MRP
-	SetKey( VK_F4, {|| Processa( {|| U_JSSUPPLY( /* lForce */, aData, oBrw ) }, 'Aguarde!','Analisando dados do MRP...' ) } )
+	SetKey( VK_F4, {|| Processa( {|| U_JSSUPPLY( /* lForce */, aData, oBrw ) }, 'Aguarde!','Analisando fornecedores da MP...' ) } )
 
 	oDlg := TDialog():New( 0, 0, aSize[6]*0.9, aSize[5]*0.9,cTitulo,,,,,CLR_BLACK,CLR_WHITE,,,.T.)
 	
@@ -259,8 +394,8 @@ static function showMP( lAll )
 					   "aData[oBrw:nAt][1] >= "+ cValToChar( aConfig[13] ), LG_BAIXO, "Baixo Giro" )  
 	oBrw:AddLegend( "aData[oBrw:nAt][1] < "+ cValToChar( aConfig[13] ), LG_SEMGIRO, "Sem Giro" )
 	oBrw:AddMarkColumn( {|| iif( aData[oBrw:nAt][2], "LBOK", "LBNO" ) },; 
-						{|| aData[oBrw:nAt][2] := !aData[oBrw:nAt][2] },; 
-						{|| lMark := len(aData) > 0 .and. !aData[1][2], iif( len( aData ) > 0, aEval( aData, {|x| x[2] := lMark } ), Nil ), oBrw:UpdateBrowse() } )
+						{|| aData[oBrw:nAt][2] := iif( aData[oBrw:nAt][nPosNec] > 0, !aData[oBrw:nAt][2], aData[oBrw:nAt][2] ) },; 
+						{|| lMark := len(aData) > 0 .and. !aData[1][2], iif( len( aData ) > 0, aEval( aData, {|x| x[2] := iif( x[nPosNec] > 0, lMark, x[2] ) } ), Nil ), oBrw:UpdateBrowse() } )
 	oBrw:SetColumns( aHeaPro )
 	oBrw:GetColumn(aScan( aHeaPro, {|x| AllTrim(x[17]) == 'A5_FORNECE' } )+2):xF3 := "SA2"
 	oBrw:SetEditCell( .T., {|| .T. } )
@@ -275,6 +410,34 @@ static function showMP( lAll )
 
 	restArea( aArea )
 return lChange
+
+/*/{Protheus.doc} add2Car
+Função para adicionar itens de MP marcados para o vetor do carrinho de compras
+@type function
+@version 12.1.2510
+@author Jean Carlos Pandolfo Saggin
+@since 19/05/2026
+@param aData, array, vetor de dados da grid
+@param oBrw, object, objeto da grid
+@return logical, lSuccess
+/*/
+static function add2Car( aData, oBrw )
+	
+	local lSuccess := .F. as logical
+	local nX       := 0 as numeric
+	
+	if len( aData ) > 0
+		for nX := 1 to len( aData )
+			// Verifica se o item está marcado e se a necessidade de compra é maior do que zero
+			oBrw:GoTo(nX)
+			if aData[oBrw:nAt][nPosChk] .and. aData[oBrw:nAt][nPosNec] > 0
+				U_JSMRKPRO( aData, oBrw )
+				lSuccess := .T.
+			endif
+		next nX
+	endif
+
+return lSuccess
 
 /*/{Protheus.doc} getMPs
 Retornar todas as MPs ligadas ao PA (e subprodutos) retornando o código de cada insumo, quantidade média diária a ser utilizada e quantidade total

@@ -195,6 +195,7 @@ user function JSDETVER()
     aAdd( aDetVer, { '19','0016','28/04/2026', 'Tratativas iniciais para processamento dos produtos usando conceito Demand Driven MRP' } )
     aAdd( aDetVer, { '19','0017','11/05/2026', 'Adição de telas adicionais para melhor detalhamento de dados das análises dos produtos do tipo PA' } )
     aAdd( aDetVer, { '19','0018','15/05/2026', 'Adição de tela para exibição de detalhes das necessidades de suprimentos das MPs para fabricação dos PAs' } )
+    aAdd( aDetVer, { '19','0019','21/05/2026', 'Geração automática de OPs' } )
 
 return aDetVer
 
@@ -551,17 +552,9 @@ user function JSQRYINF( aConf, aFilters, cPedSol, aCustom, aMPs )
         cQuery += "  AND B2.B2_COD    = B1.B1_COD "+ CEOL
         cQuery += "  AND B2.B2_LOCAL  IN ( '"+ cLocais +"' ) " + CEOL
         cQuery += "  AND B2.D_E_L_E_T_ = ' ' ),0) EMPENHO, " + CEOL
-        
-        // // Identifica o lead-time do fornecedor
-        // if SA2->( FieldPos( 'A2_X_LTIME' ) ) > 0
-        //     cQuery += " A2.A2_X_LTIME, "+ CEOL
-        // else
-        //     cQuery += " 0 AS A2_X_LTIME, "+ CEOL
-        // endif
-
         cQuery += "B1.B1_PE, " + CEOL
         cQuery += "B1.B1_EMIN, " + CEOL
-
+        
         cQuery += "COALESCE((SELECT SUM(C7BLOQ.C7_QUANT - C7BLOQ.C7_QUJE) FROM "+ RetSqlName( "SC7" ) +" C7BLOQ " + CEOL
         cQuery += "WHERE C7BLOQ.C7_FILIAL = '"+ FWxFilial( 'SC7' ) +"' " + CEOL
         cQuery += "  AND C7BLOQ.C7_PRODUTO = B1.B1_COD " + CEOL
@@ -578,13 +571,23 @@ user function JSQRYINF( aConf, aFilters, cPedSol, aCustom, aMPs )
         cQuery += "  AND C7COMP.C7_CONAPRO <> 'B' " + CEOL						// Pedidos em carteira sem bloqueio
         cQuery += "  AND C7COMP.D_E_L_E_T_ = ' ' ),0) QTDCOMP, " + CEOL
 
-        cQuery += "COALESCE((SELECT MAX( C7COMP.C7_DATPRF ) FROM "+ RetSqlName( "SC7" ) +" C7COMP " + CEOL
-        cQuery += "WHERE C7COMP.C7_FILIAL = '"+ FWxFilial( 'SC7' ) +"' " + CEOL
+        cQuery += "COALESCE( ( SELECT MIN(TEMP.PRVENT) FROM ( " + CEOL
+        cQuery += "SELECT MIN( C7COMP.C7_DATPRF ) AS PRVENT FROM "+ RetSqlName( 'SC7' ) +" C7COMP " + CEOL
+        cQuery += "WHERE C7COMP.C7_FILIAL  = '"+ FWxFilial( 'SC7' ) +"' " + CEOL
         cQuery += "  AND C7COMP.C7_PRODUTO = B1.B1_COD " + CEOL
+        cQuery += "  AND C7COMP.C7_DATPRF  <> '        ' " + CEOL
         cQuery += "  AND C7COMP.C7_RESIDUO <> 'S' " + CEOL
         cQuery += "  AND C7COMP.C7_ENCER   <> 'E' " + CEOL
-        cQuery += "  AND C7COMP.C7_CONAPRO <> 'B' " + CEOL						// Pedidos em carteira sem bloqueio
-        cQuery += "  AND C7COMP.D_E_L_E_T_ = ' ' ), '"+ Space(8) +"' ) PRVENT, " + CEOL
+        cQuery += "  AND C7COMP.C7_CONAPRO <> 'B' " + CEOL
+        cQuery += "  AND C7COMP.D_E_L_E_T_ = ' ' " + CEOL
+        cQuery += "UNION "+ CEOL
+        cQuery += "SELECT MIN( C2.C2_DATPRF ) AS PRVENT FROM "+ RetSqlName( "SC2" ) +" C2 " + CEOL
+        cQuery += "WHERE C2.C2_FILIAL  = '"+ FWxFilial( 'SC2' ) +"' "+ CEOL
+        cQuery += "  AND C2.C2_PRODUTO = B1.B1_COD "+ CEOL
+        cQuery += "  AND C2.C2_DATRF   = '        ' "+ CEOL
+        cQuery += "  AND ( C2.C2_QUANT - C2.C2_QUJE ) > 0 "+ CEOL
+        cQuery += "  AND C2.D_E_L_E_T_ = ' ' " + CEOL
+        cQuery += "  ) AS TEMP), '"+ Space(8) +"' ) PRVENT, " + CEOL
 
         cQuery += "COALESCE( ( SELECT SUM( C1.C1_QUANT ) FROM "+ RetSqlName( 'SC1' ) +" C1 " + CEOL
         cQuery += "WHERE C1.C1_FILIAL  = '"+ FWxFilial( 'SC1' ) +"' " + CEOL
@@ -592,7 +595,14 @@ user function JSQRYINF( aConf, aFilters, cPedSol, aCustom, aMPs )
         cQuery += "  AND C1.C1_PEDIDO  = '"+ Space( TAMSX3( 'C1_PEDIDO' )[1] ) +"' " + CEOL
         cQuery += "  AND C1.C1_RESIDUO = ' ' " + CEOL
         cQuery += "  AND C1.D_E_L_E_T_ = ' ' " + CEOL
-        cQuery += " ),0 ) QTDSOL "                       // Quantidade em solicitação de compra
+        cQuery += " ),0 ) QTDSOL, " + CEOL                      // Quantidade em solicitação de compra
+
+        cQuery += "COALESCE( ( SELECT SUM( C2.C2_QUANT - C2.C2_QUJE ) FROM "+ RetSqlName( 'SC2' ) +" C2 " + CEOL
+        cQuery += "WHERE C2.C2_FILIAL  = '"+ FWxFilial( 'SC2' ) +"' " + CEOL
+        cQuery += "  AND C2.C2_PRODUTO = B1.B1_COD " + CEOL
+        cQuery += "  AND C2.C2_DATRF   = '"+ Space(8) +"' " + CEOL
+        cQuery += "  AND C2.D_E_L_E_T_ = ' ' " + CEOL
+        cQuery += " ), 0 ) ORDPROD " + CEOL         // Quantidade em processo de produção
 
         if ! isInCallStack( 'U_GMINDPRO' )
             cQuery += ", " + CEOL
@@ -1514,6 +1524,7 @@ user function JSMAINFD()
                       "EMPENHO",;
                       "QTDSOL",;
                       "QTDCOMP",;
+                      "ORDPROD",;
                       "LEADTIME",;
                       "TPLDTIME",;
                       "PREVENT",;
@@ -1560,3 +1571,68 @@ user function JSISPA( cProduct )
 
 	restArea( aArea )
 return lIsPA
+
+/*/{Protheus.doc} JSINCOP
+Job para inclusão das OPs através da função StartJob
+@type function
+@version 12.1.2510
+@author Jean Carlos Pandolfo Saggin
+@since 21/05/2026
+@param aOrdPrd, array, vetor contendo dados da OP a ser inserida
+@param cEmp, character, código da empresa em que o JOB deverá se conectar para incluir a OP
+@param cFil, character, código da filial em que o JOB deverá se conectar para incluir a OP
+@return array, aReturn
+/*/
+user function JSINCOP( aOrdPrd, cEmp, cFil )
+
+    local cOP   := "" as character
+    local aAux  := {} as array
+    local cErro := "" as character
+
+    ConOut( 'Iniciando JOB de inclusao de OP...' )
+    ConOut( 'Conectando à empresa '+ cEmp +' e filial '+ cFil +'...' )
+
+    RpcClearEnv()
+    RPCSetType( 3 )
+    PREPARE ENVIRONMENT EMPRESA cEmp FILIAL cFil MODULO "PCP"
+    ConOut( 'Conectado com sucesso!' )
+
+    ConOut( 'Gerando OP...' )
+    aAux  := U_JSOPAUTO( aOrdPrd )
+    cOP   := aAux[1]
+    cErro := aAux[2]
+
+    RESET ENVIRONMENT
+    ConOut( 'Fim do Job' )
+
+return { cOP, cErro }
+
+/*/{Protheus.doc} JSOPAUTO
+Função para manutenção da OP através de execauto
+@type function
+@version 12.1.2510
+@author Jean Carlos Pandolfo Saggin
+@since 21/05/2026
+@param aOrdPrd, array, vetor de dados a serem alterados/incluídos na OP
+@return array, aReturn[1]: cOP, aReturn[2]: cError
+/*/
+user function JSOPAUTO( aOrdPrd )
+
+    local nOpc    := 3
+    local cErro   := "" as character
+    local cOldFun := FunName()
+
+    Private lMsErroAuto := .F.
+    
+    lMsErroAuto := .F.
+    SetFunName( 'MATA650' )
+    MSExecAuto({|x,Y| Mata650(x,Y)},aOrdPrd,nOpc)
+    cOP := SC2->C2_NUM
+    SetFunName( cOldFun )
+
+    if lMsErroAuto
+        cErro := MostraErro()
+        cOP   := Space( TAMSX3( 'C2_NUM' )[1] ) 
+    endif
+
+return { cOP, cErro }
