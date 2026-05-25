@@ -35,9 +35,9 @@ user function JSORDPRD()
 
 	// Botões a serem exibidos na tela de exibição das PAs
 	aAdd( aButtons, { , 'Matéria-Prima (Tudo)', {|| iif( showMP(),; 
-													Processa( {|| createOPs( oOPs ) }, 'Aguarde!', 'Gerando OPs...' ), Nil ) }, 'Clique para exibir as MPs ligadas à PA',,.T. /* lShowBar */, .T. /* lShowConfig */ } )
+													Processa( {|| lChange := createOPs( oOPs ) }, 'Aguarde!', 'Gerando OPs...' ), Nil ) }, 'Clique para exibir as MPs ligadas à PA',,.T. /* lShowBar */, .T. /* lShowConfig */ } )
 	aAdd( aButtons, { , 'MPs c/ Nec. Compra', {|| iif( showMP(.F. /* lAll */),; 
-													Processa( {|| createOPs( oOPs ) }, 'Aguarde!', 'Gerando OPs...' ), Nil ) }, 'Exibe apenas as MPs ligadas às PAs marcadas e que tenham necessidade de compra',,.T. /* lShowBar */, .T. /* lShowConfig */ } )
+													Processa( {|| lChange := createOPs( oOPs ) }, 'Aguarde!', 'Gerando OPs...' ), Nil ) }, 'Exibe apenas as MPs ligadas às PAs marcadas e que tenham necessidade de compra',,.T. /* lShowBar */, .T. /* lShowConfig */ } )
 	aAdd( aButtons, { , 'Remover da Lista', {|| iif( removePA(), oOPs:UpdateBrowse(), Nil ) },; 
 		'Remove o PA da lista para não gerar Ordem de Produção',,.T. /* lShowBar */, .T. /* lShowConfig */ } )
 
@@ -56,8 +56,10 @@ user function JSORDPRD()
     oDlg:SetSubTitle( "Produtos que possuem estrutura para serem produzidos...." )
     oDlg:CreateDialog()
 	oDlg:AddCloseButton( {|| oDlg:DeActivate()}, "Cancelar" )
-	oDlg:AddOkButton( {|| lChange := .T.,; 
-                          oDlg:DeActivate() }, "Gerar OPs" )
+	oDlg:AddOkButton( {|| lChange := MsgYesNo( 'Ao gerar as OPs através deste botão, você <b>IGNORA</b> a análise de demanda de matéria-prima, '+;
+												'está certo(a) que deseja gerar a OP por aqui?', 'A T E N Ç Ã O !' ),;
+						  iif( lChange, Processa( {|| lChange := createOPs( oOPs ) }, 'Aguarde!', 'Gerando OPs...' ), Nil ),; 
+                          oDlg:DeActivate() }, "Apenas Gerar OPs" )
 	oDlg:AddButtons( aButtons )
 
     oMain := oDlg:GetPanelMain()
@@ -202,7 +204,7 @@ static function makeOP()
     aAdd( aOrdPrd, { "C2_QUANT"  , TMPSC2->C2_QUANT, Nil } )
     aAdd( aOrdPrd, { "C2_DATPRI" , dDataBase, Nil } )
     aAdd( aOrdPrd, { "C2_DATPRF" , dDataBase, Nil } )
-    aAdd( aOrdPrd, { "C2_OBS"    , "OP Gerada por "+ cUserName +" via SmartSupply", Nil  } )
+    aAdd( aOrdPrd, { "C2_OBS"    , "OP Gerada via SmartSupply", Nil  } )
     aAdd( aOrdPrd, { "C2_EMISSAO", dDataBase, Nil } )
     aAdd( aOrdPrd, { "C2_TPOP"   , 'F' /*F=Firme ou P=Prevista*/, Nil } )
     aAdd( aOrdPrd, { "C2_STATUS" , 'N' /*N=Normal ou U=Suspensa ou S=Sacramentada*/, Nil } )

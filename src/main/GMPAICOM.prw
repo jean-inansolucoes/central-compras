@@ -365,6 +365,7 @@ User Function GMPAICOM()
 	aAdd( aButtons, { "BTNEMPEN" , {|| iif( len( aColPro ) > 0, fShowEm( aColPro[ oBrwPro:nAt][nPosPrd] ), Nil ) }, "Empenhos do Produto" } )
 	aAdd( aButtons, { "BTNPEDIDO", {|| iif( len( aColPro ) > 0, fSolPend(), Nil ) }, "Solicitações de Compra" } )
 	aAdd( aButtons, { "BTNPEDIDO", {|| iif( len( aColPro ) > 0, fPedFor(), Nil ) }, "Pedidos em Aberto" } )
+	aAdd( aButtons, { "BTNPEDIDO", {|| iif( len( aColPro ) > 0, U_JSSHOWOP(), Nil ) }, "OPs em Aberto" } )
 	aAdd( aButtons, { "BTNENTR"  , {|| iif( len( aColPro ) > 0, entryDocs( aColPro[ oBrwPro:nAt ][nPosPrd] ), Nil ),;
 									   priceCheck( aColPro[ oBrwPro:nAt ][nPosPrd] ),;
 									   oBrwPro:LineRefresh() }, "Entradas" } )
@@ -441,7 +442,9 @@ User Function GMPAICOM()
     oImgPCP:lAutoSize := .T.
 
 	// Botão HTML para exibir itens a serem produzidos
-	oBtnOPs := TButton():New( 062, 002, " ", oWinPcp,{|| U_JSORDPRD() }, 040, 012,,,.F.,.T.,.F.,,.F.,,,.F. )
+	oBtnOPs := TButton():New( 062, 002, " ", oWinPcp,{|| iif( U_JSORDPRD(),;
+														 Processa( {|| fLoadInf() }, 'Aguarde!','Executando filtro de produtos...' ), Nil ),;
+														 btnOpRefr() }, 040, 012,,,.F.,.T.,.F.,,.F.,,,.F. )
 	oBtnOPs:CMSG := "Produtos a produzir..."
 	oBtnOPs:CCAPTION := cValToChar( nPAs ) + " PA(s)"
 	oBtnOPs:NWIDTH := (Len( AllTrim( oBtnOPs:CCAPTION ) )+1)*10
@@ -3982,7 +3985,6 @@ Static Function fMarkPro( aData, oBrw )
 	local cTpFator  := "" as character
 	local nFator    := 0 as numeric
 	local lPA       := .F. as logical
-	local nPAs      := 0 as numeric
 	local aBkpPro   := {} as array
 	local aBkpFull  := {} as array
 	local aBkpFil   := {} as array
@@ -4204,9 +4206,7 @@ Static Function fMarkPro( aData, oBrw )
 				next nFil
 
 				cForLoj := aData[oBrw:nAt][nPosFor] + aData[oBrw:nAt][nPosLoj]
-				aDel( aCarCom, aScan( aCarCom, {|x| x[carPos('C7_PRODUTO')] == aData[oBrw:nAt][nPosPrd] .and.;
-													x[carPos('C7_FORNECE')] == aData[oBrw:nAt][nPosFor] .and.;
-													x[carPos('C7_LOJA')] == aData[oBrw:nAt][nPosLoj] } ) ) 
+				aDel( aCarCom, aScan( aCarCom, {|x| x[carPos('C7_PRODUTO')] == aData[oBrw:nAt][nPosPrd] } ) ) 
 				aSize( aCarCom, Len( aCarCom )-1 )
 				lInclui := .F.
 				
@@ -4215,13 +4215,7 @@ Static Function fMarkPro( aData, oBrw )
 		EndIf
 		
 		if lPA
-			DBSelectArea( 'TMPSC2' )
-			TMPSC2->( DBGoTop() )
-			DBEval( {|| iif( !TMPSC2->(Deleted()), nPAs++, Nil ) } )
-			TMPSC2->( DBGoTop() )
-			oBtnOPs:CCAPTION := cValToChar( nPAs ) + " PA(s)"
-			oBtnOPs:NWIDTH   := (Len( AllTrim( oBtnOPs:CCAPTION ) )+1)*10
-			oBtnOPs:Refresh()
+			btnOpRefr()
 		else
 			// Clona a linha assim que houver uma marcação/desmarcação
 			if ! lShowMP
@@ -10561,10 +10555,14 @@ user function JSSUPPLY( lForce, aData, oBrw )
 	local nX       := 0 as numeric
 	local nAux     := 0 as numeric
 	local lMPs     := isInCallStack( 'U_JSORDPRD' )
+	local cOldFor  := "" as character
 
 	default lForce := .F.
 	default aData  := aColPro
 	default oBrw   := oBrwPro
+
+	// Preenche com dados do último fornecedor
+	cOrdFor := aData[oBrw:At()][nPosFor] + aData[oBrw:At()][nPosLoj]
 
 	// Chega se tem conteúdo no browse de produtos antes de prosseguir
 	if len( aData ) == 0 .or. Empty(aData[1][nPosPrd])
@@ -10636,11 +10634,18 @@ user function JSSUPPLY( lForce, aData, oBrw )
 
 	endif
 
+	// Quando o fornecedor selecionado for diferente do fornecedor que estava no registro
 	if xRet != aData[oBrw:At()][nPosFor] + aData[oBrw:At()][nPosLoj]
-		
+
 		aData[oBrw:At()][nPosFor] := SubStr( xRet, 1, TAMSX3('A2_COD')[1] )
 		aData[oBrw:At()][nPosLoj] := SubStr( xRet, TAMSX3('A2_COD')[1]+1, TAMSX3('A2_LOJA')[1] )
-		
+
+		// Atualiza quantidade de registros para o fornecedor
+		checkForn( SubStr( cOldFor, 01, TAMSX3('A2_COD')[1] ), SubStr( cOldFor, TAMSX3('A2_COD')[1]+1, TAMSX3('A2_LOJA')[1] ) )
+		checkForn( aData[oBrw:At()][nPosFor], aData[oBrw:At()][nPosLoj] )
+		oBrwFor:Refresh()
+		oBrwFor:UpdateBrowse()
+
 		if ! lMPs		// Atualiza os dados do vetor de produtos por filial apenas quando estiver na tela principal
 			for nX := 1 to len( _aProdFil )
 				if _aProdFil[nX][nPosPrd] == aData[oBrw:At()][nPosPrd] 
@@ -10656,6 +10661,7 @@ user function JSSUPPLY( lForce, aData, oBrw )
 
 			aData[oBrw:nAt][nPosUlt] := priceSupplier( aData[ oBrw:nAt ][ nPosPrd ], aData[oBrw:nAt][nPosFor], aData[oBrw:nAt][nPosLoj] )
 			aData[oBrw:nAt][nPosNeg] := aData[oBrw:nAt][nPosUlt]
+			aData[oBrw:nAt][nPosLdT] := calcLt( aData[oBrw:nAt][nPosPrd], aData[oBrw:nAt][nPosFor], aData[oBrw:nAt][nPosLoj] )
 
 			if ! lMPs
 
@@ -10667,9 +10673,10 @@ user function JSSUPPLY( lForce, aData, oBrw )
 					aCarCom[ aScan( aCarCom, {|x| AllTrim( x[carPos('C7_PRODUTO')] ) == AllTrim( aData[ oBrw:nAt ][ nPosPrd ] ) } ) ][ carPos('TOTAL') ] := aData[oBrw:At()][nPosNec] * aData[oBrw:nAt][nPosNeg]
 				endif
 				for nX := 1 to len( _aFil )
-					nAux := aScan(_aProdFil,{|x| x[nPosPrd] == aData[ oBrw:nAt ][ nPosPrd ] .and. x[len(x)] == _aFil[nX] .and. x[nPosFor] == aData[ oBrw:nAt ][ nPosFor ] .and. x[nPosLoj] == aData[ oBrw:nAt ][ nPosLoj ] })
+					nAux := aScan(_aProdFil,{|x| x[nPosPrd] == aData[ oBrw:nAt ][ nPosPrd ] .and. x[len(x)] == _aFil[nX] })
 					_aProdFil[ nAux ][nPosNeg] := aData[oBrw:nAt][nPosNeg]
 					_aProdFil[ nAux ][nPosUlt] := aData[oBrw:nAt][nPosUlt]
+					_aProdFil[ nAux ][nPosLdT] := aData[oBrw:nAt][nPosLdT]
 				next nX
 
 				for nX := 1 to len( _aFil )
@@ -10685,33 +10692,6 @@ user function JSSUPPLY( lForce, aData, oBrw )
 		
 		endif
 
-		if ! lMPs
-			DBSelectArea( "FORTMP" )
-			FORTMP->( DBSetOrder( 2 ) )		// Fornecedor e Loja
-			if ! FORTMP->( DBSeek( aColPro[oBrw:At()][nPosFor] + aColPro[oBrw:At()][nPosLoj] ) )
-				
-				RecLock( 'FORTMP', .T. )
-				FORTMP->MARK        := cMarca
-				FORTMP->A2_COD      := aData[ oBrw:nAt ][ nPosFor ]
-				FORTMP->A2_LOJA     := aData[ oBrw:nAt ][ nPosLoj ]
-				FORTMP->LEADTIME    := calcLt( Nil, aData[ oBrw:nAt ][ nPosFor ], aData[ oBrw:nAt ][ nPosLoj ] )
-				DBSelectArea( 'SA2' )
-				SA2->( DBSetOrder( 1 ) )
-				if SA2->( DBSeek( FWxFilial( 'SA2' ) + aData[ oBrw:nAt ][ nPosFor ] + aData[ oBrw:nAt ][ nPosLoj ] ) )
-					FORTMP->A2_NOME     := SA2->A2_NOME
-					FORTMP->A2_NREDUZ   := SA2->A2_NREDUZ
-					FORTMP->A2_EMAIL    := SA2->A2_EMAIL
-					FORTMP->A2_X_LTIME  := SA2->A2_X_LTIME
-				else
-					FORTMP->A2_NOME     := "SEM FORNECEDOR"
-					FORTMP->A2_NREDUZ   := "SEM FORNECEDOR"
-					FORTMP->A2_EMAIL    := " "
-					FORTMP->A2_X_LTIME  := 0
-				endif 
-				FORTMP->( MsUnlock() )
-				oBrwFor:UpdateBrowse()
-			endif
-		endif
 		oBrw:UpdateBrowse()
 	endif
 
@@ -11383,4 +11363,19 @@ static function fMarkAll()
 		endif
 	endif
 
+return Nil
+
+/*/{Protheus.doc} btnOpRefr
+Função para chamada do processo de refresh do botão de visualização das PAs
+@type function
+@version 12.1.2510
+@author Jean Carlos Pandolfo Saggin
+@since 22/05/2026
+/*/
+static function btnOpRefr()
+	TMPSC2->( DBGoTop() )
+	oBtnOPs:CCAPTION := cValToChar( TMPSC2->( RecCount() ) ) + " PA(s)"
+	oBtnOPs:NWIDTH   := Len( AllTrim( oBtnOPs:CCAPTION ))*10
+	oBtnOPs:Refresh()
+	TMPSC2->( DBGoTop() )
 return Nil

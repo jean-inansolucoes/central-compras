@@ -196,6 +196,8 @@ user function JSDETVER()
     aAdd( aDetVer, { '19','0017','11/05/2026', 'Adição de telas adicionais para melhor detalhamento de dados das análises dos produtos do tipo PA' } )
     aAdd( aDetVer, { '19','0018','15/05/2026', 'Adição de tela para exibição de detalhes das necessidades de suprimentos das MPs para fabricação dos PAs' } )
     aAdd( aDetVer, { '19','0019','21/05/2026', 'Geração automática de OPs' } )
+    aAdd( aDetVer, { '19','0020','24/05/2026', 'Correção de error-log no momento da seleção de fornecedor pelo atalho F4' } )
+    aAdd( aDetVer, { '19','0021','24/05/2026', 'Correção de error-log ao tentar substituir fornecedor de um pedido após o mesmo já estar em um carrinho de compra de outro fornecedor' } )
 
 return aDetVer
 
@@ -484,7 +486,7 @@ user function JSQRYINF( aConf, aFilters, cPedSol, aCustom, aMPs )
     local aAux     := {} as array
     local y        := 0  as numeric
     local dDtCalc  := CtoD( SubStr( GetMv( 'MV_X_PNC12',,DtoC(date()) ), 01, 10 ) )
-    local lLike    := iif( len( aMPs ) == 0, At( '*', aFilters[5] ) > 0, .F. )
+    local lLike    := .F. as logical
     local cFilHist := cFilAnt
     local nFil     := 0 as numeric
     local cDB      := TCGetDB()
@@ -497,6 +499,8 @@ user function JSQRYINF( aConf, aFilters, cPedSol, aCustom, aMPs )
     default aCustom  := {}
     default aMPs     := {} 
 
+    lLike := iif( len( aMPs ) == 0, At( '*', aFilters[5] ) > 0, .F. )
+    
     // Quando não vier parâmetros, retorna query vazia
     if !len( aConf ) > 0 .and. !len( aFilters ) > 0
         return cQuery
