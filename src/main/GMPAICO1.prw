@@ -34,9 +34,9 @@ user function JSORDPRD()
 	local bBkpAlX  as codeblock
 
 	// Botões a serem exibidos na tela de exibição das PAs
-	aAdd( aButtons, { , 'Matéria-Prima (Tudo)', {|| iif( showMP(),; 
+	aAdd( aButtons, { , 'Matéria-Prima (Tudo)', {|| iif( showMP() .and. MsgYesNo( 'Gostaria de Gerar as OPs automaticamente?', 'A T E N Ç Ã O !' ),; 
 													Processa( {|| lChange := createOPs( oOPs ) }, 'Aguarde!', 'Gerando OPs...' ), Nil ) }, 'Clique para exibir as MPs ligadas à PA',,.T. /* lShowBar */, .T. /* lShowConfig */ } )
-	aAdd( aButtons, { , 'MPs c/ Nec. Compra', {|| iif( showMP(.F. /* lAll */),; 
+	aAdd( aButtons, { , 'MPs c/ Nec. Compra', {|| iif( showMP(.F. /* lAll */) .and. MsgYesNo( 'Gostaria de Gerar as OPs automaticamente?', 'A T E N Ç Ã O !' ),; 
 													Processa( {|| lChange := createOPs( oOPs ) }, 'Aguarde!', 'Gerando OPs...' ), Nil ) }, 'Exibe apenas as MPs ligadas às PAs marcadas e que tenham necessidade de compra',,.T. /* lShowBar */, .T. /* lShowConfig */ } )
 	aAdd( aButtons, { , 'Remover da Lista', {|| iif( removePA(), oOPs:UpdateBrowse(), Nil ) },; 
 		'Remove o PA da lista para não gerar Ordem de Produção',,.T. /* lShowBar */, .T. /* lShowConfig */ } )

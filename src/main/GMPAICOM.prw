@@ -3365,7 +3365,7 @@ Static Function fLoadInf( aMPs, lAll )
 				elseif lPA
 					nLeadTime := calcLt( PRDTMP->B1_COD )
 					cLeadTime := 'C'
-				else
+				else 
 					// Posiciona no fornecedor e loja
 					if SA2->( DBSeek( FWxFilial( 'SA2' ) + cFornece + cLoja ) )
 						if SA2->A2_X_LTIME > 0
@@ -5105,15 +5105,27 @@ User Function GMINDPRO( aParam )
 			// Re-posiciona no registro físico do produto
     		SB1->( DbGoTo( PRDTMP->RECSB1 ) )
 
-			aAux := {}
-			aAux := betterSupplier( PRDTMP->B1_COD, aConfig )
-			cFornece := PADR( aAux[1], TAMSX3('A2_COD')[1], ' ')		// Codigo do fornecedor
-			cLoja    := PADR( aAux[2], TAMSX3('A2_LOJA')[1], ' ' )		// Codigo da loja
+			lPA := U_JSISPA( PRDTMP->B1_COD )
+			if ! lPA
+				aAux := {}
+				aAux := betterSupplier( PRDTMP->B1_COD,; 
+										aConfig,;
+										iif( len( aMPs ) == 0, _aFilters[03], Space(TAMSX3('A2_COD')[1]) ),;
+										iif( len( aMPs ) == 0, _aFilters[06], Space(TAMSX3('A2_LOJA')[1]) ) )
+				cFornece := PADR( aAux[1], TAMSX3('A2_COD')[1], ' ' )		// Codigo do fornecedor
+				cLoja    := PADR( aAux[2], TAMSX3('A2_LOJA')[1], ' ' )		// Codigo da loja
+			else
+				cFornece := Space( TAMSX3('A2_COD')[1] )
+				cLoja    := Space( TAMSX3('A2_LOJA')[1] )
+			endif
 			
 			// Identifica lead-time conforme regra definida para produto, fornecedor (informado) ou fornecedor (calculado)
 			if PRDTMP->B1_PE > 0
 				nLeadTime := PRDTMP->B1_PE
 				cLeadTime := 'P'		// Produto
+			elseif lPA
+				nLeadTime := calcLt( PRDTMP->B1_COD )
+				cLeadTime := 'C'
 			else
 				// Posiciona no fornecedor e loja
 				if SA2->( DBSeek( FWxFilial( 'SA2' ) + cFornece + cLoja ) )

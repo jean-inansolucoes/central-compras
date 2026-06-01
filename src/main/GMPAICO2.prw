@@ -171,46 +171,6 @@ Static Function opPendentes( cProd )
 
 Return ( Nil )
 
-
-/*/{Protheus.doc} opTemApont
-Verifica se a Ordem de Produção possui apontamentos registrados na SD4.
-Retorna .T. caso existam apontamentos, ou .F. caso contrário.
-
-@type function
-@version 1.0
-@author Jean Carlos Pandolfo Saggin
-@since 21/05/2026
-@param cFil,    character, Filial da OP
-@param cNum,    character, Número da OP (C2_NUM)
-@param cItem,   character, Item da OP   (C2_ITEM)
-@param cSequen, character, Sequência da OP (C2_SEQUEN)
-@return logical, lTemApont
-/*/
-Static Function opTemApont( cFil, cNum, cItem, cSequen )
-
-    Local lTemApont := .F.
-    Local cOP       := cNum + cItem + cSequen
-    Local cQuery    := ""
-
-    // Busca por apontamentos ligados a OP na tabela SD4
-    cQuery += "SELECT COUNT(*) QTAPONT " + CEOL
-    cQuery += "FROM " + RetSqlName( 'SD4' ) + " D4 " + CEOL
-    cQuery += "WHERE D4.D4_FILIAL = '" + FWxFilial( 'SD4' ) + "' " + CEOL
-    cQuery += "  AND D4.D4_OP     = '" + cOP + "' " + CEOL
-    cQuery += "  AND D4.D_E_L_E_T_ = ' ' " + CEOL
-
-    TcQuery cQuery New Alias 'APOTMP'
-    DbSelectArea( 'APOTMP' )
-
-    APOTMP->( DbGoTop() )
-    If ! APOTMP->( EOF() )
-        lTemApont := APOTMP->QTAPONT > 0
-    EndIf
-
-    APOTMP->( DbCloseArea() )
-
-Return lTemApont
-
 /*/{Protheus.doc} opExc
 Realiza a exclusão da Ordem de Produção selecionada pelo usuário,
 utilizando MSExecAuto com a rotina MATA650 (Manutenção de OP), conforme

@@ -198,6 +198,7 @@ user function JSDETVER()
     aAdd( aDetVer, { '19','0019','21/05/2026', 'Geração automática de OPs' } )
     aAdd( aDetVer, { '19','0020','24/05/2026', 'Correção de error-log no momento da seleção de fornecedor pelo atalho F4' } )
     aAdd( aDetVer, { '19','0021','24/05/2026', 'Correção de error-log ao tentar substituir fornecedor de um pedido após o mesmo já estar em um carrinho de compra de outro fornecedor' } )
+    aAdd( aDetVer, { '19','0022','01/06/2026', 'Adicionado confirmação do usuário no momento da geração da demanda de MPs para saber se usuário gostaria de gerar as OPs' } )
 
 return aDetVer
 
