@@ -199,6 +199,8 @@ user function JSDETVER()
     aAdd( aDetVer, { '19','0020','24/05/2026', 'Correção de error-log no momento da seleção de fornecedor pelo atalho F4' } )
     aAdd( aDetVer, { '19','0021','24/05/2026', 'Correção de error-log ao tentar substituir fornecedor de um pedido após o mesmo já estar em um carrinho de compra de outro fornecedor' } )
     aAdd( aDetVer, { '19','0022','01/06/2026', 'Adicionado confirmação do usuário no momento da geração da demanda de MPs para saber se usuário gostaria de gerar as OPs' } )
+    aAdd( aDetVer, { '19','0023','02/06/2026', 'Correção de error-log ao tentar remover produto do ERP devido a utilização de variávels INCLUI e ALTERA em PEs antigos' } )
+    aAdd( aDetVer, { '19','0024','02/06/2026', 'Correção de error-log devido a divergência na query principal de leitura quando utilizado em banco Oracle' } )
 
 return aDetVer
 
@@ -592,7 +594,14 @@ user function JSQRYINF( aConf, aFilters, cPedSol, aCustom, aMPs )
         cQuery += "  AND C2.C2_DATRF   = '        ' "+ CEOL
         cQuery += "  AND ( C2.C2_QUANT - C2.C2_QUJE ) > 0 "+ CEOL
         cQuery += "  AND C2.D_E_L_E_T_ = ' ' " + CEOL
-        cQuery += "  ) AS TEMP), '"+ Space(8) +"' ) PRVENT, " + CEOL
+        
+        // Adiciona tratativa para setar alias na query conforme modelo do banco de dados utilizado
+        if cDB $ "ORACLE|SQLSERVER"
+            cQuery += ") TEMP " + CEOL
+        else
+            cQuery += ") AS TEMP " + CEOL
+        endif
+        cQuery += "), '"+ Space(8) +"' ) PRVENT, " + CEOL
 
         cQuery += "COALESCE( ( SELECT SUM( C1.C1_QUANT ) FROM "+ RetSqlName( 'SC1' ) +" C1 " + CEOL
         cQuery += "WHERE C1.C1_FILIAL  = '"+ FWxFilial( 'SC1' ) +"' " + CEOL

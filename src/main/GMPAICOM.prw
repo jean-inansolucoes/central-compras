@@ -10233,10 +10233,14 @@ Função para remover o produto do MRP
 @return logical, lSuccess
 /*/
 static function mrpRemove( cProduto )
+	
 	local cFunOld := FunName()
 	local aFields := {} as array
 	local lSuccess := .F. as logical
 	
+	Private INCLUI := .F. as logical
+	Private ALTERA := .T. as logical
+
 	DBSelectArea( 'SB1' )
 	SB1->( DBSetOrder( 1 ) )
 	if SB1->( DBSeek( FWxFilial( 'SB1' ) + cProduto ) )
