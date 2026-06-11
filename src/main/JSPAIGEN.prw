@@ -5,6 +5,7 @@
 #include 'tbicode.ch'
 
 #define CEOL Chr(13)+Chr(10)
+#define SIZE_FIELD 0.5							// Proporção em relação ao tamanho real dos campos em relação ao espaço que deve utilizar na tela da grid de produtos
 
 /*/{Protheus.doc} JSGETVER
 Retorna a versão do aplicativo.
@@ -201,8 +202,139 @@ user function JSDETVER()
     aAdd( aDetVer, { '19','0022','01/06/2026', 'Adicionado confirmação do usuário no momento da geração da demanda de MPs para saber se usuário gostaria de gerar as OPs' } )
     aAdd( aDetVer, { '19','0023','02/06/2026', 'Correção de error-log ao tentar remover produto do ERP devido a utilização de variávels INCLUI e ALTERA em PEs antigos' } )
     aAdd( aDetVer, { '19','0024','02/06/2026', 'Correção de error-log devido a divergência na query principal de leitura quando utilizado em banco Oracle' } )
+    aAdd( aDetVer, { '19','0025','03/06/2026', 'Permiti ao usuário editar tamanho das colunas e salvar preferências no seu perfil de usuário' } )
+    aAdd( aDetVer, { '19','0026','08/06/2026', 'Correção de falha durante agendamento dos recálculos devido a variável não declarada aMPs' } )
 
 return aDetVer
+
+/*/{Protheus.doc} JSCOLSIZ
+Função para permitir ao usuário alterar e gravar no seu perfil o tamanho desejável para as colunas da grid de produtos
+@type function
+@version 12.1.2510
+@author Visualize - Software e Inovação
+@param aHeader, array, Header do browse de produtos
+@param oPrefs, object, objeto contendo preferências do usuário para configuração do tamanho das colunas
+@since 08/06/2026
+@return object, oNewPrefs, objeto de preferências do usuário atualizado com os novos tamanhos re-definidos
+/*/
+user function JSCOLSIZ( aHeader, oPrefs )
+    
+    local oDlgSize as object
+    local oMain    as object    
+    local aColumns := {} as array
+    
+    Private aAtual   := aClone( aHeader )
+    Private oCampos  as object
+    
+    // Adiciona coluna editável para usuário poder personalizar 
+    aEval( aAtual, {|x| aAdd( x, U_JSDEFSIZ( x[17], oPrefs )[1] ) } )
+
+    aAdd( aColumns, FWBrwColumn():New() )
+	aColumns[len(aColumns)]:SetTitle( 'Campo' )
+	aColumns[len(aColumns)]:SetSize( 8 )
+	aColumns[len(aColumns)]:SetType( 'C' )
+	aColumns[len(aColumns)]:SetPicture( '@!' )
+	aColumns[len(aColumns)]:SetData( {|| aAtual[oCampos:nAt][17] } )
+	
+	aAdd( aColumns, FWBrwColumn():New() )
+	aColumns[len(aColumns)]:SetTitle( 'Título' )
+	aColumns[len(aColumns)]:SetSize( 15 )
+	aColumns[len(aColumns)]:SetType( 'C' )
+	aColumns[len(aColumns)]:SetPicture( '@x' )
+	aColumns[len(aColumns)]:SetData( {|| aAtual[oCampos:nAt][01] } )
+
+    aAdd( aColumns, FWBrwColumn():New() )
+	aColumns[len(aColumns)]:SetTitle( 'Tamanho' )
+	aColumns[len(aColumns)]:SetSize( 5 )
+	aColumns[len(aColumns)]:SetType( 'N' )
+	aColumns[len(aColumns)]:SetPicture( '@E 999' )
+    aColumns[len(aColumns)]:SetAlign( 0 )
+	aColumns[len(aColumns)]:SetData( {|| aAtual[oCampos:nAt][len(aAtual[oCampos:nAt])] } )
+    aColumns[len(aColumns)]:SetEdit(.T.)
+    aColumns[len(aColumns)]:SetReadVar( 'aAtual[oCampos:nAt][len(aAtual[oCampos:nAt])]' )
+
+    oDlgSize := FWDialogModal():New()
+    oDlgSize:SetEscClose( .T. )
+    oDlgSize:SetTitle( "Tamanho das Colunas" )
+    oDlgSize:SetSize( 310, 200 )
+    oDlgSize:SetSubTitle( "Permite que o usuário defina o tamanho desejado para cada coluna da grid de produtos" )
+    oDlgSize:CreateDialog()
+	oDlgSize:AddCloseButton( {|| oDlgSize:DeActivate()}, "Cancelar" )
+	oDlgSize:AddOkButton( {|| oPrefs := U_JSPREFSV( aAtual, oPrefs ), oDlgSize:DeActivate() }, "Ok" )
+
+    oMain := oDlgSize:GetPanelMain()
+
+    oCampos := FWBrowse():New( oMain )
+	oCampos:SetDataArray()
+	oCampos:SetArray( aAtual )
+	oCampos:DisableConfig()
+	oCampos:DisableReport()
+	oCampos:SetLineHeight(20)
+	oCampos:SetColumns( aColumns )
+    oCampos:SetEditCell(.T., {|| .T.})
+	oCampos:Activate()
+
+    oDlgSize:Activate()
+    
+return oPrefs
+
+/*/{Protheus.doc} JSDEFSIZ
+Função para definição default do tamanho dos campos da grid de produtos
+@type function
+@version 12.1.2510
+@author Visualize - Software e Inovação
+@since 08/06/2026
+@param cField, character, ID do campo
+@return array, aReturn[nSize, nDecimal, lCanChange]
+/*/
+user function JSDEFSIZ( cField, oPrefs )
+    
+    local nSize      := 0 as numeric
+    local nDecimal   := 0 as numeric
+    local lCanChange := .T. as logical
+    local aFields    := {}
+    
+    aFields := {{ "QTDBLOQ" , 11, 0 },;
+                { "NECCOMP" , 11, 0 },;
+                { "QTDSOL"  , 11, 0 },;
+                { "PRCNEGOC", 11, 2 },;
+                { "ULTPRECO", 11, 2 },;
+                { "PRCVEN"  , 11, 2 },;
+                { "CONSMED" , 14, 4 },;
+                { "DURACAO" , 03, 0 },;
+                { "DURAPRV" , 03, 0 },;
+                { "ORDPROD" , GETSX3CACHE('C2_QUANT', 'X3_TAMANHO'), GETSX3CACHE('C2_QUANT', 'X3_DECIMAL') },;
+                { "ESTOQUE" , GetSX3Cache("B2_QATU", "X3_TAMANHO"), GetSX3Cache("B2_QATU", "X3_DECIMAL") },;
+                { "EMPENHO" , GetSX3Cache("B2_RESERVA", "X3_TAMANHO"), GetSX3Cache("B2_RESERVA", "X3_DECIMAL") },;
+                { "QTDCOMP" , GetSX3Cache("C7_QUANT", "X3_TAMANHO"), GetSX3Cache("C7_QUANT", "X3_DECIMAL") },;
+                { "LEADTIME", GetSX3Cache("B1_PE", "X3_TAMANHO"), GetSX3Cache("B1_PE", "X3_DECIMAL") },;
+                { "TPLDTIME", 01, 0, .F. /* lCanChange */ },;
+                { "PREVENT" , 08, 0 } }
+
+    if ValType(oPrefs) == 'J' .and. oPrefs:hasProperty( cField )
+        // Se o campo estiver com conteúdo definido nas preferências do usuário, prevalece a configuração do usuário
+        nSize      := oPrefs[cField]
+        if aScan( aFields, {|x| AllTrim(x[1]) == AllTrim(cField) } ) > 0
+            nDecimal   := aFields[aScan( aFields, {|x| AllTrim(x[1]) == AllTrim(cField) } )][3]
+        else
+            nDecimal   := GetSX3Cache( cField, "X3_DECIMAL" )
+        endif
+        lCanChange := .T.
+    elseif aScan( aFields, {|x| AllTrim(x[1]) == AllTrim(cField) } ) > 0
+        // Retorna tamanho dos campos virtuais criados apenas na interface do usuário
+        nSize      := aFields[aScan( aFields, {|x| AllTrim(x[1]) == AllTrim(cField) } )][2]
+        nDecimal   := aFields[aScan( aFields, {|x| AllTrim(x[1]) == AllTrim(cField) } )][3]
+        // Permite ao usuário editar o campo quando não for informado o campo de restrição ou quando o campo de restrição estiver como True (lCanChange)
+        lCanChange := len(aFields[aScan( aFields, {|x| AllTrim(x[1]) == AllTrim(cField) } )]) == 3 .or. aFields[aScan( aFields, {|x| AllTrim(x[1]) == AllTrim(cField) } )][4]
+    else    
+        // Busca do SX3
+        nSize      := GetSX3Cache( cField, "X3_TAMANHO" )
+        nDecimal   := GetSX3Cache( cField, "X3_DECIMAL" )
+        lCanChange := .T.
+    endif
+
+return { nSize, nDecimal, lCanChange }
+
 
 /*/{Protheus.doc} JSSUPSM0
 Função para obter as filiais da empresa que o usuário estiver conectado
@@ -1650,3 +1782,117 @@ user function JSOPAUTO( aOrdPrd )
     endif
 
 return { cOP, cErro }
+
+/*/{Protheus.doc} JSLDPREF
+Função para leitura das preferências de tamanho de campos do usuário
+@type function
+@version 12.1.2510
+@author Visualize - Software e Inovação
+@since 08/06/2026
+@return object, oPrefs
+/*/
+user function JSLDPREF()
+    local oPrefs := JsonObject():New()
+    local cResult := Nil
+    local oFile  as object
+    if file( U_JSPATHSV(2) )
+        oFile  := FWFileReader():New( U_JSPATHSV(2) )
+        if oFile:Open()
+            cResult := oPrefs:FromJson( oFile:FullRead() )
+            if ValType( cResult ) != 'U'
+                oPrefs := JsonObject():New()
+                hlp( 'JSLDPREF',;
+                     cResult,;
+                     'Falha acorrida ao carregar as preferências do usuário. Solicite apoio técnico e tente novamente.' )
+            endif
+            oFile:Close()
+        endif
+    endif
+return oPrefs
+
+/*/{Protheus.doc} JSPATHSV
+FUnção para retornar o path completo onde o sistema deve verificar se existe algum processo em andamento que possa ser restaurado.
+@type function
+@version 12.1.2410
+@author Jean Carlos Pandolfo Saggin
+@since 18/09/2025
+@return character, cFullPath
+/*/
+user function JSPATHSV( nOption )
+	
+	local cFullPath := "" as character
+	
+	default nOption := 1	// 1-Carrinho ou 2-Preferências do usuário
+
+	if !ExistDir( '/gmpaicom/' )
+		MakeDir( '/gmpaicom' )
+		if !ExistDir( '/gmpaicom/' )
+			hlp( 'NO_DIRECTORY',;
+				 'Diretório /gmpaicom/ não existe dentro da raiz do sistema e não foi possível criá-la',;
+				 'Sem o diretório de restauração de processos em andamento, não será possível utilizar a funcionalidade. Verifique com a equipe técnica responsável.' )
+			return cFullPath
+		endif
+	endif
+	if nOption == 1			// Carrinho de compras, filtro, filiais selecionadas
+		cFullPath := '/gmpaicom/'+ cEmpAnt +'_'+ cFilAnt +'_'+ RetCodUsr() +'.json'
+	elseif nOption == 2		// Preferências do usuário
+		cFullPath := '/gmpaicom/'+ RetCodUsr() +'_pref.json'
+	endif
+return cFullPath
+
+
+/*/{Protheus.doc} JSPREFSV
+Função responsável pela checagem e por salvar as configurações que são específicas do usuário
+@type function
+@version 12.1.2510
+@author Visualize - Software e Inovação
+@since 08/06/2026
+@param aAtual, array, Header da grid de produtos editada pelo usuário
+@param oPrefs, object, objeto contendo as preferências do usuário carregadas na inicialização do sistema
+@return logical, lSuccess
+/*/
+user function JSPREFSV( aAtual, oPrefs )
+    
+    local lSuccess := .F. as logical
+    local oCol     as object
+    local nCol     := 0 as numeric
+    local nPos     := 0 as numeric
+    local lEnd     := .F. as logical
+    local cResult  := "" as character
+    
+    if Type( 'oBrwPro' ) == 'O'
+        
+        while !lEnd 
+            nCol++
+            oCol := oBrwPro:GetColumn( nCol )
+            if ValType( oCol ) == 'O'
+                // Verifica posição do campo por meio do ID e guarda a posição do campo no vetor
+                nPos := aScan( aAtual, {|x| AllTrim(x[17]) == AllTrim(oCol:GetID()) } )
+                if nPos > 0 .and. ! aAtual[nPos][len(aAtual[nPos])] == U_JSDEFSIZ( oCol:GetId(), oPrefs )[1]
+                    oPrefs[oCol:GetID()] := aAtual[nPos][len(aAtual[nPos])]                                   
+                    oCol:SetSize( aAtual[nPos][len(aAtual[nPos])] * SIZE_FIELD )
+                    lSuccess := .T.
+                endif
+            else
+                lEnd := .T.
+            endif
+        end
+
+        // Guarda o arquivo no diretório do usuário
+        if lSuccess
+            oBrwPro:UpdateBrowse()
+            cResult := oPrefs:toJsonFile( U_JSPATHSV(2) )
+            lSuccess := ! ValType( cResult ) == 'C'
+            if ! lSuccess
+                hlp( 'NO_SAVE',;
+                    'Não foi possível salvar os dados do processo em andamento no arquivo de restauração',;
+                    'Falha: '+ cResult )
+            endif
+        else
+            hlp( 'NO_CHANGE',;
+                'Não foram identificadas alterações para que o sistema possa salvar nas preferências do seu usuário',;
+                'Altere o tamanho de ao menos um campo para que possamos prosseguir' )
+        endif
+    endif
+
+return oPrefs

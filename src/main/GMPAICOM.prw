@@ -19,6 +19,7 @@
 #define LBL_TOP	   .T.							// Posição do label de topo
 #define LG_OBS     "notificacao.png"			// Legenda para itens com observação preenchida
 #define LG_NO_OBS  "white.bmp" 					// Legenda para itens sem observação preenchida
+#define SIZE_FIELD 0.5							// Proporção em relação ao tamanho real dos campos em relação ao espaço que deve utilizar na tela da grid de produtos
  
 /*/{Protheus.doc} GMPAICOM
 Rotina para gestão de compras, elaboração inteligente de pedidos e acompanhamento de carteira de fornecedores
@@ -68,7 +69,6 @@ User Function GMPAICOM()
 	local oLine    as object
 	local cFileWF  := "" as character
 	local aAuxHea  := doHeadCar()
-	// local oAliSol   as object
 	local oData     := JsonObject():New()
 	local aData     := {'Período','Quantidade'} as array
 	local oImgPCP   as object
@@ -78,6 +78,7 @@ User Function GMPAICOM()
 	local nSizeDsh  := 0 as numeric
 	local oPAs      as object
 	local nPAs      := 0 as numeric
+	local oUsrPref  := JsonObject():New()
 	
 	Private aHeaPro   := {}
 	Private aHeaSol   := {} as array
@@ -113,7 +114,7 @@ User Function GMPAICOM()
 	Private nPosPrd   := 0
 	Private nPosOrd   := 0 as numeric
 	Private nPosDes   := 0
-	Private nPosLtM   := 0 
+	Private nPosLtM   := 0  
 	Private nPosUnM   := 0 
 	Private nPosChk   := 0
 	Private nPosFor   := 0
@@ -247,6 +248,9 @@ User Function GMPAICOM()
 		endif
 	endif
 	
+	// Carrega definições de preferências do usuário
+	oUsrPref := U_JSLDPREF()
+
 	// Define hotkeys da rotina
 	SetKey( K_ALT_X, {|| fMarkPro() } )
 	Setkey( VK_F11, {|| U_JSGLBPAR( .F. ) } ) 
@@ -293,7 +297,7 @@ User Function GMPAICOM()
 	if SB1->(  FieldPos( 'B1_XGPTP' ) ) > 0
 		aAdd( aAlter, "B1_XGPTP" )
 	endif
-	aHeaPro := U_JSCOLPRO( aFields, aAlter )							
+	aHeaPro := U_JSCOLPRO( aFields, aAlter, oUsrPref )					
 	// Guarda o posicionamento dos campos para posteriormente utilizá-los ao longo do fonte
 	nPosPrd := gtMain("B1_COD")
 	nPosDes := gtMain("B1_DESC")
@@ -372,6 +376,7 @@ User Function GMPAICOM()
 	aAdd( aButtons, { "BTNSAIDA" , {|| iif( len( aColPro ) > 0, outPuts( aColPro[ oBrwPro:nAt ][nPosPrd] ), Nil ) }, "Saídas" } )
 	aAdd( aButtons, { "BTNPAICFG", {|| fManPar(), aConfig := U_JSGETCFG(.F. /* lAuto */) }, "Parâmetros Internos (F12)" } )
 	aAdd( aButtons, { "BTNCONFIG", {|| oBrwPro:Config() }, "Configurar Janela de Produtos" } )
+	aAdd( aButtons, { "BTNCONFIG", {|| oUsrPref := U_JSCOLSIZ( aHeaPro, oUsrPref ) }, "Tamanho das colunas" } )
 	aAdd( aButtons, { "BTNFILIAL", {|| _aFil := userFil( _aFil ),;
 									Processa( {|| fLoadInf() }, 'Aguarde!','Executando filtro de produtos...' ),;
 									saveData() }, "Selecionar Filiais" } )
@@ -494,21 +499,25 @@ User Function GMPAICOM()
 	oBmpBai := TBitmap():New(060, 010, 10, 10, LG_BAIXO   /*cResName*/, /*cBmpFile*/, .T./*lNoBorder*/, oWinPar, /*bLClicked*/, /*bRClicked*/, /*lScroll*/, /*lStretch*/, /*oCursor*/, /*uParam14*/, /*uParam15*/, /*bWhen*/, .T./* lDimPixels */, /*bValid*/)
 	oBmpSem := TBitmap():New(070, 010, 10, 10, LG_SEMGIRO /*cResName*/, /*cBmpFile*/, .T./*lNoBorder*/, oWinPar, /*bLClicked*/, /*bRClicked*/, /*lScroll*/, /*lStretch*/, /*oCursor*/, /*uParam14*/, /*uParam15*/, /*bWhen*/, .T./* lDimPixels */, /*bValid*/)
 
-	@ 30, 20 CHECKBOX oGir001 VAR lGir001 PROMPT "Críticos"     		SIZE 048, 008 OF oWinPar COLORS 8421504, 16777215 FONT oFntCbo ON CHANGE Processa( {|| chgFilter(2),;
-																																				oBrwPro:SetArray( aColPro ),;
-																																				oBrwPro:UpdateBrowse()}, 'Aguarde!','Executando filtro de produtos...' ) PIXEL
-	@ 40, 20 CHECKBOX oGir002 VAR lGir002 PROMPT "Alto Giro"    		SIZE 048, 008 OF oWinPar COLORS 8421504, 16777215 FONT oFntCbo ON CHANGE Processa( {|| chgFilter(2),;
-																																				oBrwPro:SetArray( aColPro ),;
-																																				oBrwPro:UpdateBrowse() }, 'Aguarde!','Executando filtro de produtos...' ) PIXEL
-	@ 50, 20 CHECKBOX oGir003 VAR lGir003 PROMPT "Médio Giro"   		SIZE 048, 008 OF oWinPar COLORS 8421504, 16777215 FONT oFntCbo ON CHANGE Processa( {|| chgFilter(2),;
-																																				oBrwPro:SetArray( aColPro ),;
-																																				oBrwPro:UpdateBrowse() }, 'Aguarde!','Executando filtro de produtos...' ) PIXEL
-	@ 60, 20 CHECKBOX oGir004 VAR lGir004 PROMPT "Baixo Giro"   		SIZE 048, 008 OF oWinPar COLORS 8421504, 16777215 FONT oFntCbo ON CHANGE Processa( {|| chgFilter(2),;
-																																				oBrwPro:SetArray( aColPro ),;
-																																				oBrwPro:UpdateBrowse() }, 'Aguarde!','Executando filtro de produtos...' ) PIXEL
-	@ 70, 20 CHECKBOX oGir005 VAR lGir005 PROMPT "Sem Giro"     		SIZE 048, 008 OF oWinPar COLORS 8421504, 16777215 FONT oFntCbo ON CHANGE Processa( {|| chgFilter(2),;
-																																				oBrwPro:SetArray( aColPro ),;
-																																				oBrwPro:UpdateBrowse() }, 'Aguarde!','Executando filtro de produtos...' ) PIXEL
+	@ 30, 20 CHECKBOX oGir001 VAR lGir001 PROMPT "Críticos" ;
+	SIZE 048, 008 OF oWinPar COLORS 8421504, 16777215 FONT oFntCbo ON CHANGE Processa( {|| chgFilter(2),;
+	oBrwPro:SetArray( aColPro ),oBrwPro:UpdateBrowse()}, 'Aguarde!','Executando filtro de produtos...' ) PIXEL
+
+	@ 40, 20 CHECKBOX oGir002 VAR lGir002 PROMPT "Alto Giro" ;
+	SIZE 048, 008 OF oWinPar COLORS 8421504, 16777215 FONT oFntCbo ON CHANGE Processa( {|| chgFilter(2),;
+	oBrwPro:SetArray( aColPro ),oBrwPro:UpdateBrowse() }, 'Aguarde!','Executando filtro de produtos...' ) PIXEL
+
+	@ 50, 20 CHECKBOX oGir003 VAR lGir003 PROMPT "Médio Giro" ;
+	SIZE 048, 008 OF oWinPar COLORS 8421504, 16777215 FONT oFntCbo ON CHANGE Processa( {|| chgFilter(2),;
+	oBrwPro:SetArray( aColPro ),oBrwPro:UpdateBrowse() }, 'Aguarde!','Executando filtro de produtos...' ) PIXEL
+
+	@ 60, 20 CHECKBOX oGir004 VAR lGir004 PROMPT "Baixo Giro" ;
+	SIZE 048, 008 OF oWinPar COLORS 8421504, 16777215 FONT oFntCbo ON CHANGE Processa( {|| chgFilter(2),;
+	oBrwPro:SetArray( aColPro ),oBrwPro:UpdateBrowse() }, 'Aguarde!','Executando filtro de produtos...' ) PIXEL
+
+	@ 70, 20 CHECKBOX oGir005 VAR lGir005 PROMPT "Sem Giro" ;
+	SIZE 048, 008 OF oWinPar COLORS 8421504, 16777215 FONT oFntCbo ON CHANGE Processa( {|| chgFilter(2),;
+	oBrwPro:SetArray( aColPro ),oBrwPro:UpdateBrowse() }, 'Aguarde!','Executando filtro de produtos...' ) PIXEL
 	
 	oRadMenu := TRadMenu():New( 30, 70, aRadMenu,, oWinPar,,,,,,,,100,12,,,,.T.)
 	oRadMenu:bSetGet := {|u| iif( pCount()==0, nRadMenu, nRadMenu := u ) }
@@ -5110,8 +5119,8 @@ User Function GMINDPRO( aParam )
 				aAux := {}
 				aAux := betterSupplier( PRDTMP->B1_COD,; 
 										aConfig,;
-										iif( len( aMPs ) == 0, _aFilters[03], Space(TAMSX3('A2_COD')[1]) ),;
-										iif( len( aMPs ) == 0, _aFilters[06], Space(TAMSX3('A2_LOJA')[1]) ) )
+										Space( TAMSX3('A2_COD')[1] ),;
+										Space( TAMSX3('A2_LOJA')[1] ) )
 				cFornece := PADR( aAux[1], TAMSX3('A2_COD')[1], ' ' )		// Codigo do fornecedor
 				cLoja    := PADR( aAux[2], TAMSX3('A2_LOJA')[1], ' ' )		// Codigo da loja
 			else
@@ -6772,7 +6781,7 @@ Static Function fGrvPed( oCbo, aCbo, cCbo, cFornece, cLoja )
 		saveData('carrinho', aCarCom, aHeaCar)
 		if len( aCarCom ) == 0
 			// Elimina arquivo temporário do carrinho se não houverem mais registros
-			fErase( pathSaved() )
+			fErase( U_JSPATHSV() )
 		endif
 	endif
 	
@@ -7605,7 +7614,7 @@ static function prodFilter( aFiltros, lManual )
 	
 	// Apenas acessa recuperação de filtros quando tipo da variável for lógico
 	if Type( 'lFilFirst' ) == 'L'
-		if lFilFirst .and. File(pathSaved()) .and. aConfig[29] == 'S'
+		if lFilFirst .and. File(U_JSPATHSV()) .and. aConfig[29] == 'S'
 			lFilFirst := .F.
 			if MsgYesNo( 'Foi identificado que existe processo de compra em andamento, deseja restaurá-lo? Se disser que "não", o processo será eliminado.',;
 				'A T E N Ç Ã O ! ' )
@@ -7619,7 +7628,7 @@ static function prodFilter( aFiltros, lManual )
 				return _aFilters
 			else
 				// Elimina arquivo temporário para usuário dar início em um novo processo
-				fErase( pathSaved() )
+				fErase( U_JSPATHSV() )
 			endif
 		else
 			lFilFirst := .F.
@@ -8607,15 +8616,15 @@ Função para retornar colunas do browse de produtos
 @since 11/12/2024
 @param aFields, array, vetor de campos a serem incluídos no grid
 @param aAlter, array, vetor de campos em que o usuário vai poder alterar os dados
+@param oPrefs, object, objeto contendo as preferências de usuários
 @return array, aColumns
 /*/
-user function JSCOLPRO( aFields, aAlter )
+user function JSCOLPRO( aFields, aAlter, oPrefs )
 
 	local aColumns := {} as array
 	local nX       := 0 as numeric
 	local aAux     := {} as array
 	local cType    := "" as character
-	local nPropor  := 0.4 
 	local aPEPNC07 := {} as array
 	local cVarName := iif( isInCallStack( 'U_JSORDPRD' ), 'aData', 'aColPro' )
 	local cBrwName := iif( isInCallStack( 'U_JSORDPRD' ), 'oBrw', 'oBrwPro' )
@@ -8631,17 +8640,17 @@ user function JSCOLPRO( aFields, aAlter )
 			endif
 			aAdd(aColumns, {;
 							AllTrim(GetSX3Cache( aFields[nX], 'X3_TITULO' )),;                     	// [n][01] Título da coluna
-							&("{|oBrw| " + cVarName + "[oBrw:At()]["+ cValToChar(nX+2) +"] }"),; 			// [n][02] Code-Block de carga dos dados
+							&("{|oBrw| " + cVarName + "[oBrw:At()]["+ cValToChar(nX+2) +"] }"),; 	// [n][02] Code-Block de carga dos dados
 							StrTran(GetSX3Cache( aFields[nX], 'X3_TIPO' ),'M','C'),;                // [n][03] Tipo de dados
 							AllTrim(GetSX3Cache( aFields[nX], 'X3_PICTURE' )),;                     // [n][04] Máscara
 							iif( cType == "C", 1, iif( cType == "N", 2, 0 )),;                      // [n][05] Alinhamento (0=Centralizado, 1=Esquerda ou 2=Direita)
-							GetSX3Cache( aFields[nX], 'X3_TAMANHO' )*nPropor,;                      // [n][06] Tamanho
-							GetSX3Cache( aFields[nX], 'X3_DECIMAL' ),;                              // [n][07] Decimal
+							U_JSDEFSIZ( aFields[nX], oPrefs )[1] * SIZE_FIELD,;                             	// [n][06] Tamanho
+							U_JSDEFSIZ( aFields[nX], oPrefs )[2],;                         					// [n][07] Decimal
 							aScan( aAlter, {|x| AllTrim(x) == aFields[nX] } ) > 0,;                 // [n][08] Indica se permite a edição
 							{|| AlwaysTrue() },;                          							// [n][09] Code-Block de validação da coluna após a edição
 							.F.,;                            										// [n][10] Indica se exibe imagem
 							Nil,;                            										// [n][11] Code-Block de execução do duplo clique
-							cVarName +"["+ cBrwName +":At()]["+cValToChar(nX+2)+"]",;                    		// [n][12] Variável a ser utilizada na edição (ReadVar)
+							cVarName +"["+ cBrwName +":At()]["+cValToChar(nX+2)+"]",;               // [n][12] Variável a ser utilizada na edição (ReadVar)
 							{|oBrw| sortCol(oBrw, &(cVarName)) },;              					// [n][13] Code-Block de execução do clique no header
 							.F.,;                            										// [n][14] Indica se a coluna está deletada
 							.F.,;                            										// [n][15] Indica se a coluna será exibida nos detalhes do Browse
@@ -8652,15 +8661,15 @@ user function JSCOLPRO( aFields, aAlter )
 							'Qtd.Bloq.',;                     										// [n][01] Título da coluna
 							&("{|oBrw| " + cVarName + "[oBrw:At()]["+ cValToChar(nX+2) +"] }"),; 	// [n][02] Code-Block de carga dos dados
 							"N",;                													// [n][03] Tipo de dados
-							PesqPict( 'SC7', 'C7_QUANT' ),;                     									// [n][04] Máscara
+							PesqPict( 'SC7', 'C7_QUANT' ),;                     					// [n][04] Máscara
 							2,;                      												// [n][05] Alinhamento (0=Centralizado, 1=Esquerda ou 2=Direita)
-							11 * nPropor,;                             										// [n][06] Tamanho
-							0,;                              										// [n][07] Decimal
+							U_JSDEFSIZ( aFields[nX], oPrefs )[1] * SIZE_FIELD,;                             	// [n][06] Tamanho
+							U_JSDEFSIZ( aFields[nX], oPrefs )[2],;                         					// [n][07] Decimal
 							aScan( aAlter, {|x| AllTrim(x) == aFields[nX] } ) > 0,;                 // [n][08] Indica se permite a edição
 							{|| AlwaysTrue() },;                          							// [n][09] Code-Block de validação da coluna após a edição
 							.F.,;                            										// [n][10] Indica se exibe imagem
 							Nil,;                            										// [n][11] Code-Block de execução do duplo clique
-							cVarName +"["+ cBrwName +":At()]["+cValToChar(nX+2)+"]",;                    		// [n][12] Variável a ser utilizada na edição (ReadVar)
+							cVarName +"["+ cBrwName +":At()]["+cValToChar(nX+2)+"]",;               // [n][12] Variável a ser utilizada na edição (ReadVar)
 							{|oBrw| sortCol(oBrw, &(cVarName)) },;              					// [n][13] Code-Block de execução do clique no header
 							.F.,;                            										// [n][14] Indica se a coluna está deletada
 							.F.,;                            										// [n][15] Indica se a coluna será exibida nos detalhes do Browse
@@ -8669,17 +8678,17 @@ user function JSCOLPRO( aFields, aAlter )
 		elseif aFields[nX] == 'NECCOMP'
 			aAdd(aColumns, {;
 							'Sug.Compra',;                     										// [n][01] Título da coluna
-							&("{|oBrw| " + cVarName + "[oBrw:At()]["+ cValToChar(nX+2) +"] }"),; 			// [n][02] Code-Block de carga dos dados
+							&("{|oBrw| " + cVarName + "[oBrw:At()]["+ cValToChar(nX+2) +"] }"),; 	// [n][02] Code-Block de carga dos dados
 							"N",;                													// [n][03] Tipo de dados
 							PesqPict( 'SC7', 'C7_QUANT' ),;                     					// [n][04] Máscara
 							2,;                      												// [n][05] Alinhamento (0=Centralizado, 1=Esquerda ou 2=Direita)
-							11 * nPropor,;                             								// [n][06] Tamanho
-							0,;                              										// [n][07] Decimal
+							U_JSDEFSIZ( aFields[nX], oPrefs )[1] * SIZE_FIELD,;                        // [n][06] Tamanho
+							U_JSDEFSIZ( aFields[nX], oPrefs )[2],;                         			// [n][07] Decimal
 							aScan( aAlter, {|x| AllTrim(x) == aFields[nX] } ) > 0,;                 // [n][08] Indica se permite a edição
 							{|| AlwaysTrue() },;                          							// [n][09] Code-Block de validação da coluna após a edição
 							.F.,;                            										// [n][10] Indica se exibe imagem
 							Nil,;                            										// [n][11] Code-Block de execução do duplo clique
-							 cVarName +"["+ cBrwName +":At()]["+cValToChar(nX+2)+"]",;                    		// [n][12] Variável a ser utilizada na edição (ReadVar)
+							cVarName +"["+ cBrwName +":At()]["+cValToChar(nX+2)+"]",;               // [n][12] Variável a ser utilizada na edição (ReadVar)
 							{|oBrw| sortCol(oBrw, &(cVarName)) },;              					// [n][13] Code-Block de execução do clique no header
 							.F.,;                            										// [n][14] Indica se a coluna está deletada
 							.F.,;                            										// [n][15] Indica se a coluna será exibida nos detalhes do Browse
@@ -8688,17 +8697,17 @@ user function JSCOLPRO( aFields, aAlter )
 		elseif aFields[nX] == 'QTDSOL'
 			aAdd(aColumns, {;
 							'Qtd.Solic.',;                     										// [n][01] Título da coluna
-							&("{|oBrw| " + cVarName + "[oBrw:At()]["+ cValToChar(nX+2) +"] }"),; 				// [n][02] Code-Block de carga dos dados
+							&("{|oBrw| " + cVarName + "[oBrw:At()]["+ cValToChar(nX+2) +"] }"),; 	// [n][02] Code-Block de carga dos dados
 							"N",;                													// [n][03] Tipo de dados
 							"@E 999,999,999",;                     									// [n][04] Máscara
 							2,;                      												// [n][05] Alinhamento (0=Centralizado, 1=Esquerda ou 2=Direita)
-							11 * nPropor,;                             										// [n][06] Tamanho
-							0,;                              										// [n][07] Decimal
+							U_JSDEFSIZ( aFields[nX], oPrefs )[1] * SIZE_FIELD,;                        // [n][06] Tamanho
+							U_JSDEFSIZ( aFields[nX], oPrefs )[2],;                         			// [n][07] Decimal
 							aScan( aAlter, {|x| AllTrim(x) == aFields[nX] } ) > 0,;                 // [n][08] Indica se permite a edição
 							{|| AlwaysTrue() },;                          							// [n][09] Code-Block de validação da coluna após a edição
 							.F.,;                            										// [n][10] Indica se exibe imagem
 							Nil,;                            										// [n][11] Code-Block de execução do duplo clique
-							 cVarName +"["+ cBrwName +":At()]["+cValToChar(nX+2)+"]",;                    		// [n][12] Variável a ser utilizada na edição (ReadVar)
+							 cVarName +"["+ cBrwName +":At()]["+cValToChar(nX+2)+"]",;              // [n][12] Variável a ser utilizada na edição (ReadVar)
 							{|oBrw| sortCol(oBrw, &(cVarName)) },;              					// [n][13] Code-Block de execução do clique no header
 							.F.,;                            										// [n][14] Indica se a coluna está deletada
 							.F.,;                            										// [n][15] Indica se a coluna será exibida nos detalhes do Browse
@@ -8711,8 +8720,8 @@ user function JSCOLPRO( aFields, aAlter )
 							"N",;                													// [n][03] Tipo de dados
 							PesqPict('SC2', 'C2_QUANT'),;                     						// [n][04] Máscara
 							2,;                      												// [n][05] Alinhamento (0=Centralizado, 1=Esquerda ou 2=Direita)
-							GETSX3CACHE('C2_QUANT', 'X3_TAMANHO') * nPropor,;                       // [n][06] Tamanho
-							GETSX3CACHE('C2_QUANT', 'X3_DECIMAL'),;                             	// [n][07] Decimal
+							U_JSDEFSIZ( aFields[nX], oPrefs )[1] * SIZE_FIELD,;                        // [n][06] Tamanho
+							U_JSDEFSIZ( aFields[nX], oPrefs )[2],;                         			// [n][07] Decimal
 							aScan( aAlter, {|x| AllTrim(x) == aFields[nX] } ) > 0,;                 // [n][08] Indica se permite a edição
 							{|| AlwaysTrue() },;                          							// [n][09] Code-Block de validação da coluna após a edição
 							.F.,;                            										// [n][10] Indica se exibe imagem
@@ -8726,17 +8735,17 @@ user function JSCOLPRO( aFields, aAlter )
 		elseif aFields[nX] == 'PRCNEGOC'
 			aAdd(aColumns, {;
 							'Prç.Neg.',;                     										// [n][01] Título da coluna
-							&("{|oBrw| "+ cVarName +"[oBrw:At()]["+ cValToChar(nX+2) +"] }"),; 			// [n][02] Code-Block de carga dos dados
+							&("{|oBrw| "+ cVarName +"[oBrw:At()]["+ cValToChar(nX+2) +"] }"),; 		// [n][02] Code-Block de carga dos dados
 							"N",;                													// [n][03] Tipo de dados
 							PesqPict("SC7", "C7_PRECO"),;                     						// [n][04] Máscara
 							2,;                      												// [n][05] Alinhamento (0=Centralizado, 1=Esquerda ou 2=Direita)
-							11 * nPropor,;                             								// [n][06] Tamanho
-							2,;                              										// [n][07] Decimal
+							U_JSDEFSIZ( aFields[nX], oPrefs )[1] * SIZE_FIELD,;                        // [n][06] Tamanho
+							U_JSDEFSIZ( aFields[nX], oPrefs )[2],;                         			// [n][07] Decimal
 							aScan( aAlter, {|x| AllTrim(x) == aFields[nX] } ) > 0,;                 // [n][08] Indica se permite a edição
 							{|| AlwaysTrue() },;                          							// [n][09] Code-Block de validação da coluna após a edição
 							.F.,;                            										// [n][10] Indica se exibe imagem
 							Nil,;                            										// [n][11] Code-Block de execução do duplo clique
-							cVarName +"["+ cBrwName +":At()]["+cValToChar(nX+2)+"]",;                    		// [n][12] Variável a ser utilizada na edição (ReadVar)
+							cVarName +"["+ cBrwName +":At()]["+cValToChar(nX+2)+"]",;               // [n][12] Variável a ser utilizada na edição (ReadVar)
 							{|oBrw| sortCol(oBrw, &(cVarName)) },;              					// [n][13] Code-Block de execução do clique no header
 							.F.,;                            										// [n][14] Indica se a coluna está deletada
 							.F.,;                            										// [n][15] Indica se a coluna será exibida nos detalhes do Browse
@@ -8749,13 +8758,13 @@ user function JSCOLPRO( aFields, aAlter )
 							"N",;                													// [n][03] Tipo de dados
 							PesqPict("SC7", "C7_PRECO"),;                     						// [n][04] Máscara
 							2,;                      												// [n][05] Alinhamento (0=Centralizado, 1=Esquerda ou 2=Direita)
-							11 * nPropor,;                             								// [n][06] Tamanho
-							2,;                              										// [n][07] Decimal
+							U_JSDEFSIZ( aFields[nX], oPrefs )[1] * SIZE_FIELD,;						// [n][06] Tamanho
+							U_JSDEFSIZ( aFields[nX], oPrefs )[2],;									// [n][07] Decimal
 							aScan( aAlter, {|x| AllTrim(x) == aFields[nX] } ) > 0,;                 // [n][08] Indica se permite a edição
 							{|| AlwaysTrue() },;                          							// [n][09] Code-Block de validação da coluna após a edição
 							.F.,;                            										// [n][10] Indica se exibe imagem
 							Nil,;                            										// [n][11] Code-Block de execução do duplo clique
-							 cVarName +"["+ cBrwName +":At()]["+cValToChar(nX+2)+"]",;                    		// [n][12] Variável a ser utilizada na edição (ReadVar)
+							 cVarName +"["+ cBrwName +":At()]["+cValToChar(nX+2)+"]",;				// [n][12] Variável a ser utilizada na edição (ReadVar)
 							{|oBrw| sortCol(oBrw, &(cVarName)) },;              					// [n][13] Code-Block de execução do clique no header
 							.F.,;                            										// [n][14] Indica se a coluna está deletada
 							.F.,;                            										// [n][15] Indica se a coluna será exibida nos detalhes do Browse
@@ -8764,17 +8773,17 @@ user function JSCOLPRO( aFields, aAlter )
 		elseif aFields[nX] == "PRCVEN"
 			aAdd(aColumns, {;
 							'Prc.Venda',;                     										// [n][01] Título da coluna
-							&("{|oBrw| " + cVarName + "[oBrw:At()]["+ cValToChar(nX+2) +"] }"),; 			// [n][02] Code-Block de carga dos dados
+							&("{|oBrw| " + cVarName + "[oBrw:At()]["+ cValToChar(nX+2) +"] }"),;	// [n][02] Code-Block de carga dos dados
 							"N",;                													// [n][03] Tipo de dados
 							PesqPict("SC6", "C6_PRUNIT"),;                     						// [n][04] Máscara
 							2,;                      												// [n][05] Alinhamento (0=Centralizado, 1=Esquerda ou 2=Direita)
-							11 * nPropor,;                             								// [n][06] Tamanho
-							2,;                              										// [n][07] Decimal
+							U_JSDEFSIZ( aFields[nX], oPrefs )[1] * SIZE_FIELD,;						// [n][06] Tamanho
+							U_JSDEFSIZ( aFields[nX], oPrefs )[2],;									// [n][07] Decimal
 							aScan( aAlter, {|x| AllTrim(x) == aFields[nX] } ) > 0,;                 // [n][08] Indica se permite a edição
 							{|| AlwaysTrue() },;                          							// [n][09] Code-Block de validação da coluna após a edição
 							.F.,;                            										// [n][10] Indica se exibe imagem
 							Nil,;                            										// [n][11] Code-Block de execução do duplo clique
-							 cVarName +"["+ cBrwName +":At()]["+cValToChar(nX+2)+"]",;                    		// [n][12] Variável a ser utilizada na edição (ReadVar)
+							 cVarName +"["+ cBrwName +":At()]["+cValToChar(nX+2)+"]",;              // [n][12] Variável a ser utilizada na edição (ReadVar)
 							{|oBrw| sortCol(oBrw, &(cVarName)) },;              					// [n][13] Code-Block de execução do clique no header
 							.F.,;                            										// [n][14] Indica se a coluna está deletada
 							.F.,;                            										// [n][15] Indica se a coluna será exibida nos detalhes do Browse
@@ -8783,17 +8792,17 @@ user function JSCOLPRO( aFields, aAlter )
 		elseif aFields[nX] == 'CONSMED'
 			aAdd(aColumns, {;
 							'Cons.Med.',;                     										// [n][01] Título da coluna
-							&("{|oBrw| " + cVarName + "[oBrw:At()]["+ cValToChar(nX+2) +"] }"),; 				// [n][02] Code-Block de carga dos dados
+							&("{|oBrw| " + cVarName + "[oBrw:At()]["+ cValToChar(nX+2) +"] }"),;	// [n][02] Code-Block de carga dos dados
 							"N",;                													// [n][03] Tipo de dados
 							"@E 9,999,999.9999",;                     								// [n][04] Máscara
 							2,;                      												// [n][05] Alinhamento (0=Centralizado, 1=Esquerda ou 2=Direita)
-							14 * nPropor,;                             								// [n][06] Tamanho
-							4,;                              										// [n][07] Decimal
+							U_JSDEFSIZ( aFields[nX], oPrefs )[1] * SIZE_FIELD,;						// [n][06] Tamanho
+							U_JSDEFSIZ( aFields[nX], oPrefs )[2],;									// [n][07] Decimal
 							aScan( aAlter, {|x| AllTrim(x) == aFields[nX] } ) > 0,;                 // [n][08] Indica se permite a edição
 							{|| AlwaysTrue() },;                          							// [n][09] Code-Block de validação da coluna após a edição
 							.F.,;                            										// [n][10] Indica se exibe imagem
 							Nil,;                            										// [n][11] Code-Block de execução do duplo clique
-							 cVarName +"["+ cBrwName +":At()]["+cValToChar(nX+2)+"]",;                    		// [n][12] Variável a ser utilizada na edição (ReadVar)
+							 cVarName +"["+ cBrwName +":At()]["+cValToChar(nX+2)+"]",;              // [n][12] Variável a ser utilizada na edição (ReadVar)
 							{|oBrw| sortCol(oBrw, &(cVarName)) },;              					// [n][13] Code-Block de execução do clique no header
 							.F.,;                            										// [n][14] Indica se a coluna está deletada
 							.F.,;                            										// [n][15] Indica se a coluna será exibida nos detalhes do Browse
@@ -8807,8 +8816,8 @@ user function JSCOLPRO( aFields, aAlter )
 							"N",;                													// [n][03] Tipo de dados
 							"@E 999",;                     											// [n][04] Máscara
 							2,;                      												// [n][05] Alinhamento (0=Centralizado, 1=Esquerda ou 2=Direita)
-							3 * nPropor,;                             										// [n][06] Tamanho
-							0,;                              										// [n][07] Decimal
+							U_JSDEFSIZ( aFields[nX], oPrefs )[1] * SIZE_FIELD,;                             	// [n][06] Tamanho
+							U_JSDEFSIZ( aFields[nX], oPrefs )[2],;                         					// [n][07] Decimal
 							aScan( aAlter, {|x| AllTrim(x) == aFields[nX] } ) > 0,;                 // [n][08] Indica se permite a edição
 							{|| AlwaysTrue() },;                          							// [n][09] Code-Block de validação da coluna após a edição
 							.F.,;                            										// [n][10] Indica se exibe imagem
@@ -8826,8 +8835,8 @@ user function JSCOLPRO( aFields, aAlter )
 							"N",;                													// [n][03] Tipo de dados
 							"@E 999",;                     											// [n][04] Máscara
 							2,;                      												// [n][05] Alinhamento (0=Centralizado, 1=Esquerda ou 2=Direita)
-							3 * nPropor,;                             										// [n][06] Tamanho
-							0,;                              										// [n][07] Decimal
+							U_JSDEFSIZ( aFields[nX], oPrefs )[1] * SIZE_FIELD,;                             	// [n][06] Tamanho
+							U_JSDEFSIZ( aFields[nX], oPrefs )[2],;                         					// [n][07] Decimal
 							aScan( aAlter, {|x| AllTrim(x) == aFields[nX] } ) > 0,;                 // [n][08] Indica se permite a edição
 							{|| AlwaysTrue() },;                          							// [n][09] Code-Block de validação da coluna após a edição
 							.F.,;                            										// [n][10] Indica se exibe imagem
@@ -8845,8 +8854,8 @@ user function JSCOLPRO( aFields, aAlter )
 							"N",;                													// [n][03] Tipo de dados
 							AllTrim(GetSX3Cache("B2_QATU", "X3_PICTURE")),;                     	// [n][04] Máscara
 							2,;                      												// [n][05] Alinhamento (0=Centralizado, 1=Esquerda ou 2=Direita)
-							GetSX3Cache("B2_QATU", "X3_TAMANHO") * nPropor,;                             		// [n][06] Tamanho
-							GetSX3Cache("B2_QATU", "X3_DECIMAL"),;                         			// [n][07] Decimal
+							U_JSDEFSIZ( aFields[nX], oPrefs )[1] * SIZE_FIELD,;                             		// [n][06] Tamanho
+							U_JSDEFSIZ( aFields[nX], oPrefs )[2],;                         			// [n][07] Decimal
 							aScan( aAlter, {|x| AllTrim(x) == aFields[nX] } ) > 0,;                 // [n][08] Indica se permite a edição
 							{|| AlwaysTrue() },;                          							// [n][09] Code-Block de validação da coluna após a edição
 							.F.,;                            										// [n][10] Indica se exibe imagem
@@ -8864,8 +8873,8 @@ user function JSCOLPRO( aFields, aAlter )
 							"N",;                													// [n][03] Tipo de dados
 							AllTrim(GetSX3Cache("B2_RESERVA", "X3_PICTURE")),;                     	// [n][04] Máscara
 							2,;                      												// [n][05] Alinhamento (0=Centralizado, 1=Esquerda ou 2=Direita)
-							GetSX3Cache("B2_RESERVA", "X3_TAMANHO") * nPropor,;                             	// [n][06] Tamanho
-							GetSX3Cache("B2_RESERVA", "X3_DECIMAL"),;                         		// [n][07] Decimal
+							U_JSDEFSIZ( aFields[nX], oPrefs )[1] * SIZE_FIELD,;                             	// [n][06] Tamanho
+							U_JSDEFSIZ( aFields[nX], oPrefs )[2],;                         					// [n][07] Decimal
 							aScan( aAlter, {|x| AllTrim(x) == aFields[nX] } ) > 0,;                 // [n][08] Indica se permite a edição
 							{|| AlwaysTrue() },;                          							// [n][09] Code-Block de validação da coluna após a edição
 							.F.,;                            										// [n][10] Indica se exibe imagem
@@ -8883,8 +8892,8 @@ user function JSCOLPRO( aFields, aAlter )
 							"N",;                													// [n][03] Tipo de dados
 							AllTrim(GetSX3Cache("C7_QUANT", "X3_PICTURE")),;                     	// [n][04] Máscara
 							2,;                      												// [n][05] Alinhamento (0=Centralizado, 1=Esquerda ou 2=Direita)
-							GetSX3Cache("C7_QUANT", "X3_TAMANHO") * nPropor,;                             	// [n][06] Tamanho
-							GetSX3Cache("C7_QUANT", "X3_DECIMAL"),;                         		// [n][07] Decimal
+							U_JSDEFSIZ( aFields[nX], oPrefs )[1] * SIZE_FIELD,;                             	// [n][06] Tamanho
+							U_JSDEFSIZ( aFields[nX], oPrefs )[2],;                         					// [n][07] Decimal
 							aScan( aAlter, {|x| AllTrim(x) == aFields[nX] } ) > 0,;                 // [n][08] Indica se permite a edição
 							{|| AlwaysTrue() },;                          							// [n][09] Code-Block de validação da coluna após a edição
 							.F.,;                            										// [n][10] Indica se exibe imagem
@@ -8902,8 +8911,8 @@ user function JSCOLPRO( aFields, aAlter )
 							"N",;                													// [n][03] Tipo de dados
 							AllTrim(GetSX3Cache("B1_PE", "X3_PICTURE")),;                     		// [n][04] Máscara
 							2,;                      												// [n][05] Alinhamento (0=Centralizado, 1=Esquerda ou 2=Direita)
-							GetSX3Cache("B1_PE", "X3_TAMANHO") * nPropor,;                             		// [n][06] Tamanho
-							GetSX3Cache("B1_PE", "X3_DECIMAL"),;                         			// [n][07] Decimal
+							U_JSDEFSIZ( aFields[nX], oPrefs )[1] * SIZE_FIELD,;                             	// [n][06] Tamanho
+							U_JSDEFSIZ( aFields[nX], oPrefs )[2],;                         					// [n][07] Decimal
 							aScan( aAlter, {|x| AllTrim(x) == aFields[nX] } ) > 0,;                 // [n][08] Indica se permite a edição
 							{|| AlwaysTrue() },;                          							// [n][09] Code-Block de validação da coluna após a edição
 							.F.,;                            										// [n][10] Indica se exibe imagem
@@ -8921,8 +8930,8 @@ user function JSCOLPRO( aFields, aAlter )
 							"C",;                													// [n][03] Tipo de dados
 							"@x",;                     												// [n][04] Máscara
 							0,;                      												// [n][05] Alinhamento (0=Centralizado, 1=Esquerda ou 2=Direita)
-							1,;                             										// [n][06] Tamanho
-							0,;                         											// [n][07] Decimal
+							U_JSDEFSIZ( aFields[nX], oPrefs )[1] * SIZE_FIELD,;                             	// [n][06] Tamanho
+							U_JSDEFSIZ( aFields[nX], oPrefs )[2],;                         					// [n][07] Decimal
 							aScan( aAlter, {|x| AllTrim(x) == aFields[nX] } ) > 0,;                 // [n][08] Indica se permite a edição
 							{|| AlwaysTrue() },;                          							// [n][09] Code-Block de validação da coluna após a edição
 							.F.,;                            										// [n][10] Indica se exibe imagem
@@ -8936,12 +8945,12 @@ user function JSCOLPRO( aFields, aAlter )
 		elseif aFields[nX] == 'PREVENT'
 			aAdd(aColumns, {;
 							'Prev.Entr.',;                     										// [n][01] Título da coluna
-							&("{|oBrw| " + cVarName + "[oBrw:At()]["+ cValToChar(nX+2) +"] }"),; 				// [n][02] Code-Block de carga dos dados
+							&("{|oBrw| " + cVarName + "[oBrw:At()]["+ cValToChar(nX+2) +"] }"),; 	// [n][02] Code-Block de carga dos dados
 							"D",;                													// [n][03] Tipo de dados
 							Nil,;                     												// [n][04] Máscara
 							0,;                      												// [n][05] Alinhamento (0=Centralizado, 1=Esquerda ou 2=Direita)
-							8 * nPropor,;                             								// [n][06] Tamanho
-							0,;                         											// [n][07] Decimal
+							U_JSDEFSIZ( aFields[nX], oPrefs )[1] * SIZE_FIELD,;                             	// [n][06] Tamanho
+							U_JSDEFSIZ( aFields[nX], oPrefs )[2],;                         					// [n][07] Decimal
 							aScan( aAlter, {|x| AllTrim(x) == aFields[nX] } ) > 0,;                 // [n][08] Indica se permite a edição
 							{|| AlwaysTrue() },;                          							// [n][09] Code-Block de validação da coluna após a edição
 							.F.,;                            										// [n][10] Indica se exibe imagem
@@ -9116,7 +9125,7 @@ static function closeVld()
 					{ 'Descartar carrinho','Continuar mais tarde', 'Ficar na rotina' }, 3  )
 		lClose := nChoice == 1 .or. nChoice == 2
 		if nChoice == 1
-			fErase( pathSaved() )
+			fErase( U_JSPATHSV() )
 			FreeObj( oRestore)
 			oRestore := Nil
 		endif
@@ -10859,28 +10868,6 @@ static function viewKardex( cProduto )
 	restArea( aArea )
 return nil
 
-/*/{Protheus.doc} pathSaved
-FUnção para retornar o path completo onde o sistema deve verificar se existe algum processo em andamento que possa ser restaurado.
-@type function
-@version 12.1.2410
-@author Jean Carlos Pandolfo Saggin
-@since 18/09/2025
-@return character, cFullPath
-/*/
-static function pathSaved()
-	local cFullPath := "" as character
-	if !ExistDir( '/gmpaicom/' )
-		MakeDir( '/gmpaicom' )
-		if !ExistDir( '/gmpaicom/' )
-			hlp( 'NO_DIRECTORY',;
-				 'Diretório /gmpaicom/ não existe dentro da raiz do sistema e não foi possível criá-la',;
-				 'Sem o diretório de restauração de processos em andamento, não será possível utilizar a funcionalidade. Verifique com a equipe técnica responsável.' )
-			return cFullPath
-		endif
-	endif
-	cFullPath := '/gmpaicom/'+ cEmpAnt +'_'+ cFilAnt +'_'+ RetCodUsr() +'.json'
-return cFullPath
-
 /*/{Protheus.doc} loadSaved
 Função para carregar dados do Json salvo ref. à análise já realizada pelo o cliente
 @type function
@@ -10893,7 +10880,7 @@ Função para carregar dados do Json salvo ref. à análise já realizada pelo o clie
 static function loadSaved( cPart )
 
 	local aSaved := {} as array
-	local oFile  := FWFileReader():New( pathSaved() )
+	local oFile  := FWFileReader():New( U_JSPATHSV() )
 	local nPar   := 0 as numeric
 	local nX     := 0 as numeric
 	local nY	 := 0 as numeric
@@ -11040,7 +11027,7 @@ static function saveData( cPart, aData, aHeader )
 	// Sempre salva posição das filiais
 
 	oRestore['filiais'] := _aFil
-	cResult  := oRestore:toJsonFile( pathSaved() )
+	cResult  := oRestore:toJsonFile( U_JSPATHSV() )
 	lSuccess := ValType( cResult ) != 'C'
 	if ! lSuccess
 		hlp( 'NO_SAVE',;
@@ -11395,3 +11382,4 @@ static function btnOpRefr()
 	oBtnOPs:Refresh()
 	TMPSC2->( DBGoTop() )
 return Nil
+
