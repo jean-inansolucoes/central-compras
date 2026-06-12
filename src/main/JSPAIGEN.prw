@@ -204,6 +204,7 @@ user function JSDETVER()
     aAdd( aDetVer, { '19','0024','02/06/2026', 'Correção de error-log devido a divergência na query principal de leitura quando utilizado em banco Oracle' } )
     aAdd( aDetVer, { '19','0025','03/06/2026', 'Permiti ao usuário editar tamanho das colunas e salvar preferências no seu perfil de usuário' } )
     aAdd( aDetVer, { '19','0026','08/06/2026', 'Correção de falha durante agendamento dos recálculos devido a variável não declarada aMPs' } )
+    aAdd( aDetVer, { '19','0027','12/06/2026', 'Criação do ponto de entrada PEPNC10 para permitir ao cliente editar a condição de pagamento sugerida no momento da finalização do carrinho de compra' } )
 
 return aDetVer
 

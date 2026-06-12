@@ -6035,6 +6035,7 @@ Static Function fCarCom( cFor, cLoj, lRecalc )
 	local cPicTransp := "" as character
 	local cPicName   := "" as character
 	local oBtnObs    as object
+	local cPEPNC10   := Space( TAMSX3('C7_COND')[1] )
 	
 	Private nDescont := 0 as numeric
 	Private oTot1UN   as object
@@ -6086,10 +6087,20 @@ Static Function fCarCom( cFor, cLoj, lRecalc )
 	cCbo := SubStr(aCbo[1],1,len(cFilAnt))
 
 	cGetCon := RetField( 'SA2', 1, xFilial( 'SA2' ) + cGetFor + cGetLoj, 'A2_COND' )
-	cGetDes := RetField( 'SE4', 1, xFilial( 'SE4' ) + cGetCon, 'E4_DESCRI' )
 	cGetMai := RetField( 'SA2', 1, xFilial( 'SA2' ) + cGetFor + cGetLoj, 'A2_EMAIL' )
 	cContat := RetField( 'SA2', 1, xFilial( 'SA2' ) + cGetFor + cGetLoj, 'A2_CONTATO' )
+
+	// Ponto de Entrada para customização da condição de pagamento
+	if ExistBlock( 'PEPNC10' )
+		cPEPNC10 := ExecBlock( 'PEPNC10', .F., .F., {cGetCon, cGetFor, cGetLoj, aCarFil, aHeaCar} )
+		if ValType( cPEPNC10 ) == 'C' .and. ! Empty( cPEPNC10 )
+			cGetCon := cPEPNC10
+		endif
+	endif
+	
+	cGetDes := RetField( 'SE4', 1, xFilial( 'SE4' ) + cGetCon, 'E4_DESCRI' )
 	cTitulo := "CARRINHO DE COMPRAS" + iif( !Empty( cGetFor ), " - " + AllTrim( RetField( 'SA2', 1, xFilial( 'SA2' ) + cGetFor + cGetLoj, 'A2_NOME' ) ), '' )    
+	
 	if cCboFrt == 'C'		// Transportadora
 		lUsaTrans  := SC7->( FieldPos( 'C7_X_TRANS' ) ) > 0 .and. X3Uso( GetSX3Cache( 'C7_X_TRANS', 'X3_USADO' ) )
 		cTransp    := RetField( 'SA2', 1, xFilial( 'SA2' ) + cGetFor + cGetLoj, 'A2_TRANSP' )
@@ -6147,7 +6158,8 @@ Static Function fCarCom( cFor, cLoj, lRecalc )
 		oGetFor:bChange := {|| cGetCon := RetField( 'SA2', 1, xFilial( 'SA2' ) + cGetFor + cGetLoj, 'A2_COND' ),;
 							cGetDes := RetField( 'SE4', 1, xFilial( 'SE4' ) + cGetCon, 'E4_DESCRI' ),;
 							cGetMai := RetField( 'SA2', 1, xFilial( 'SA2' ) + cGetFor + cGetLoj, 'A2_EMAIL' ),;
-							cContat := RetField( 'SA2', 1, xFilial( 'SA2' ) + cGetFor + cGetLoj, 'A2_CONTATO' ),;
+							cContat := RetField( 'SA2', 1, xFilial( 'SA2' ) + cGetFor + cGetLoj, 'A2_CONTATO' ),,;
+						ExecBlock( 'GMPAICOM01', .F., .F., @cGetCon, @cGetDes, cGetFor, cGetLoj, @aCarFil, @aHeaCar ),;
 							oGetCon:CtrlRefresh(),;
 							oGetDes:CtrlRefresh(),;
 							oGetMai:CtrlRefresh(),;
