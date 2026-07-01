@@ -52,6 +52,7 @@ User Function JSGLBPAR( lCheck )
         MsAguarde({|| aContract := getContract() }, 'Obtendo contrato...', 'Verificando contratos vigentes para o cliente...' )
         if len( aContract ) > 0
             lChecked := lStruct .and. lSupabase .and. Date() <= aContract[3]
+            setLastAcc()
         endif
     endif
     
@@ -583,20 +584,20 @@ static function getContract()
 
     local aContract := {} as array
     local oResult   as object
-    local aFields   := { "ID", "DATE", "ENDDATE", "TRIAL" }
+    local aFields   := { "ID", "DATE", "ENDDATE", "TRIAL", "MONTHLYVALUE" }
     local aInsFlds  := { "CUSTOMERID", "PRODUCTID", "DATE", "ENDDATE", "MONTHLYVALUE", "TRIAL" }
     local aData     := {} as array
     local cWhere    := "PRODUCTID=eq."+ AllTrim(cValToChar(APP_ID)) +"&CUSTOMERID=eq."+ AllTrim(cValToChar(nCustomer)) +"&DELETED=eq.N"
 
     oResult := U_JSSUPABASE( "GET", "CONTRACT", aFields, cWhere )  
     if ValType( oResult ) == 'J' .and. len( oResult ) > 0
-        aContract := { StoD(StrTran(oResult[1]["DATE"],'-','')), oResult[1]["TRIAL"], StoD(StrTran(oResult[1]["ENDDATE"],'-','')) }
+        aContract := { StoD(StrTran(oResult[1]["DATE"],'-','')), oResult[1]["TRIAL"], StoD(StrTran(oResult[1]["ENDDATE"],'-','')), oResult[1]["ID"], oResult[1]["MONTHLYVALUE"] }
     else
         oResult := Nil
         aData := {{ nCustomer, APP_ID, Date(), Date()+30, 0, .T. }}
         oResult := U_JSSUPABASE( "POST", "CONTRACT", aInsFlds, /* cWhere */, aData )
         if ValType( oResult ) == 'J' .and. len( oResult ) > 0
-            aContract := { StoD(StrTran(oResult[1]["DATE"],'-','')), oResult[1]["TRIAL"], StoD(StrTran(oResult[1]["ENDDATE"],'-','')) }
+            aContract := { StoD(StrTran(oResult[1]["DATE"],'-','')), oResult[1]["TRIAL"], StoD(StrTran(oResult[1]["ENDDATE"],'-','')), oResult[1]["ID"], oResult[1]["MONTHLYVALUE"] }
         else
             Hlp( "CONTRACT",;
                 "Falha ao tentar obter os dados do contrato",;
@@ -607,6 +608,34 @@ static function getContract()
     oResult := Nil
 
 return aContract
+
+/*/{Protheus.doc} setLastAcc
+Registra no Supabase a data e hora do ultimo acesso do cliente ao SmartSupply (Painel de Compras).
+O registro ocorre em toda entrada na rotina desde que exista contrato carregado (inclui trial e contrato vencido).
+@type function
+@version 1.0
+@author Jean Carlos Pandolfo Saggin
+@since 01/07/2026
+@return nil
+/*/
+static function setLastAcc()
+
+    local oResult as object
+    local aFields := { "ID", "CUSTOMERID", "PRODUCTID", "DATE", "ENDDATE", "MONTHLYVALUE", "TRIAL", "LASTACCESS", "APPVERSION" } as array
+    local aData   := {} as array
+    local cNow    := StrTran( FWTimeStamp( 3 ), 'T', ' ' ) as character
+    local cVersion := U_JSGETVER() as character
+
+    // Somente registra o acesso quando o contrato ja foi identificado (ID preenchido e demais campos obrigatorios disponiveis)
+    if len( aContract ) >= 5 .and. ValType( aContract[4] ) == 'N'
+        // Realiza upsert (POST com merge-duplicates) reenviando a linha atual e alimentando o campo de ultimo acesso
+        aData := {{ aContract[4], nCustomer, APP_ID, aContract[1], aContract[3], aContract[5], aContract[2], cNow, cVersion }}
+        oResult := U_JSSUPABASE( "POST", "CONTRACT", aFields, /* cWhere */, aData )
+        FreeObj( oResult )
+        oResult := Nil
+    endif
+
+return nil
 
 /*/{Protheus.doc} hlp
 Função facilitadora para utilização da função Help do Protheus
