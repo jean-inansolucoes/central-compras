@@ -9243,6 +9243,7 @@ user function PCOMPRE(oBrw, oCol, cPre )
 	local nGetMed  := 0 as numeric
 	local nGetCom  := 0 as numeric
 	local oGetCom  as object
+	local nPosQte  := 0 as numeric
 	local bVldCell := {|| _aProdFil[ aScan( _aProdFil, {|x| x[len(x)]+x[nPosPrd] == aProFil[oProFil:At()][len(aProFil[oProFil:At()])]+aProFil[oProFil:At()][nPosPrd] } ) ] := aProFil[oProFil:At()],;
 						 nAux := 0,;
 						 aEval( _aProdFil, {|x| iif( x[nPosPrd] == cProduto, nAux+= x[nPosNec], nil ) } ),;
@@ -9288,14 +9289,16 @@ user function PCOMPRE(oBrw, oCol, cPre )
 			aColumns[len(aColumns)]:SetAlign( 1 )		// Alinha a Esquerda
 			aColumns[len(aColumns)]:SetSize( TAMSX3( 'C7_FILIAL' )[1] )
 			aColumns[len(aColumns)]:SetPicture( "@!" )
+			aColumns[len(aColumns)]:SetID( 'FILIAL' )
 
 			aAdd( aColumns, FWBrwColumn():New() )
 			aColumns[len(aColumns)]:SetTitle( 'Nome' )
-			aColumns[len(aColumns)]:SetData( &( "{|oBrw| filName( cEmpAnt, aProFil[oBrw:At()]["+ cValToChar(len( aProFil[1] )) +"]) }" ) )
+			aColumns[len(aColumns)]:SetData( &( "{|oBrw| fName( aProFil[oBrw:At()]["+ cValToChar(len( aProFil[1] )) +"]) }" ) )
 			aColumns[len(aColumns)]:SetType( 'C' )
 			aColumns[len(aColumns)]:SetAlign( 1 )		// Alinha a Esquerda
 			aColumns[len(aColumns)]:SetSize( len( SM0->M0_FILIAL ) )
 			aColumns[len(aColumns)]:SetPicture( "@x" )
+			aColumns[len(aColumns)]:SetID( 'NOME' )
 
 			aAdd( aColumns, FWBrwColumn():New() )
 			aColumns[len(aColumns)]:SetTitle( 'Qtde' )
@@ -9305,6 +9308,7 @@ user function PCOMPRE(oBrw, oCol, cPre )
 			aColumns[len(aColumns)]:SetSize( TAMSX3( 'C7_QUANT' )[1] )
 			aColumns[len(aColumns)]:SetDecimal( TAMSX3( 'C7_QUANT' )[2] )
 			aColumns[len(aColumns)]:SetPicture( PesqPict( 'SC7', 'C7_QUANT' ) )
+			aColumns[len(aColumns)]:SetID( 'NECCOMP' )
 
 			aAdd( aColumns, FWBrwColumn():New() )
 			aColumns[len(aColumns)]:SetTitle( 'Cons.Medio' )
@@ -9314,6 +9318,7 @@ user function PCOMPRE(oBrw, oCol, cPre )
 			aColumns[len(aColumns)]:SetSize( TAMSX3( cZB3 +'_CONMED' )[1] )
 			aColumns[len(aColumns)]:SetDecimal( TAMSX3( cZB3 +'_CONMED' )[2] )
 			aColumns[len(aColumns)]:SetPicture( PesqPict( cZB3, cZB3 +'_CONMED' ) )
+			aColumns[len(aColumns)]:SetID( 'CONSMED' )
 			
 			aAdd( aColumns, FWBrwColumn():New() )
 			aColumns[len(aColumns)]:SetTitle( 'Media 12M' )
@@ -9323,6 +9328,7 @@ user function PCOMPRE(oBrw, oCol, cPre )
 			aColumns[len(aColumns)]:SetSize( TAMSX3( cZB3 +'_CONMED' )[1] )
 			aColumns[len(aColumns)]:SetDecimal( TAMSX3( cZB3 +'_CONMED' )[2] )
 			aColumns[len(aColumns)]:SetPicture( PesqPict( cZB3, cZB3 +'_CONMED' ) )
+			aColumns[len(aColumns)]:SetID( 'MEDIA12' )
 
 			aAdd( aColumns, FWBrwColumn():New() )
 			aColumns[len(aColumns)]:SetTitle( 'Media 6M' )
@@ -9332,6 +9338,7 @@ user function PCOMPRE(oBrw, oCol, cPre )
 			aColumns[len(aColumns)]:SetSize( TAMSX3( cZB3 +'_CONMED' )[1] )
 			aColumns[len(aColumns)]:SetDecimal( TAMSX3( cZB3 +'_CONMED' )[2] )
 			aColumns[len(aColumns)]:SetPicture( PesqPict( cZB3, cZB3 +'_CONMED' ) )
+			aColumns[len(aColumns)]:SetID( 'MEDIA6' )
 
 			aAdd( aColumns, FWBrwColumn():New() )
 			aColumns[len(aColumns)]:SetTitle( 'Media 3M' )
@@ -9341,15 +9348,17 @@ user function PCOMPRE(oBrw, oCol, cPre )
 			aColumns[len(aColumns)]:SetSize( TAMSX3( cZB3 +'_CONMED' )[1] )
 			aColumns[len(aColumns)]:SetDecimal( TAMSX3( cZB3 +'_CONMED' )[2] )
 			aColumns[len(aColumns)]:SetPicture( PesqPict( cZB3, cZB3 +'_CONMED' ) )
+			aColumns[len(aColumns)]:SetID( 'MEDIA3' )
 
 			aAdd( aColumns, FWBrwColumn():New() )
-			aColumns[len(aColumns)]:SetTitle( 'Media Ult. Mês' )
+			aColumns[len(aColumns)]:SetTitle( 'Ult. Mês' )
 			aColumns[len(aColumns)]:SetData( &( "{|oBrw| getMedia( aProFil[oBrw:At()]["+ cValToChar(len( aProFil[1] )) +"], aProFil[oBrw:At()]["+ cValToChar( nPosPrd ) +"], 1 ) }" ) )
 			aColumns[len(aColumns)]:SetType( 'N' )
 			aColumns[len(aColumns)]:SetAlign( 2 )		// Alinha a Direita
 			aColumns[len(aColumns)]:SetSize( TAMSX3( cZB3 +'_CONMED' )[1] )
 			aColumns[len(aColumns)]:SetDecimal( TAMSX3( cZB3 +'_CONMED' )[2] )
 			aColumns[len(aColumns)]:SetPicture( PesqPict( cZB3, cZB3 +'_CONMED' ) )
+			aColumns[len(aColumns)]:SetID( 'MEDIA1' )
 
 			aAdd( aColumns, FWBrwColumn():New() )
 			aColumns[len(aColumns)]:SetTitle( 'Em Estoque' )
@@ -9359,6 +9368,7 @@ user function PCOMPRE(oBrw, oCol, cPre )
 			aColumns[len(aColumns)]:SetSize( 11 )
 			aColumns[len(aColumns)]:SetDecimal( 2 )
 			aColumns[len(aColumns)]:SetPicture( "@E 999,999.99" )
+			aColumns[len(aColumns)]:SetID( 'ESTOQUE' )
 
 			aAdd( aColumns, FWBrwColumn():New() )
 			aColumns[len(aColumns)]:SetTitle( 'Empenhado' )
@@ -9368,6 +9378,7 @@ user function PCOMPRE(oBrw, oCol, cPre )
 			aColumns[len(aColumns)]:SetSize( 11 )
 			aColumns[len(aColumns)]:SetDecimal( 2 )
 			aColumns[len(aColumns)]:SetPicture( "@E 999,999.99" )
+			aColumns[len(aColumns)]:SetID( 'EMPENHO' )
 
 			aAdd( aColumns, FWBrwColumn():New() )
 			aColumns[len(aColumns)]:SetTitle( 'Comprado' )
@@ -9377,6 +9388,7 @@ user function PCOMPRE(oBrw, oCol, cPre )
 			aColumns[len(aColumns)]:SetSize( 11 )
 			aColumns[len(aColumns)]:SetDecimal( 2 )
 			aColumns[len(aColumns)]:SetPicture( "@E 999,999.99" )
+			aColumns[len(aColumns)]:SetID( 'QTDCOMP' )
 			
 			// Cálculo de dimensões e objetos
 			oSize := FWDefSize():New( .T. /* lEnchoiceBar */, .T. /* lFixo */, 600, .F. )
@@ -9393,6 +9405,12 @@ user function PCOMPRE(oBrw, oCol, cPre )
 									oSize:GetDimension( 'GRID', "LINEND" ),;
 									oSize:GetDimension( 'GRID', "COLEND" ), /* cTitle */,oQtdFil,,,.T.)
 
+			// Replica a ordenação dos campos convergentes conforme o browse principal (oBrwPro)
+			aColumns := ordProFil( aColumns )
+
+			// Localiza a posição da coluna editável (Sug.Compra) após a reordenação
+			nPosQte := aScan( aColumns, {|oCol| oCol:GetID() == 'NECCOMP' } )
+
 			oProFil := FWBrowse():New( oGroup )
 			oProFil:SetDataArray()
 			oProFil:SetArray( aProFil )
@@ -9401,8 +9419,8 @@ user function PCOMPRE(oBrw, oCol, cPre )
 			oProFil:SetColumns( aColumns )
 			oProFil:SetLineHeight( 20 )
 			oProFil:SetEditCell( .T., bVldCell )
-			oProFil:GetColumn(3):SetReadVar( "aProFil[oProFil:At()]["+ cValToChar( nPosNec ) +"]" )
-			oProFil:GetColumn(3):lEdit := .T.
+			oProFil:GetColumn(nPosQte):SetReadVar( "aProFil[oProFil:At()]["+ cValToChar( nPosNec ) +"]" )
+			oProFil:GetColumn(nPosQte):lEdit := .T.
 			oProFil:Activate()	
 
 			nAux := oSize:Getdimension( 'TOTAL', 'COLINI' )
@@ -9451,6 +9469,61 @@ user function PCOMPRE(oBrw, oCol, cPre )
 	endif
 
 return lCanEdit
+
+/*/{Protheus.doc} ordProFil
+Reordena as colunas convergentes do browse de quantidades x filial (oProFil)
+conforme a ordenação atual das colunas do browse principal (oBrwPro), de modo
+que alterações de ordem feitas pelo usuário no grid principal sejam replicadas.
+Apenas as colunas cujo ID coincide com o de uma coluna do browse principal são
+reposicionadas; as colunas exclusivas (Filial, Nome e médias) permanecem fixas.
+@type function
+@version 1.0
+@author Jean Carlos Pandolfo Saggin
+@since 7/1/2026
+@param aColumns, array, vetor de colunas (FWBrwColumn) do browse por filial
+@return array, aColumns reordenado
+/*/
+static function ordProFil( aColumns )
+
+	local aColMain := oBrwPro:GetColumns() as array
+	local aMainOrd := {} as array
+	local aConvIdx := {} as array
+	local aConvCol := {} as array
+	local aOrdCol  := {} as array
+	local nX       := 0 as numeric
+	local nPos     := 0 as numeric
+
+	// Monta a ordem visual atual das colunas do browse principal (ignora colunas sem ID ou deletadas)
+	if ValType( aColMain ) == 'A'
+		for nX := 1 to len( aColMain )
+			if ! Empty( aColMain[nX]:GetID() ) .and. ! aColMain[nX]:Deleted()
+				aAdd( aMainOrd, AllTrim( aColMain[nX]:GetID() ) )
+			endif
+		next nX
+	endif
+
+	// Identifica as colunas convergentes (presentes também no browse principal) e as posições que ocupam
+	for nX := 1 to len( aColumns )
+		if aScan( aMainOrd, {|cId| cId == AllTrim( aColumns[nX]:GetID() ) } ) > 0
+			aAdd( aConvIdx, nX )
+			aAdd( aConvCol, aColumns[nX] )
+		endif
+	next nX
+
+	// Ordena as colunas convergentes conforme a sequência do browse principal
+	for nX := 1 to len( aMainOrd )
+		nPos := aScan( aConvCol, {|oCol| AllTrim( oCol:GetID() ) == aMainOrd[nX] } )
+		if nPos > 0
+			aAdd( aOrdCol, aConvCol[nPos] )
+		endif
+	next nX
+
+	// Reaplica as colunas convergentes reordenadas nas mesmas posições originalmente ocupadas
+	for nX := 1 to len( aConvIdx )
+		aColumns[ aConvIdx[nX] ] := aOrdCol[nX]
+	next nX
+
+return aColumns
 
 /*/{Protheus.doc} getMedia
 Exibe média de consumo do produto na filial informada
@@ -9504,28 +9577,6 @@ static function getMedia( cFil, cProd, nMonth )
 
 	( cTmp )->( DBCloseArea() )
 return nMedia
-
-/*/{Protheus.doc} filName
-Função para retornar nome da filial conforme código de empresa e filial recebidos como parâmetro
-@type function
-@version 12.1.2410
-@author Jean Carlos Pandolfo Saggin
-@since 5/14/2025
-@param cEmp, character, ID da empresa
-@param cFil, character, ID da filial
-@return character, descrição da filial
-/*/
-static function filName( cEmp, cFil )
-	local cFilName := "" as character
-	local cQuery := "" as character
-	local cAlias := "" as character
-	cQuery := "SELECT M0_FILIAL FROM SYS_COMPANY 																																																																																																																																																																																																																																							M0 WHERE M0.M0_CODIGO = '"+ cEmp +"' AND M0.M0_CODFIL = '"+ cFil +"' AND M0.D_E_L_E_T_ = ' ' " 
-	cAlias := MPSysOpenQuery( cQuery )
-	if ! ( cAlias )->( EOF() )
-		cFilName := AllTrim(( cAlias )->M0_FILIAL)
-	endif
-	( cAlias )->( DBCloseArea() )
-return cFilName
 
 /*/{Protheus.doc} updCarCom
 Função para atualizar quantidade no carrinho de compra

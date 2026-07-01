@@ -205,6 +205,7 @@ user function JSDETVER()
     aAdd( aDetVer, { '19','0025','03/06/2026', 'Permiti ao usuário editar tamanho das colunas e salvar preferências no seu perfil de usuário' } )
     aAdd( aDetVer, { '19','0026','08/06/2026', 'Correção de falha durante agendamento dos recálculos devido a variável não declarada aMPs' } )
     aAdd( aDetVer, { '19','0027','12/06/2026', 'Criação do ponto de entrada PEPNC10 para permitir ao cliente editar a condição de pagamento sugerida no momento da finalização do carrinho de compra' } )
+    aAdd( aDetVer, { '19','0028','01/07/2026', 'Ordenação das colunas da grid de produtos x filial conforme a grid principal' } )
 
 return aDetVer
 
@@ -221,7 +222,7 @@ Função para permitir ao usuário alterar e gravar no seu perfil o tamanho desejáv
 user function JSCOLSIZ( aHeader, oPrefs )
     
     local oDlgSize as object
-    local oMain    as object    
+    local oMain    as object
     local aColumns := {} as array
     
     Private aAtual   := aClone( aHeader )
