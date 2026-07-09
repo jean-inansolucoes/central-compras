@@ -207,6 +207,7 @@ user function JSDETVER()
     aAdd( aDetVer, { '19','0027','12/06/2026', 'Criação do ponto de entrada PEPNC10 para permitir ao cliente editar a condição de pagamento sugerida no momento da finalização do carrinho de compra' } )
     aAdd( aDetVer, { '19','0028','01/07/2026', 'Ordenação das colunas da grid de produtos x filial conforme a grid principal' } )
     aAdd( aDetVer, { '19','0029','01/07/2026', 'Enviar ao Supabase dados do último acesso para facilitar identificação da versão em uso e último acesso do cliente ao SmartSupply' } )
+    aAdd( aDetVer, { '19','0030','02/07/2026', 'Novo sistema de notificação automática para SmartSupply' } )
 
 return aDetVer
 

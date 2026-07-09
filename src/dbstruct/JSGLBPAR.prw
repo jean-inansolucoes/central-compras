@@ -616,7 +616,6 @@ O registro ocorre em toda entrada na rotina desde que exista contrato carregado 
 @version 1.0
 @author Jean Carlos Pandolfo Saggin
 @since 01/07/2026
-@return nil
 /*/
 static function setLastAcc()
 

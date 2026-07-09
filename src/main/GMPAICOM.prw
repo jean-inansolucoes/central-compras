@@ -175,6 +175,9 @@ User Function GMPAICOM()
 		Return Nil
 	endif
 
+	// Exibe a Central de Notificações (comunicados direcionados ao usuário/empresa/versão)
+	U_JSNOTIFY()
+
 	// Valida existência do parâmetro de definição de alias da tabela de notificações
 	if ! GetMv( 'MV_X_PNC02', .T. ) .or. Empty( cZB3 )
 		Hlp( 'MV_X_PNC02',;
@@ -257,6 +260,7 @@ User Function GMPAICOM()
 	SetKey( VK_F4, {|| Processa( {|| U_JSSUPPLY( /* lForce */ ) }, 'Aguarde!','Analisando dados do MRP...' ) } )
 	SetKey( VK_F5, {|| Processa( {|| fLoadInf() }, 'Aguarde!','Analisando dados do MRP...' ) } )
 	SetKey( VK_F12, {|| fManPar(), aConfig := U_JSGETCFG( .F. /*lAuto*/ ) } )
+	SetKey( K_CTRL_F11, {|| U_JSNOTREG() } )
 	
 	aStrFor := {}
 	aAdd( aStrFor, { "A2_COD"    , "C", TAMSX3( "A2_COD"     )[01], TAMSX3( "A2_COD"     )[02] } )
