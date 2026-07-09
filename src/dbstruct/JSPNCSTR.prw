@@ -46,6 +46,7 @@ user function JSGETSTR( cTable )
         aAdd( aStruct, { "TPDOC"  , "C", 1, 0 } )
         aAdd( aStruct, { "MDPED"  , "C", 1, 0 } )
         aAdd( aStruct, { "CMT"    , "C", 1, 0 } )
+        aAdd( aStruct, { "TRFFIL" , "C", 1, 0 } )
 
     endif
 

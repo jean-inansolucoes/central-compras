@@ -208,6 +208,7 @@ user function JSDETVER()
     aAdd( aDetVer, { '19','0028','01/07/2026', 'Ordenação das colunas da grid de produtos x filial conforme a grid principal' } )
     aAdd( aDetVer, { '19','0029','01/07/2026', 'Enviar ao Supabase dados do último acesso para facilitar identificação da versão em uso e último acesso do cliente ao SmartSupply' } )
     aAdd( aDetVer, { '19','0030','02/07/2026', 'Novo sistema de notificação automática para SmartSupply' } )
+    aAdd( aDetVer, { '20','0001','08/07/2026', 'Adição de parâmetro para que a empresa/filial possa definir se as movimentações de transferência entre filiais do mesmo grupo econômico devem ou não serem cosideradas para os cálculos de médias dos produtos' } )
 
 return aDetVer
 
@@ -1036,6 +1037,7 @@ user function JSQRYSAI( cProduto, dDe, dAte, _aFil )
     local cDB      := TCGETDB()
     local lPEPNC08  := ExistBlock( 'PEPNC08' )
     local xPEPNC08  := nil
+    local lTrfFil   := .F. as logical
 
     default _aFil    := {}
     default cProduto := ""
@@ -1047,6 +1049,7 @@ user function JSQRYSAI( cProduto, dDe, dAte, _aFil )
 
     for nFil := 1 to len( _aFil )
         cFilAnt := _aFil[nFil]
+        lTrfFil := U_JSTRFFIL( cFilAnt )    // Indica se a filial considera movimentações intra-grupo no cálculo de média de consumo
 
         cQuery := "SELECT " + CEOL
         cQuery += "  'V' AS TIPO, D2.D2_FILIAL, D2.D2_COD, D2.D2_DOC, D2.D2_SERIE, D2.D2_EMISSAO, D2.D2_CLIENTE, D2.D2_LOJA, " + CEOL
@@ -1068,7 +1071,7 @@ user function JSQRYSAI( cProduto, dDe, dAte, _aFil )
         cQuery += "WHERE D2.D2_FILIAL  = '"+ FWxFilial( 'SD2' ) +"' "+ CEOL
         cQuery += "  AND D2.D2_TIPO    = 'N' "+ CEOL
         cQuery += "  AND D2.D2_EMISSAO BETWEEN '"+ DtoS( dDe ) +"' AND '"+ DtoS( dAte ) +"' " + CEOL
-        if ! Empty( cCliSM0 )       // Se houver clientes cadastrados que estão dentro do mesmo grupo econômico
+        if ! Empty( cCliSM0 ) .and. ! lTrfFil       // Se houver clientes cadastrados que estão dentro do mesmo grupo econômico e a filial não considerar transferências intra-grupo
             cQuery += "  AND CONCAT( D2.D2_CLIENTE, D2.D2_LOJA ) NOT IN ( "+ cCliSM0 +" ) " + CEOL
         endif
         if ! Empty( cProduto )
@@ -1196,6 +1199,35 @@ static function getCliSM0()
     ( cAlias )->( DBCloseArea() )
 
 return aCliSM0
+
+/*/{Protheus.doc} JSTRFFIL
+Indica se a filial informada deve considerar as movimentações de transferência para empresas do mesmo grupo econômico (SYS_COMPANY) nos cálculos de média de consumo do SmartSupply
+@type function
+@version 20.0001
+@author Jean Carlos Pandolfo Saggin
+@since 08/07/2026
+@param cFilTRF, character, ID da filial a ser consultada (default cFilAnt)
+@return logical, lConsidera
+/*/
+user function JSTRFFIL( cFilTRF )
+
+    local lConsidera := .F. as logical
+    local cAlias     := "" as character
+    local cTable     := "PNC_CONFIG_"+ cEmpAnt
+
+    default cFilTRF := cFilAnt
+
+    if TCCanOpen( cTable )
+        cAlias := GetNextAlias()
+        DBUseArea( .T., 'TOPCONN', cTable, cAlias, .F., .T. )
+        ( cAlias )->( DBSetIndex( cTable +'_01' ) )
+        if ( cAlias )->( DBSeek( cFilTRF ) ) .and. ( cAlias )->( FieldPos( 'TRFFIL' ) ) > 0
+            lConsidera := AllTrim( ( cAlias )->TRFFIL ) == 'S'
+        endif
+        ( cAlias )->( DBCloseArea() )
+    endif
+
+return lConsidera
 
 /*/{Protheus.doc} JSGETDB
 Retorna o link para o banco de dados configurado nos parâmetros do cliente

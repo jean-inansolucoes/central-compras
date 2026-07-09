@@ -3106,6 +3106,8 @@ Static Function fLoadAna( lNoInt )
 	local nVendido := 0  as numeric
 	local nProduz  := 0  as numeric
 	local lPEPNC08 := ExistBlock( 'PEPNC08' )
+	local cFilExcl := "" as character
+	local aFilChk  := {} as array
 	// local oData    := JsonObject():New()
 	// local aData    := {}
 	
@@ -3118,6 +3120,16 @@ Static Function fLoadAna( lNoInt )
 	if len( aCliLoja ) > 0
         aEval( aCliLoja, {|x| nAux++, cINCli += "'"+ x[1] + x[2] +"'" + iif( nAux < len(aCliLoja), ',', '' ) } )
     endif
+
+	// Monta lista de filiais dentro do escopo selecionado que ainda devem ignorar movimentações intra-grupo (TRFFIL <> 'S')
+	if cCboFil == 'XX'
+		aEval( getCboFil(), {|x| iif( Left(x,2) != 'XX' .and. Left(x,2) != 'YY', aAdd( aFilChk, SubStr( x, 1, At('=',x)-1 ) ), Nil ) } )
+	elseif cCboFil == 'YY'
+		aFilChk := aClone( _aFil )
+	else
+		aFilChk := { cCboFil }
+	endif
+	aEval( aFilChk, {|x| iif( ! U_JSTRFFIL( x ), ( cFilExcl += iif( !Empty(cFilExcl), ',', '' ) +"'"+ x +"'" ), Nil ) } )
 
 	If cCboAna == '3'		// Mensal 
 		oLblAna:CCAPTION := iif( nGetQtd == 0, '...', iif( nGetQtd > 1, 'meses', 'mês' ) )
@@ -3186,8 +3198,8 @@ Static Function fLoadAna( lNoInt )
 			cQuery += "  AND D2.D2_COD     = '"+ aColPro[ oBrwPro:nAt ][ nPosPrd ] +"' " + CEOL
 			cQuery += "  AND D2.D2_TIPO    = 'N' " + CEOL		// Apenas notas de saída do tipo N
 			cQuery += "  AND D2.D2_EMISSAO BETWEEN '"+ DtoS( aPer[nX][01] ) +"' AND '"+ DtoS( aPer[nX][02] ) +"' " + CEOL
-			if ! Empty( cINCli )			// Codigos de clientes referente as filiais do cadastro de empresas
-				cQuery += "  AND CONCAT(D2.D2_CLIENTE,D2.D2_LOJA) NOT IN ( "+ cINCli +" ) " + CEOL
+			if ! Empty( cINCli ) .and. ! Empty( cFilExcl )			// Codigos de clientes referente as filiais do cadastro de empresas, restrito as filiais que nao consideram transferencia intra-grupo
+				cQuery += "  AND ( CONCAT(D2.D2_CLIENTE,D2.D2_LOJA) NOT IN ( "+ cINCli +" ) OR D2.D2_FILIAL NOT IN ( "+ cFilExcl +" ) ) " + CEOL
 			endif
 			cQuery += "  AND D2.D_E_L_E_T_ = ' ' " + CEOL
 
@@ -4936,6 +4948,7 @@ User Function GMINDPRO( aParam )
 	local dHoje     := Date() as date
 	local lPEPNC08  := ExistBlock( 'PEPNC08' )
 	local xPEPNC08  := Nil
+	local lTrfFil   := .F. as logical
 	
 	Private cPerfDef := "" as character
 	Private cPerfil  := "" as character
@@ -4987,6 +5000,7 @@ User Function GMINDPRO( aParam )
 
 	// Filiais
 	_aFil := { cFilAnt }
+	lTrfFil := U_JSTRFFIL( cFilAnt )			// Indica se a filial considera movimentações intra-grupo no cálculo de média de consumo
 	cZB6 := AllTrim( SuperGetMv( 'MV_X_PNC04',,"" ) )			// Alias da tabela ZB6 no ambiente do cliente
 	cZB3 := AllTrim( SuperGetMv( 'MV_X_PNC02',,"" ) )			// Alias da tabela ZB3 no ambiente do cliente
 	cFdGroup  := AllTrim( Upper( SuperGetMv( 'MV_X_PNC13',,'B1_GRUPO' ) ) )
@@ -5170,7 +5184,9 @@ User Function GMINDPRO( aParam )
 				cQuery += "  AND D2.D2_COD     = '"+ aPerProd[nX][01] +"' " + CEOL
 				cQuery += "  AND D2.D2_TIPO    = 'N' "+ CEOL
 				cQuery += "  AND D2.D2_EMISSAO BETWEEN '"+ DtoS( aPerProd[nX][02] ) +"' AND '"+ DtoS( aPerProd[nX][03] ) +"' " + CEOL
-				cQuery += "  AND D2.D2_CLIENTE <> '"+ PADR( SubStr( SM0->M0_CGC, 01, 08 ), TAMSX3('D2_CLIENTE')[1], ' ' ) +"' " + CEOL
+				if ! lTrfFil
+					cQuery += "  AND D2.D2_CLIENTE <> '"+ PADR( SubStr( SM0->M0_CGC, 01, 08 ), TAMSX3('D2_CLIENTE')[1], ' ' ) +"' " + CEOL
+				endif
 				cQuery += "  AND D2.D_E_L_E_T_ = ' ' " + CEOL
 				
 				if lPEPNC08
@@ -5243,7 +5259,9 @@ User Function GMINDPRO( aParam )
 				cQuery += "WHERE D2.D2_FILIAL  = '"+ FWxFilial( 'SD2' ) +"' "+ CEOL
 				cQuery += "  AND D2.D2_TIPO    = 'N' "+ CEOL
 				cQuery += "  AND D2.D2_EMISSAO BETWEEN '"+ DtoS( aPerProd[nX][02] ) +"' AND '"+ DtoS( aPerProd[nX][03] ) +"' " + CEOL
-				cQuery += "  AND D2.D2_CLIENTE <> '"+ PADR(SubStr( SM0->M0_CGC, 01, 08 ),TAMSX3('C5_CLIENTE')[1], ' ' ) +"' " + CEOL
+				if ! lTrfFil
+					cQuery += "  AND D2.D2_CLIENTE <> '"+ PADR(SubStr( SM0->M0_CGC, 01, 08 ),TAMSX3('C5_CLIENTE')[1], ' ' ) +"' " + CEOL
+				endif
 				cQuery += "  AND D2.D2_COD     = '"+ aPerProd[nX][01] +"' " + CEOL
 				cQuery += "  AND D2.D_E_L_E_T_ = ' ' " + CEOL
 				
@@ -5302,7 +5320,9 @@ User Function GMINDPRO( aParam )
 			cQuery += "WHERE D2.D2_FILIAL  = '"+ FWxFilial( 'SD2' ) +"' " + CEOL
 			cQuery += "  AND D2.D2_TIPO    = 'N' "+ CEOL
 			cQuery += "  AND D2.D2_EMISSAO BETWEEN '"+ DtoS( aPerProd[len(aPerProd)][02] ) +"' AND '"+ DtoS( aPerProd[1][03] ) +"' " + CEOL
-			cQuery += "  AND D2.D2_CLIENTE <> '"+ PADR( SubStr( SM0->M0_CGC, 01, 08 ), TAMSX3('D2_CLIENTE')[1], ' ' ) +"' " + CEOL
+			if ! lTrfFil
+				cQuery += "  AND D2.D2_CLIENTE <> '"+ PADR( SubStr( SM0->M0_CGC, 01, 08 ), TAMSX3('D2_CLIENTE')[1], ' ' ) +"' " + CEOL
+			endif
 			cQuery += "  AND D2.D_E_L_E_T_ = ' ' " + CEOL
 			
 			if lPEPNC08

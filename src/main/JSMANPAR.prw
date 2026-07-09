@@ -67,6 +67,7 @@ user function JSMANPAR( nOpc )
             // aAdd( aStruct, { "TPDOC"  , "C", 1, 0 } )
             // aAdd( aStruct, { "MDPED"  , "C", 1, 0 } )
             // aAdd( aStruct, { "CMT"    , "C", 1, 0 } )
+            // aAdd( aStruct, { "TRFFIL" , "C", 1, 0 } )
             
             M->FILIAL    := cFilAnt
             M->PRJEST    := 30
@@ -95,6 +96,7 @@ user function JSMANPAR( nOpc )
             M->TPDOC     := "1" // 1=Pedido de Compra ou 2=Solicitação
             M->MDPED     := "N" // N=Normal ou C=Customizado
             M->CMT       := "S" // S=Sim ou N=Não
+            M->TRFFIL    := "N" // N=Não, S=Sim (considera movimentações de transferência intra-grupo no cálculo de média)
 
         else
             M->FILIAL    := cFilAnt
@@ -124,6 +126,7 @@ user function JSMANPAR( nOpc )
             M->TPDOC     := "1" // 1=Pedido de Compra ou 2=Solicitação
             M->MDPED     := "N" // N=Normal ou C=Customizado
             M->CMT       := "S" // S=Sim ou N=Não
+            M->TRFFIL    := "N" // N=Não, S=Sim (considera movimentações de transferência intra-grupo no cálculo de média)
         endif
 
     endif
