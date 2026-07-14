@@ -275,7 +275,7 @@ Static Function showWizard( aRows, nCompany, cUser, cCurVer )
     oDlg:SetTitle( "SmartSupply - Central de Notificações - "+ U_JSGETVER() )
     oDlg:SetSubTitle( subTitle() )
     oDlg:SetInitBlock( {|| renderCur() } )
-    oDlg:SetSize( 300, 500 )
+    oDlg:SetSize( (MsAdvSize()[6]/2)*0.9, (MsAdvSize()[5]/2)*0.9 )	// 90% da resolucao da tela (altura, largura)
     oDlg:EnableFormBar( .T. )
     oDlg:CreateDialog()
     oDlg:AddCloseButton( {|| oDlgNot:DeActivate() }, "Fechar" )
@@ -341,8 +341,8 @@ Static Function buildHtml( cTitle, cBody )
     cHtml += '<html lang="pt-BR"><head><meta charset="utf-8">'+ EOL
     cHtml += '<meta name="viewport" content="width=device-width, initial-scale=1">'+ EOL
     cHtml += '<style>'+ EOL
-    cHtml += 'body{font-family:"Segoe UI",Arial,sans-serif;margin:0;padding:16px;background:#eef1f4;color:#22303c;}'+ EOL
-    cHtml += '.wrap{max-width:920px;margin:0 auto;}'+ EOL
+    cHtml += 'body{font-family:"Segoe UI",Arial,sans-serif;margin:0;padding:16px;background:#eef1f4;color:#22303c;box-sizing:border-box;min-height:100vh;display:flex;align-items:center;justify-content:center;}'+ EOL	// altura dinamica: centraliza o wrap no viewport real do TWebEngine (== 90% da tela definido no SetSize)
+    cHtml += '.wrap{max-width:1400px;width:95%;margin:0 auto;}'+ EOL	// dinamico: acompanha o tamanho real do FWDialogModal (90% da tela), com teto para nao esticar demais em telas ultrawide
     cHtml += '.badge{display:inline-block;font-size:12px;color:#5a6b7b;margin-bottom:8px;}'+ EOL
     cHtml += '.card{background:#fff;border-radius:10px;padding:24px;box-shadow:0 2px 8px rgba(0,0,0,.10);}'+ EOL
     cHtml += 'h1{font-size:20px;color:#0a5ab4;margin:0 0 16px;border-bottom:1px solid #e3e8ee;padding-bottom:10px;}'+ EOL

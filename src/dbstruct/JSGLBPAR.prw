@@ -38,12 +38,18 @@ User Function JSGLBPAR( lCheck )
 
     // Tabelas a serem checadas no momento do acesso à plataforma
     aAdd( aTab, { "01", "PNC_CONFIG_"+ cEmpAnt, "" } )
+    aAdd( aTab, { "02", "PNC_RVCALC_"+ cEmpAnt, "" } )
+    aAdd( aTab, { "03", "PNC_RVTRC_"+ cEmpAnt, "" } )
 
-    // Faz a checagem de status das tabelas 
-    // if ! cDictVer == U_JSDICVER()
-    //     aEval( aParams, {|x| lStruct := lStruct .and. GetMv( x[1], .T. ) } )
-    //     aEval( aTab, {|x| lStruct := lStruct .and. U_JSTBLCHK( x[2] ) == 'O' } )
-    // endif
+    // Checagem das estruturas definidas no fonte (parâmetros internos, tabelas próprias e índices)
+    lStruct := chkStruct()
+
+    // Quando houver pendência de estrutura na abertura da rotina, avisa o usuário e apresenta o assistente
+    if lCheck .and. ! lStruct
+        hlp( 'ESTRUTURAS PENDENTES',;
+             'As estruturas do SmartSupply (parâmetros internos, tabelas ou índices) ainda não foram criadas ou estão desatualizadas em relação à versão em uso.',;
+             'O assistente de configuração será apresentado: avance até a etapa Dicionário de Dados e conclua para criar/atualizar as estruturas necessárias ao funcionamento da rotina.' )
+    endif
 
     // Carrega os dados do cliente
     MsAguarde({|| nCustomer := getCustomer() }, 'Obtendo dados do cliente...', 'Identificando cliente...' )
@@ -125,6 +131,10 @@ User Function JSGLBPAR( lCheck )
     
     oWiz:Destroy()
 
+    // Revalida as estruturas e o contrato após a execução do assistente, garantindo que o retorno
+    // reflita o estado atual (permite abrir a rotina quando o usuário concluiu as criações pelo Wizard)
+    lStruct  := chkStruct()
+    lChecked := lStruct .and. lSupabase .and. len( aContract ) > 0 .and. Date() <= aContract[3]
 
 return lChecked
 
@@ -352,7 +362,7 @@ Static Function nextPage( nAtual )
                     
                     // Obtem um nome de alias temporário
                     cAlias := GetNextAlias()
-                    DBUseArea( .F., 'TOPCONN', aTab[nX][2], (cAlias), .F., .F. )
+                    DBUseArea( .T. /* lNewArea - nunca reaproveitar a área corrente */, 'TOPCONN', aTab[nX][2], (cAlias), .F., .F. )
                     // Obtem a estrutura da tabela para eviar junto da função TCAlter
                     aOldStr := ( cAlias )->( DBStruct() )
                     ( cAlias )->( DBCloseArea() )
@@ -374,7 +384,7 @@ Static Function nextPage( nAtual )
                                     if ! TCCanOpen( aTab[nX][2], aIndex[nIndex][1] )
                                         
                                         cAlias := GetNextAlias()
-                                        DBUseArea( .F., 'TOPCONN', aTab[nX][2], (cAlias), .F., .F. )
+                                        DBUseArea( .T. /* lNewArea - nunca reaproveitar a área corrente */, 'TOPCONN', aTab[nX][2], (cAlias), .F., .F. )
                                         ( cAlias )->( DBCreateIndex( aIndex[nIndex][1], aIndex[nIndex][2], aIndex[nIndex][3] ) )
                                         ( cAlias )->( DBClearIndex() )
                                         ( cAlias )->( DBSetIndex( aIndex[nIndex][1] ) )
@@ -426,7 +436,7 @@ Static Function nextPage( nAtual )
                                     if ! TCCanOpen( aTab[nX][2], aIndex[nIndex][1] )
                                         
                                         cAlias := GetNextAlias()
-                                        DBUseArea( .F., 'TOPCONN', aTab[nX][2], (cAlias), .F., .F. )
+                                        DBUseArea( .T. /* lNewArea - nunca reaproveitar a área corrente */, 'TOPCONN', aTab[nX][2], (cAlias), .F., .F. )
                                         ( cAlias )->( DBCreateIndex( aIndex[nIndex][1], aIndex[nIndex][2], aIndex[nIndex][3] ) )
                                         ( cAlias )->( DBClearIndex() )
                                         ( cAlias )->( DBSetIndex( aIndex[nIndex][1] ) )
@@ -461,12 +471,55 @@ Static Function nextPage( nAtual )
             next nX
         endif
 
+        // Ao concluir a checagem/manutenção das estruturas internas com sucesso, atualiza a versão
+        // do dicionário (MV_X_PNC20) com os dois primeiros caracteres da versão corrente do aplicativo,
+        // permitindo que a leitura das configurações (U_JSGETCFG) passe a considerar a PNC_CONFIG
+        // como fonte autoritativa, sem depender do dicionário de dados do Protheus
+        if lSuccess
+            PutMV( 'MV_X_PNC20', Left( U_JSGETVER(), 2 ) )
+        endif
 
     elseif nAtual == 5  // Fim
         lSuccess := .T.
     endif
 
 return lSuccess
+
+/*/{Protheus.doc} chkStruct
+Verifica se todas as estruturas definidas no fonte estão criadas e atualizadas no ambiente:
+parâmetros internos (MV_X_PNC*), tabelas próprias (PNC_*) e seus índices - via U_JSTBLCHK, que
+compara a estrutura física do banco com a definição de U_JSGETSTR/U_JSTBLIDX.
+Pré-condição: utiliza as variáveis Private aParams e aTab declaradas em U_JSGLBPAR.
+@type function
+@version 20.0002
+@author Jean Carlos Pandolfo Saggin
+@since 09/07/2026
+@return logical, lStruct - .T. quando todas as estruturas estão íntegras
+/*/
+static function chkStruct()
+
+    local lStruct := .T. as logical
+    local nX      := 0 as numeric
+
+    // Parâmetros internos devem existir no ambiente (SX6)
+    for nX := 1 to len( aParams )
+        if ! GetMv( aParams[nX][1], .T. )
+            lStruct := .F.
+            Exit
+        endif
+    next nX
+
+    // Tabelas próprias: estrutura física e índices conforme a definição do fonte
+    if lStruct
+        for nX := 1 to len( aTab )
+            if ! U_JSTBLCHK( aTab[nX][2] ) == 'O'
+                lStruct := .F.
+                Exit
+            endif
+        next nX
+    endif
+
+return lStruct
 
 /*/{Protheus.doc} incPar
 Função para inclusão automática de parâmetro no configurador
@@ -538,8 +591,24 @@ static function getCustomer()
     local oResult   as object
     local aFields   := { "NAME","FANTASY", "ADDRESS", "CITY", "STATE", "NEIGHBORHOOD", "PHONE", "CGCCPF" }
     local aData     := {} as array
-    local cCGC      := StrTran(SubStr( SM0->M0_CGC, 1, 8 ),"        ", "99999999" )
-    local cWhere    := "CGCCPF=eq."+ cCGC +"&DELETED=eq.N"
+    local cCGC      := "" as character
+    local cWhere    := "" as character
+
+    // Garante que a SM0 esteja aberta/posicionada na filial corrente antes de ler os dados da empresa
+    // (proteção contra o alias ainda não estar disponível neste ponto da execução)
+    if Select( 'SM0' ) == 0
+        FWSM0Util():setSM0PositionBycFilAnt()
+    endif
+
+    if Select( 'SM0' ) == 0
+        Hlp( "SM0",;
+             "Não foi possível acessar o cadastro de empresas (SM0) para identificar o cliente.",;
+             "Verifique a conexão com o ambiente Protheus e tente novamente. Se o problema persistir, contate o suporte." )
+        return nCustomer
+    endif
+
+    cCGC   := StrTran(SubStr( SM0->M0_CGC, 1, 8 ),"        ", "99999999" )
+    cWhere := "CGCCPF=eq."+ cCGC +"&DELETED=eq.N"
 
     // Verifica se o cliente já é cadastrado
     oResult := U_JSSUPABASE( "GET", "CUSTOMER", {"ID"}, cWhere )

@@ -209,6 +209,8 @@ user function JSDETVER()
     aAdd( aDetVer, { '19','0029','01/07/2026', 'Enviar ao Supabase dados do último acesso para facilitar identificação da versão em uso e último acesso do cliente ao SmartSupply' } )
     aAdd( aDetVer, { '19','0030','02/07/2026', 'Novo sistema de notificação automática para SmartSupply' } )
     aAdd( aDetVer, { '20','0001','08/07/2026', 'Adição de parâmetro para que a empresa/filial possa definir se as movimentações de transferência entre filiais do mesmo grupo econômico devem ou não serem cosideradas para os cálculos de médias dos produtos' } )
+    aAdd( aDetVer, { '20','0002','09/07/2026', 'Análise de demanda de MP avaliando estruturas à que a MP faz parte' } )
+    aAdd( aDetVer, { '20','0003','09/07/2026', 'Melhorias nas rotinas de configuração interna para uso de estrutura própria de tabelas PNC_***' } )
 
 return aDetVer
 
@@ -301,6 +303,7 @@ user function JSDEFSIZ( cField, oPrefs )
     
     aFields := {{ "QTDBLOQ" , 11, 0 },;
                 { "NECCOMP" , 11, 0 },;
+                { "ORIGCALC", 08, 0, .F. /* lCanChange */ },;
                 { "QTDSOL"  , 11, 0 },;
                 { "PRCNEGOC", 11, 2 },;
                 { "ULTPRECO", 11, 2 },;
@@ -632,6 +635,7 @@ user function JSQRYINF( aConf, aFilters, cPedSol, aCustom, aMPs )
     local cDB      := TCGetDB()
     local cFdGroup := AllTrim( SuperGetMv( 'MV_X_PNC13',,'B1_GRUPO' ) )
     local cMPs     := "" as character
+    local lRevFil  := .F. as logical
 
     default aConf    := U_JSGETCFG( .T. /* lAuto */)
     default aFilters := {}
@@ -674,7 +678,10 @@ user function JSQRYINF( aConf, aFilters, cPedSol, aCustom, aMPs )
     cQuery := "SELECT TEMP.* FROM ( "+ CEOL
     for nFil := 1 to len( _aFil )
         cFilAnt := _aFil[nFil]
-        
+
+        // Indica se a filial utiliza a análise reversa de estruturas (resultado materializado pelo U_JSREVEST)
+        lRevFil := len( aMPs ) == 0 .and. ! isInCallStack( 'U_GMINDPRO' ) .and. U_JSANAREV( cFilAnt ) .and. TCCanOpen( "PNC_RVCALC_"+ cEmpAnt )
+
         cQuery += "SELECT '"+ cFilAnt +"' FILIAL, B1.B1_COD, B1.B1_DESC, B1.B1_TIPO, B1.B1_UM, B1.B1_LM, B1.B1_QE, B1.B1_LE, "
         if len( aMPs ) > 0 .or. ! Empty( aFilters[3] )
             cQuery += "COALESCE(" +iif( aConf[22] == '1', "B1.B1_PROC", "A5.A5_FORNECE") +",'"+ Space( TAMSX3('A5_FORNECE')[1] ) +"') AS A5_FORNECE, " + CEOL
@@ -766,6 +773,13 @@ user function JSQRYINF( aConf, aFilters, cPedSol, aCustom, aMPs )
                 cQuery += "COALESCE( "+ cZB3 +"_CONMED,0.0001) "+ cZB3 +"_CONMED, " + CEOL
             endif
             cQuery += "COALESCE( "+ cZB3 +"_INDINC,0) "+ cZB3 +"_INDINC " + CEOL
+
+            // Campos da análise reversa de estruturas (constantes quando desabilitada, para manter as colunas do UNION ALL)
+            if lRevFil
+                cQuery += ", COALESCE( RV.NECREV, -1 ) NECREV, COALESCE( RV.ISCOMP, 'N' ) ISCOMP " + CEOL
+            else
+                cQuery += ", -1 NECREV, 'N' ISCOMP " + CEOL
+            endif
         endif
 
         // Adiciona os campos customizados à query de captura dos dados
@@ -827,6 +841,15 @@ user function JSQRYINF( aConf, aFilters, cPedSol, aCustom, aMPs )
             cQuery += "AND "+ cZB3 +"."+ cZB3 +"_PROD   = B1.B1_COD " + CEOL
             cQuery += "AND "+ cZB3 +"."+ cZB3 +"_DATA   = '"+ DtoS( dDtCalc ) +"' " + CEOL
             cQuery += "AND "+ cZB3 +".D_E_L_E_T_ = ' ' " + CEOL
+        endif
+
+        // Resultado materializado da análise reversa de estruturas (quando habilitada para a filial)
+        if lRevFil
+            cQuery += "LEFT JOIN PNC_RVCALC_"+ cEmpAnt +" RV " + CEOL
+            cQuery += " ON RV.FILIAL = '"+ cFilAnt +"' " + CEOL
+            cQuery += "AND RV.PROD   = B1.B1_COD " + CEOL
+            cQuery += "AND RV.DTCALC = '"+ DtoS( dDtCalc ) +"' " + CEOL
+            cQuery += "AND RV.D_E_L_E_T_ = ' ' " + CEOL
         endif
 
         cQuery += "WHERE B1.B1_FILIAL  = '"+ FWxFilial( 'SB1' ) +"' "+ CEOL 
@@ -1229,6 +1252,87 @@ user function JSTRFFIL( cFilTRF )
 
 return lConsidera
 
+/*/{Protheus.doc} JSANAREV
+Indica se a filial informada deve derivar a sugestão de compra dos produtos componentes a partir da análise reversa das estruturas (SG1) no SmartSupply
+@type function
+@version 20.0002
+@author Jean Carlos Pandolfo Saggin
+@since 09/07/2026
+@param cFilRev, character, ID da filial a ser consultada (default cFilAnt)
+@return logical, lAtivo
+/*/
+user function JSANAREV( cFilRev )
+
+    local lAtivo := .F. as logical
+    local cAlias := "" as character
+    local cTable := "PNC_CONFIG_"+ cEmpAnt
+
+    default cFilRev := cFilAnt
+
+    if TCCanOpen( cTable )
+        cAlias := GetNextAlias()
+        DBUseArea( .T., 'TOPCONN', cTable, cAlias, .F., .T. )
+        ( cAlias )->( DBSetIndex( cTable +'_01' ) )
+        if ( cAlias )->( DBSeek( cFilRev ) ) .and. ( cAlias )->( FieldPos( 'ANAREV' ) ) > 0
+            lAtivo := AllTrim( ( cAlias )->ANAREV ) == 'S'
+        endif
+        ( cAlias )->( DBCloseArea() )
+    endif
+
+return lAtivo
+
+/*/{Protheus.doc} JSAPLLOT
+Aplica os ajustes de lote sobre uma quantidade de compra calculada: lote mínimo, lote econômico
+(quando priorizado pela configuração PRILE) e múltiplo de embalagem - na mesma sequência utilizada
+pelo cálculo de necessidade convencional (fCalNec do GMPAICOM).
+@type function
+@version 20.0002
+@author Jean Carlos Pandolfo Saggin
+@since 09/07/2026
+@param nQtdCal, numeric, quantidade calculada antes dos ajustes de lote
+@param nLotMin, numeric, lote mínimo do produto (B1_LM)
+@param nLotEco, numeric, lote econômico do produto (B1_LE)
+@param nQtdEmb, numeric, quantidade/múltiplo de embalagem do produto (B1_QE)
+@param lPriLE, logical, indica se o lote econômico deve ser priorizado (configuração PRILE)
+@return numeric, nQtdAju - quantidade ajustada
+/*/
+user function JSAPLLOT( nQtdCal, nLotMin, nLotEco, nQtdEmb, lPriLE )
+
+    local nQtdAju := 0 as numeric
+
+    default nQtdCal := 0
+    default nLotMin := 0
+    default nLotEco := 0
+    default nQtdEmb := 0
+    default lPriLE  := .F.
+
+    nQtdAju := nQtdCal
+
+    if nQtdAju > 0
+
+        // Se a quantidade de compra não atingir o lote mínimo, altera para o lote mínimo
+        if nQtdAju < nLotMin
+            nQtdAju := nLotMin
+        endif
+
+        // Define a quantidade de compra com base no lote econômico
+        if lPriLE .and. nLotEco > 0
+            if ( nQtdAju % nLotEco ) != 0
+                nQtdAju := ( Int( nQtdAju/nLotEco ) + 1 ) * nLotEco
+            endif
+        endif
+
+        // Valida se quantidade da embalagem está cadastrada para tornar a demanda compatível com múltiplos da embalagem
+        if nQtdEmb > 0
+            if ( nQtdAju % nQtdEmb ) != 0
+                nQtdAju := ( Int( nQtdAju/nQtdEmb ) + 1 ) * nQtdEmb
+            endif
+        endif
+
+    endif
+
+return nQtdAju
+
 /*/{Protheus.doc} JSGETDB
 Retorna o link para o banco de dados configurado nos parâmetros do cliente
 @type function
@@ -1293,9 +1397,13 @@ user function JSGETCFG( lAuto )
 				RecLock( cAlias, .T. )
 				for nStruct := 1 to len( aStruct )
 					// Antes de realizar atribuição dos dados, verifica se existe a correlação entre os campos
-					if ( cAlias )->( FieldPos( aStruct[nStruct][1] ) ) > 0 .and. ( cAliCfg )->( FieldPos( cAliCfg + '_'+ aStruct[nStruct][2] ) ) > 0
-						( cAlias )->( FieldPut( FieldPos( aStruct[nStruct][1] ), ( cAliCfg )->( FieldGet( cAliCfg + '_'+ aStruct[nStruct][2] ) ) ) )
-					endif
+                    if 'FILIAL' $ aStruct[nStruct][1]       // Ignora filial pois o compartilhamento pode ser diferente
+                        ( cAlias )->( FieldPut( FieldPos( aStruct[nStruct][1] ), cFilAnt ) )
+                    else
+                        if ( cAlias )->( FieldPos( aStruct[nStruct][1] ) ) > 0 .and. ( cAliCfg )->( FieldPos( cAliCfg + '_'+ aStruct[nStruct][1] ) ) > 0
+                            ( cAlias )->( FieldPut( FieldPos( aStruct[nStruct][1] ), ( cAliCfg )->( FieldGet( FieldPos( cAliCfg + '_'+ aStruct[nStruct][1] ) ) ) ) )
+                        endif
+                    endif
 				next nStruct
 				(cAlias)->(MsUnlock())
 
@@ -1306,6 +1414,7 @@ user function JSGETCFG( lAuto )
 		if ( cAlias )->( DBSeek( cFilAnt ) )
 			
 			cPref := cAlias + '->'
+			aConfig := {}
 			aAdd( aConfig, &( cPref + 'PRJEST' ) )		// [01] - Projeção padrão de estoque em dias
 			aAdd( aConfig, &( cPref + 'ITECRI' ) )		// [02] - Classificação de giro: Traz Itens críticos pré-selecionado?
 			aAdd( aConfig, &( cPref + 'ITEALT' ) )		// [03] - Classificação de giro: Traz Itens alto giro pré-selecionado?
@@ -1324,77 +1433,92 @@ user function JSGETCFG( lAuto )
 			aAdd( aConfig, &( cPref + 'LOCAIS' ) ) 		// [16] - Locais de estoque que o sistema vai realizar o somatório do saldo x produto
 			aAdd( aConfig, &( cPref + 'USPDES' ) )		// [17] - Usuários a serem notificados quando um produto for sinalizado como descontinuado
 
-			if ( cAlias )->( FieldPos( cAlias + '_JUSPAD'  ) ) > 0
+			if ( cAlias )->( FieldPos( 'JUSPAD'  ) ) > 0
 				aAdd( aConfig, &( cPref + 'JUSPAD' ) )	// [18] - Codigo da justificativa padrão para eventos não analisado de dias anteriores
 			else
 				aAdd( aConfig, ' ' )						
 			endif
 			
 			// Valida existência do campo antes de prosseguir
-			if ( cAlias )->( FieldPos( cAlias + '_PRILE'  ) ) > 0	// [19] - Indica se prioriza lote econômico para sugestão da quantidade de compra
+			if ( cAlias )->( FieldPos( 'PRILE'  ) ) > 0	// [19] - Indica se prioriza lote econômico para sugestão da quantidade de compra
 				aAdd( aConfig, &( cPref + 'PRILE'  ) )		
 			else
 				aAdd( aConfig, 'S' )					// [19] - Indica se prioriza lote econômico para sugestão da quantidade de compra
 			endif
 
-			if ( cAlias )->( FieldPos( cAlias + '_CRIT' ) ) > 0
+			if ( cAlias )->( FieldPos( 'CRIT' ) ) > 0
 				aAdd( aConfig, StrTran( &( cPref + 'CRIT' ), ' ', '1' ) )		// Default 1=preço
 			else
 				aAdd( aConfig, '1' )					// [20] - Critério de escolha do melhor fornecedor 1=Preço 2=L.Time
 			endif
 
-			if ( cAlias )->( FieldPos( cAlias + '_TIPOS' ) ) > 0 .and. ! Empty( &( cPref + 'TIPOS' ) )
+			if ( cAlias )->( FieldPos( 'TIPOS' ) ) > 0 .and. ! Empty( &( cPref + 'TIPOS' ) )
 				aAdd( aConfig, &( cPref + 'TIPOS' ) )
 			else
 				aAdd( aConfig, 'MP/ME' )				// [21] - Tipos de produtos a serem considerados para a central de compras separados por "/"
 			endif
 
-			if ( cAlias )->( FieldPos( cAlias + '_RELFOR' ) ) > 0 .and. !Empty( &( cPref + 'RELFOR' ) )
+			if ( cAlias )->( FieldPos( 'RELFOR' ) ) > 0 .and. !Empty( &( cPref + 'RELFOR' ) )
 				aAdd( aConfig, &( cPref + 'RELFOR' ) )
 			else
 				aAdd( aConfig, '1' )					// [22] - Indica a relação entre os produtos e o fornecedor (1=Fabricante 2=Prod.x Fornecedor ou 3=Hist.Compra)
 			endif
 
-			if ( cAlias )->( FieldPos( cAlias + '_MAILWF' ) ) > 0
+			if ( cAlias )->( FieldPos( 'MAILWF' ) ) > 0
 				aAdd( aConfig, &( cPref + 'MAILWF' ) )	// [23] - E-mail para envio de notificações de workflow
 			else
 				aAdd( aConfig, " " )
 			endif
 
-			if ( cAlias )->( FieldPos( cAlias + '_EMSATU' ) ) > 0
+			if ( cAlias )->( FieldPos( 'EMSATU' ) ) > 0
 				aAdd( aConfig, StrTran(&( cPref + 'EMSATU' )," ", "S" ) )	// [24] - Indica se deve deduzir empenho para compor o saldo atual do produto (default "S")
 			else
 				aAdd( aConfig, "S" )
 			endif
 
-			if ( cAlias )->( FieldPos( cAlias + '_DHIST' ) ) > 0 .and. &( cPref + 'DHIST' ) > 0
+			if ( cAlias )->( FieldPos( 'DHIST' ) ) > 0 .and. &( cPref + 'DHIST' ) > 0
 				aAdd( aConfig, &( cPref + 'DHIST' ) )						// [25] - Indica o tempo em dias que o sistema deve manter gravado referente aos cálculos executados por produto
 			else
 				aAdd( aConfig, 30 )
 			endif
 
-			if ( cAlias )->( FieldPos( cAlias + '_LOCPAD' ) ) > 0
+			if ( cAlias )->( FieldPos( 'LOCPAD' ) ) > 0
 				aAdd( aConfig, &( cPref + 'LOCPAD' ) )						// [26] - Indica um ID de armazém padrão (NNR) para compras quando o armazém utilizado pela empresa for diferente do armazém padrão do produto
 			endif
 
-			if ( cAlias )->( FieldPos( cAlias + '_TPDOC' ) ) > 0
+			if ( cAlias )->( FieldPos( 'TPDOC' ) ) > 0
 				aAdd( aConfig, iif( Empty( &( cPref + 'TPDOC' ) ), '1', &( cPref + 'TPDOC' ) ) )	// [27] - Indica o tipo de documento que será gerado no ato do fechamento do carrinho
 			else
 				aAdd( aConfig, '1' )
 			endif
 
-			if ( cAlias )->( FieldPos( cAlias + '_MDPED' ) ) > 0
+			if ( cAlias )->( FieldPos( 'MDPED' ) ) > 0
 				aAdd( aConfig, iif( Empty( &( cPref + 'MDPED' ) ), 'N', &( cPref + 'MDPED' ) ) )	// [28] - Indica qual modelo do relatório de pedido de compras a ser utilizado N=Normal ou C=Customizado
 			else
 				aAdd( aConfig, 'N' )		// N=Normal ou C=Custom
 			endif
 
-			if ( cAlias )->( FieldPos( cAlias + '_CMT' ) ) > 0
+			if ( cAlias )->( FieldPos( 'CMT' ) ) > 0
 				aAdd( aConfig, iif( Empty( &( cPref + 'CMT' ) ), 'S', &( cPref + 'CMT' ) ) )		// [29] - Indica se ativa ou não a função Continuar mais tarde...
 			else
 				aAdd( aConfig, 'S' )		// S=Sim ou N=Não
 			endif
 
+            if ( cAlias )->( FieldPos( 'TRFFIL' ) ) > 0
+				aAdd( aConfig, iif( Empty( &( cPref + 'TRFFIL' ) ), 'N', &( cPref + 'TRFFIL' ) ) )		// [30] - Indica se ativa ou não a função Transferência de Filial
+			else
+				aAdd( aConfig, 'N' )		// S=Sim ou N=Não
+			endif
+
+			// Encerra o handle da PNC_CONFIG antes de retornar, evitando vazamento de área de trabalho
+			( cAlias )->( DBCloseArea() )
+
+			// Ajusta quantidade de dias de análise de giro conforme o tempo de operação da unidade
+			aConfig[14] := checkIniOper( aConfig[14], aConfig[15] )
+
+			// Configuração própria (PNC_CONFIG) localizada: torna-se a fonte autoritativa, sem consultar o dicionário legado
+			RestArea( aArea )
+			return aConfig
 		Elseif !lAuto
 			If Aviso( 'Criar configurações?','Os parâmetros internos ainda não foram configurados, deseja configurá-los agora?', {'Sim','Deixa pra lá'}, 3 ) == 1
 
@@ -1403,109 +1527,23 @@ user function JSGETCFG( lAuto )
 				
 				cCadastro := "Painel de Compras - Parâmetros"
 				if U_JSMANPAR(/* nOpc - 3-Incluir, 4-Alterar */)
-					fLoadCfg()
+					( cAlias )->( DBCloseArea() )
+					aConfig := U_JSGETCFG( lAuto )
+					RestArea( aArea )
+					return aConfig
 				EndIf
 			EndIf
 		endif
 
+
+	// Ambiente migrado (PNC_CONFIG disponível) sem configuração criada e sem interação do usuário
+	// (chamada automática ou assistente cancelado): não consulta o dicionário legado
+	( cAlias )->( DBCloseArea() )
+	RestArea( aArea )
+	return {}
 	else
 
-		// OBSOLETO //
-		DbSelectArea( cAliCfg )
-		( cAliCfg )->( DbSetOrder( 1 ) )
-		If ( cAliCfg )->( DbSeek( FWxFilial( cAliCfg ) ) )
-			aAdd( aConfig, &( cPref + 'PRJEST' ) )		// [01] - Projeção padrão de estoque em dias
-			aAdd( aConfig, &( cPref + 'ITECRI' ) )		// [02] - Classificação de giro: Traz Itens críticos pré-selecionado?
-			aAdd( aConfig, &( cPref + 'ITEALT' ) )		// [03] - Classificação de giro: Traz Itens alto giro pré-selecionado?
-			aAdd( aConfig, &( cPref + 'ITEMED' ) )		// [04] - Classificação de giro: Traz Itens médio giro pré-selecionado?
-			aAdd( aConfig, &( cPref + 'ITEBAI' ) )		// [05] - Classificação de giro: Traz Itens baixo giro pré-selecionado?
-			aAdd( aConfig, &( cPref + 'ITESEM' ) )		// [06] - Classificação de giro: Traz Itens sem giro pré-selecionado?
-			aAdd( aConfig, &( cPref + 'ITESOB' ) )		// [07] - Classificação de giro: Traz Itens sob demanda pré-selecionado?
-			aAdd( aConfig, &( cPref + 'TIPANA' ) )		// [08] - Tipo de análise de sazonalidade do produto
-			aAdd( aConfig, &( cPref + 'QTDANA' ) )		// [09] - Qtde de períodos para análise de sazonalidade do produto
-			aAdd( aConfig, &( cPref + 'INDCRI' ) )		// [10] - Indice de insidência para produtos considerados críticos
-			aAdd( aConfig, &( cPref + 'INDALT' ) )		// [11] - Indice de insidência para produtos considerados de alto giro
-			aAdd( aConfig, &( cPref + 'INDMED' ) )		// [12] - Indice de insidência para produtos considerados de medio giro
-			aAdd( aConfig, &( cPref + 'INDBAI' ) )		// [13] - Indice de insidência para produtos considerados de baixo giro
-			aAdd( aConfig, &( cPref + 'TMPGIR' ) )		// [14] - Quantidade de tempo (em dias) para cálculo de giro dos produtos
-			aAdd( aConfig, &( cPref + 'TPDIAS' ) )		// [15] - Tipo de dias (U=Uteis ou C=Corridos)
-			aAdd( aConfig, &( cPref + 'LOCAIS' ) ) 		// [16] - Locais de estoque que o sistema vai realizar o somatório do saldo x produto
-			aAdd( aConfig, &( cPref + 'USPDES' ) )		// [17] - Usuários a serem notificados quando um produto for sinalizado como descontinuado
-
-			if ( cAliCfg )->( FieldPos( cAliCfg + '_JUSPAD'  ) ) > 0
-				aAdd( aConfig, &( cPref + 'JUSPAD' ) )	// [18] - Codigo da justificativa padrão para eventos não analisado de dias anteriores
-			else
-				aAdd( aConfig, ' ' )						
-			endif
-			
-			// Valida existência do campo antes de prosseguir
-			if ( cAliCfg )->( FieldPos( cAliCfg + '_PRILE'  ) ) > 0	// [19] - Indica se prioriza lote econômico para sugestão da quantidade de compra
-				aAdd( aConfig, &( cPref + 'PRILE'  ) )		
-			else
-				aAdd( aConfig, 'S' )					// [19] - Indica se prioriza lote econômico para sugestão da quantidade de compra
-			endif
-
-			if ( cAliCfg )->( FieldPos( cAliCfg + '_CRIT' ) ) > 0
-				aAdd( aConfig, StrTran( &( cPref + 'CRIT' ), ' ', '1' ) )		// Default 1=preço
-			else
-				aAdd( aConfig, '1' )					// [20] - Critério de escolha do melhor fornecedor 1=Preço 2=L.Time
-			endif
-
-			if ( cAliCfg )->( FieldPos( cAliCfg + '_TIPOS' ) ) > 0 .and. ! Empty( &( cPref + 'TIPOS' ) )
-				aAdd( aConfig, &( cPref + 'TIPOS' ) )
-			else
-				aAdd( aConfig, 'MP/ME' )				// [21] - Tipos de produtos a serem considerados para a central de compras separados por "/"
-			endif
-
-			if ( cAliCfg )->( FieldPos( cAliCfg + '_RELFOR' ) ) > 0 .and. !Empty( &( cPref + 'RELFOR' ) )
-				aAdd( aConfig, &( cPref + 'RELFOR' ) )
-			else
-				aAdd( aConfig, '1' )					// [22] - Indica a relação entre os produtos e o fornecedor (1=Fabricante 2=Prod.x Fornecedor ou 3=Hist.Compra)
-			endif
-
-			if ( cAliCfg )->( FieldPos( cAliCfg + '_MAILWF' ) ) > 0
-				aAdd( aConfig, &( cPref + 'MAILWF' ) )	// [23] - E-mail para envio de notificações de workflow
-			else
-				aAdd( aConfig, " " )
-			endif
-
-			if ( cAliCfg )->( FieldPos( cAliCfg + '_EMSATU' ) ) > 0
-				aAdd( aConfig, StrTran(&( cPref + 'EMSATU' )," ", "S" ) )	// [24] - Indica se deve deduzir empenho para compor o saldo atual do produto (default "S")
-			else
-				aAdd( aConfig, "S" )
-			endif
-
-			if ( cAliCfg )->( FieldPos( cAliCfg + '_DHIST' ) ) > 0 .and. &( cPref + 'DHIST' ) > 0
-				aAdd( aConfig, &( cPref + 'DHIST' ) )						// [25] - Indica o tempo em dias que o sistema deve manter gravado referente aos cálculos executados por produto
-			else
-				aAdd( aConfig, 30 )
-			endif
-
-			if ( cAliCfg )->( FieldPos( cAliCfg + '_LOCPAD' ) ) > 0
-				aAdd( aConfig, &( cPref + 'LOCPAD' ) )						// [26] - Indica um ID de armazém padrão (NNR) para compras quando o armazém utilizado pela empresa for diferente do armazém padrão do produto
-			endif
-
-			if ( cAliCfg )->( FieldPos( cAliCfg + '_TPDOC' ) ) > 0
-				aAdd( aConfig, iif( Empty( &( cPref + 'TPDOC' ) ), '1', &( cPref + 'TPDOC' ) ) )	// [27] - Indica o tipo de documento que será gerado no ato do fechamento do carrinho
-			else
-				aAdd( aConfig, '1' )
-			endif
-
-			if ( cAliCfg )->( FieldPos( cAliCfg + '_MDPED' ) ) > 0
-				aAdd( aConfig, iif( Empty( &( cPref + 'MDPED' ) ), 'N', &( cPref + 'MDPED' ) ) )	// [28] - Indica qual modelo do relatório de pedido de compras a ser utilizado N=Normal ou C=Customizado
-			else
-				aAdd( aConfig, 'N' )		// N=Normal ou C=Custom
-			endif
-
-			if ( cAliCfg )->( FieldPos( cAliCfg + '_CMT' ) ) > 0
-				aAdd( aConfig, iif( Empty( &( cPref + 'CMT' ) ), 'S', &( cPref + 'CMT' ) ) )		// [29] - Indica se ativa ou não a função Continuar mais tarde...
-			else
-				aAdd( aConfig, 'S' )		// S=Sim ou N=Não
-			endif
-		endif
-	endif
-
-	// Esvazia vetor antes de iniciar a leitura dos dados
+	// Fluxo legado (dicionário de dados do Protheus) - mantido apenas para ambientes ainda não migrados para PNC_CONFIG
 	aConfig := {}
 	
 	// Valida existência do alias criado no ambiente para poder prosseguir
@@ -1610,6 +1648,12 @@ user function JSGETCFG( lAuto )
 			aAdd( aConfig, 'S' )		// S=Sim ou N=Não
 		endif
 
+        if ( cAliCfg )->( FieldPos( cAliCfg + '_TRFFIL' ) ) > 0
+            aAdd( aConfig, iif( Empty( &( cPref + 'TRFFIL' ) ), 'N', &( cPref + 'TRFFIL' ) ) )		// [30] - Indica se ativa ou não a função Transferência de Filial
+        else
+            aAdd( aConfig, 'N' )		// S=Sim ou N=Não
+        endif
+
 		// Ajusta quantidade de dias de análise de giro conforme quantidade de tempo em que a unidade iniciou suas operações
 		// Exemplo: de nada adianta informar 180 dias de análise de giro, se a unidade tem apenas 30 dias de operação
 		aConfig[14] := checkIniOper( aConfig[14], aConfig[15] )
@@ -1623,6 +1667,9 @@ user function JSGETCFG( lAuto )
 			EndIf
 		EndIf
 	EndIf
+
+	// Fecha o if/else externo (fluxo migrado x legado) iniciado no início da função
+	endif
 	
 	RestArea( aArea )
 return aConfig
@@ -1695,6 +1742,7 @@ user function JSMAINFD()
                       "B1_TIPO",;
                       "B1_UM",;
                       "NECCOMP",;
+                      "ORIGCALC",;
                       "QTDBLOQ",;
                       "PRCNEGOC",;
                       "ULTPRECO",;

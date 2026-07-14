@@ -1,0 +1,261 @@
+<div class="ss-rel">
+<style>
+  .ss-rel{margin-top:4px;}
+
+  /* painel principal da notificacao */
+  .ss-panel{
+    position:relative;
+    background:radial-gradient(420px 240px at 12% -10%, #441c7d 0%, rgba(68,28,125,0) 60%),
+               radial-gradient(360px 220px at 108% 115%, #6b31b0 0%, rgba(107,49,176,0) 55%),
+               linear-gradient(160deg, #2e105d 0%, #441c7d 100%);
+    border-radius:14px;
+    padding:16px 18px 12px;
+    color:#ffffff;
+    overflow:hidden;
+    box-shadow:0 10px 26px rgba(46,16,93,.35);
+  }
+
+  /* faixa de brilho no topo do painel */
+  .ss-panel:before{
+    content:"";
+    position:absolute;
+    top:0;left:0;right:0;
+    height:4px;
+    background:linear-gradient(90deg, #6b31b0 0%, #f41dab 50%, #cd1f92 100%);
+  }
+
+  /* brilho decorativo */
+  .ss-glow{
+    position:absolute;
+    width:190px;height:190px;
+    border-radius:50%;
+    background:#f41dab;
+    opacity:.22;
+    filter:blur(60px);
+    top:-70px;right:-50px;
+    pointer-events:none;
+  }
+
+  /* cabecalho: selo + marca */
+  .ss-topo{
+    display:flex;
+    align-items:center;
+    gap:12px;
+    margin-bottom:10px;
+    position:relative;
+  }
+  .ss-badge{
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    background:linear-gradient(90deg, #f41dab, #cd1f92);
+    color:#ffffff;
+    font-size:10px;
+    font-weight:600;
+    letter-spacing:.1em;
+    text-transform:uppercase;
+    padding:4px 12px;
+    border-radius:999px;
+    box-shadow:0 4px 12px rgba(244,29,171,.45);
+    white-space:nowrap;
+  }
+  .ss-ponto{
+    width:6px;height:6px;
+    border-radius:50%;
+    background:#ffffff;
+    animation:ss-pulsar 1.6s ease-in-out infinite;
+  }
+  @keyframes ss-pulsar{
+    0%,100%{opacity:1;transform:scale(1);}
+    50%{opacity:.45;transform:scale(.75);}
+  }
+  .ss-marca{
+    font-size:10px;
+    font-weight:700;
+    letter-spacing:.24em;
+    text-transform:uppercase;
+    color:#a57dd0;
+  }
+
+  /* titulo interno */
+  .ss-titulo{
+    font-size:18px;
+    font-weight:800;
+    line-height:1.2;
+    margin-bottom:14px;
+    position:relative;
+  }
+  .ss-titulo .ss-destaque{
+    background:linear-gradient(90deg, #f41dab, #a57dd0);
+    -webkit-background-clip:text;
+    background-clip:text;
+    color:transparent;
+  }
+
+  /* linhas de novidade */
+  .ss-item{
+    display:flex;
+    align-items:center;
+    gap:12px;
+    background:rgba(255,255,255,.07);
+    border:1px solid rgba(130,86,185,.5);
+    border-radius:11px;
+    padding:11px 13px;
+    margin-bottom:10px;
+    position:relative;
+  }
+  .ss-icone{
+    flex:0 0 auto;
+    width:36px;height:36px;
+    border-radius:10px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    background:linear-gradient(135deg, #6b31b0 0%, #441c7d 100%);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.25), 0 4px 10px rgba(46,16,93,.5);
+  }
+  .ss-item-2 .ss-icone{
+    background:linear-gradient(135deg, #cd1f92 0%, #6b31b0 100%);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.25), 0 4px 10px rgba(205,31,146,.4);
+  }
+  .ss-icone svg{
+    width:20px;height:20px;
+    stroke:#ffffff;fill:none;
+    stroke-width:2;stroke-linecap:round;stroke-linejoin:round;
+  }
+  .ss-texto{flex:1 1 auto;min-width:0;}
+  .ss-item-titulo{
+    font-size:13px;
+    font-weight:700;
+    color:#ffffff;
+    margin:0 0 3px;
+    line-height:1.25;
+  }
+  .ss-item-desc{
+    font-size:11.5px;
+    line-height:1.5;
+    color:#b6acc7;
+    margin:0;
+  }
+  .ss-item-desc b{color:#a57dd0;font-weight:600;}
+
+  /* interruptor ilustrando o novo parametro */
+  .ss-toggle{
+    flex:0 0 auto;
+    width:40px;height:22px;
+    border-radius:999px;
+    background:linear-gradient(90deg, #f41dab, #cd1f92);
+    position:relative;
+    box-shadow:0 4px 10px rgba(244,29,171,.5);
+  }
+  .ss-toggle:after{
+    content:"";
+    position:absolute;
+    top:2.5px;left:2.5px;
+    width:17px;height:17px;
+    border-radius:50%;
+    background:#ffffff;
+    animation:ss-alternar 3.2s ease-in-out infinite;
+  }
+  @keyframes ss-alternar{
+    0%,40%{left:2.5px;}
+    50%,90%{left:20.5px;}
+    100%{left:2.5px;}
+  }
+
+  /* rodape com o atalho */
+  .ss-foot{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    flex-wrap:wrap;
+    gap:7px;
+    border-top:1px solid rgba(182,172,199,.3);
+    padding-top:10px;
+    margin-top:2px;
+    font-size:11.5px;
+    font-weight:500;
+    color:#b6acc7;
+    text-align:center;
+    position:relative;
+  }
+  .ss-foot svg{
+    width:18px;height:18px;
+    stroke:#a57dd0;fill:none;
+    stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;
+    flex:0 0 auto;
+  }
+  .ss-tecla{
+    display:inline-block;
+    font-weight:700;
+    font-size:11px;
+    color:#ffffff;
+    background:linear-gradient(180deg, #6b31b0 0%, #441c7d 100%);
+    border:1px solid #8256b9;
+    border-bottom:3px solid #2e105d;
+    border-radius:6px;
+    padding:2px 9px;
+    box-shadow:0 3px 8px rgba(107,49,176,.5), inset 0 1px 0 rgba(255,255,255,.25);
+  }
+
+  /* telas maiores: aumenta levemente a escala */
+  @media (min-width:720px){
+    .ss-panel{padding:22px 26px 16px;}
+    .ss-titulo{font-size:22px;}
+    .ss-item-titulo{font-size:14.5px;}
+    .ss-item-desc{font-size:13px;}
+    .ss-foot{font-size:13px;}
+    .ss-icone{width:42px;height:42px;}
+    .ss-icone svg{width:23px;height:23px;}
+  }
+</style>
+
+<div class="ss-panel">
+  <div class="ss-glow"></div>
+
+  <div class="ss-topo">
+    <span class="ss-badge"><span class="ss-ponto"></span>Nova vers&atilde;o</span>
+    <span class="ss-marca">SmartSupply</span>
+  </div>
+
+  <div class="ss-titulo">M&eacute;dias de consumo mais <span class="ss-destaque">precisas e flex&iacute;veis</span></div>
+
+  <div class="ss-item ss-item-1">
+    <span class="ss-icone">
+      <svg viewBox="0 0 24 24">
+        <path d="M3 17l5-6 4 4 6-8"></path>
+        <path d="M18 7h3v3"></path>
+        <path d="M3 21h18"></path>
+      </svg>
+    </span>
+    <span class="ss-texto">
+      <p class="ss-item-titulo">C&aacute;lculos de m&eacute;dias aprimorados</p>
+      <p class="ss-item-desc">As <b>m&eacute;dias de consumo dos produtos</b> agora s&atilde;o apuradas com mais precis&atilde;o e consist&ecirc;ncia.</p>
+    </span>
+  </div>
+
+  <div class="ss-item ss-item-2">
+    <span class="ss-icone">
+      <svg viewBox="0 0 24 24">
+        <rect x="2" y="4" width="8" height="16" rx="1.5"></rect>
+        <rect x="14" y="4" width="8" height="16" rx="1.5"></rect>
+        <path d="M10 9h4M14 9l-1.6-1.6M14 9l-1.6 1.6"></path>
+        <path d="M14 15h-4M10 15l1.6-1.6M10 15l1.6 1.6"></path>
+      </svg>
+    </span>
+    <span class="ss-texto">
+      <p class="ss-item-titulo">Movimenta&ccedil;&otilde;es intragrupo: voc&ecirc; decide</p>
+      <p class="ss-item-desc">Cada <b>empresa/filial</b> define nos par&acirc;metros se as movimenta&ccedil;&otilde;es entre empresas do grupo entram nas m&eacute;dias de sa&iacute;da/consumo.</p>
+    </span>
+    <span class="ss-toggle"></span>
+  </div>
+
+  <div class="ss-foot">
+    <svg viewBox="0 0 24 24">
+      <rect x="2" y="5" width="20" height="14" rx="2"></rect>
+      <path d="M6 9h2M11 9h2M16 9h2M6 13h2M11 13h2M16 13h2M8 17h8"></path>
+    </svg>
+    Acesse as configura&ccedil;&otilde;es pelo atalho <span class="ss-tecla">F12</span> e configure os par&acirc;metros do seu jeito
+  </div>
+</div>
+</div>

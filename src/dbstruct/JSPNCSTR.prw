@@ -47,6 +47,41 @@ user function JSGETSTR( cTable )
         aAdd( aStruct, { "MDPED"  , "C", 1, 0 } )
         aAdd( aStruct, { "CMT"    , "C", 1, 0 } )
         aAdd( aStruct, { "TRFFIL" , "C", 1, 0 } )
+        aAdd( aStruct, { "ANAREV" , "C", 1, 0 } )
+
+    // Resultado da análise reversa de estruturas por produto (consumido pela grid principal)
+    elseif cTable == "PNC_RVCALC_"+ cEmpAnt
+
+        aAdd( aStruct, { "FILIAL" , "C", len( cFilAnt ), 0 } )
+        aAdd( aStruct, { "PROD"   , "C", TAMSX3('B1_COD')[1], 0 } )
+        aAdd( aStruct, { "DTCALC" , "C", 8, 0 } )
+        aAdd( aStruct, { "ISCOMP" , "C", 1, 0 } )
+        aAdd( aStruct, { "NECREV" , "N", 14, 2 } )
+        aAdd( aStruct, { "DEMESTR", "N", 14, 2 } )
+        aAdd( aStruct, { "DEMVND" , "N", 14, 2 } )
+        aAdd( aStruct, { "VENDIA" , "N", 14, 4 } )
+        aAdd( aStruct, { "CONDIA" , "N", 14, 4 } )
+        aAdd( aStruct, { "POSABT" , "N", 14, 2 } )
+        aAdd( aStruct, { "NFINAIS", "N", 4, 0 } )
+        aAdd( aStruct, { "DTEXEC" , "C", 14, 0 } )
+
+    // Trace da sequência de cálculo da análise reversa (consumido pela tela Sequência de Cálculo)
+    elseif cTable == "PNC_RVTRC_"+ cEmpAnt
+
+        aAdd( aStruct, { "FILIAL" , "C", len( cFilAnt ), 0 } )
+        aAdd( aStruct, { "MP"     , "C", TAMSX3('B1_COD')[1], 0 } )
+        aAdd( aStruct, { "DTCALC" , "C", 8, 0 } )
+        aAdd( aStruct, { "SEQ"    , "C", 6, 0 } )
+        aAdd( aStruct, { "NIVEL"  , "N", 2, 0 } )
+        aAdd( aStruct, { "PAI"    , "C", TAMSX3('B1_COD')[1], 0 } )
+        aAdd( aStruct, { "PROD"   , "C", TAMSX3('B1_COD')[1], 0 } )
+        aAdd( aStruct, { "QTPOR"  , "N", 11, 4 } )
+        aAdd( aStruct, { "NECBRT" , "N", 14, 2 } )
+        aAdd( aStruct, { "ESTABT" , "N", 14, 2 } )
+        aAdd( aStruct, { "OPABT"  , "N", 14, 2 } )
+        aAdd( aStruct, { "NECLIQ" , "N", 14, 2 } )
+        aAdd( aStruct, { "CONTRIB", "N", 14, 2 } )
+        aAdd( aStruct, { "TIPO"   , "C", 1, 0 } )
 
     endif
 
@@ -72,7 +107,10 @@ user function JSTBLCHK( cTable )
         cRet := "I"             // Inserir
     else
         cAlias := GetNextAlias()
-        DBUseArea( .T., 'TOPCONN', cTable, cAlias, .F., .F. )
+        // lNewArea=.T. garante uma área de trabalho NOVA; com .F. o DBUseArea reaproveitava
+        // (fechava) a área atualmente selecionada, o que chegou a derrubar a SM0 quando ela
+        // era a área corrente no momento da checagem das estruturas
+        DBUseArea( .T., 'TOPCONN', cTable, cAlias, .T., .F. )
         
         // Retorna estrutura da tabela para a versão atual do plugIn
         aStruct := U_JSGETSTR( cTable )
@@ -156,6 +194,10 @@ user function JSTBLIDX( cTable )
     local aIndex := {} as array
      if cTable == "PNC_CONFIG_"+ cEmpAnt
         aAdd( aIndex, { "PNC_CONFIG_"+ cEmpAnt+'_01', 'Filial', {|| 'FILIAL' } } )
+    elseif cTable == "PNC_RVCALC_"+ cEmpAnt
+        aAdd( aIndex, { "PNC_RVCALC_"+ cEmpAnt+'_01', 'FILIAL+PROD+DTCALC', {|| 'FILIAL+PROD+DTCALC' } } )
+    elseif cTable == "PNC_RVTRC_"+ cEmpAnt
+        aAdd( aIndex, { "PNC_RVTRC_"+ cEmpAnt+'_01', 'FILIAL+MP+DTCALC+SEQ', {|| 'FILIAL+MP+DTCALC+SEQ' } } )
     endif
 return aIndex
 

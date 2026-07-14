@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+body{font-family:"Segoe UI",Arial,sans-serif;margin:0;padding:16px;background:#eef1f4;color:#22303c;box-sizing:border-box;min-height:100vh;display:flex;align-items:center;justify-content:center;}
+.wrap{max-width:1400px;width:95%;margin:0 auto;}
+.badge{display:inline-block;font-size:12px;color:#5a6b7b;margin-bottom:8px;}
+.card{background:#fff;border-radius:10px;padding:24px;box-shadow:0 2px 8px rgba(0,0,0,.10);}
+h1{font-size:20px;color:#0a5ab4;margin:0 0 16px;border-bottom:1px solid #e3e8ee;padding-bottom:10px;}
+img{max-width:100%;height:auto;}
+</style></head><body><div class="wrap">
+<div class="badge">Notificacao 1/1</div>
+<div class="card"><h1>SmartSupply - Novidades da versao 20.0003</h1>
+<div class="ss-rel">
+<style>
+  .ss-rel{margin-top:4px;}
+
+  /* painel principal da notificacao */
+  .ss-panel{
+    position:relative;
+    background:radial-gradient(420px 240px at 12% -10%, #441c7d 0%, rgba(68,28,125,0) 60%),
+               radial-gradient(360px 220px at 108% 115%, #6b31b0 0%, rgba(107,49,176,0) 55%),
+               linear-gradient(160deg, #2e105d 0%, #441c7d 100%);
+    border-radius:14px;
+    padding:16px 18px 12px;
+    color:#ffffff;
+    overflow:hidden;
+    box-shadow:0 10px 26px rgba(46,16,93,.35);
+  }
+
+  /* faixa de brilho no topo do painel */
+  .ss-panel:before{
+    content:"";
+    position:absolute;
+    top:0;left:0;right:0;
+    height:4px;
+    background:linear-gradient(90deg, #6b31b0 0%, #f41dab 50%, #cd1f92 100%);
+  }
+
+  /* brilho decorativo */
+  .ss-glow{
+    position:absolute;
+    width:190px;height:190px;
+    border-radius:50%;
+    background:#f41dab;
+    opacity:.22;
+    filter:blur(60px);
+    top:-70px;right:-50px;
+    pointer-events:none;
+  }
+
+  /* cabecalho: selo + marca */
+  .ss-topo{
+    display:flex;
+    align-items:center;
+    gap:12px;
+    margin-bottom:10px;
+    position:relative;
+  }
+  .ss-badge{
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    background:linear-gradient(90deg, #f41dab, #cd1f92);
+    color:#ffffff;
+    font-size:10px;
+    font-weight:600;
+    letter-spacing:.1em;
+    text-transform:uppercase;
+    padding:4px 12px;
+    border-radius:999px;
+    box-shadow:0 4px 12px rgba(244,29,171,.45);
+    white-space:nowrap;
+  }
+  .ss-ponto{
+    width:6px;height:6px;
+    border-radius:50%;
+    background:#ffffff;
+    animation:ss-pulsar 1.6s ease-in-out infinite;
+  }
+  @keyframes ss-pulsar{
+    0%,100%{opacity:1;transform:scale(1);}
+    50%{opacity:.45;transform:scale(.75);}
+  }
+  .ss-marca{
+    font-size:10px;
+    font-weight:700;
+    letter-spacing:.24em;
+    text-transform:uppercase;
+    color:#a57dd0;
+  }
+
+  /* introducao */
+  .ss-intro{
+    font-size:12.5px;
+    line-height:1.55;
+    color:#b6acc7;
+    margin:0 0 16px;
+    max-width:640px;
+  }
+  .ss-intro b{color:#a57dd0;font-weight:600;}
+
+  /* titulo interno */
+  .ss-titulo{
+    font-size:18px;
+    font-weight:800;
+    line-height:1.2;
+    margin-bottom:10px;
+    position:relative;
+  }
+  .ss-titulo .ss-destaque{
+    background:linear-gradient(90deg, #f41dab, #a57dd0);
+    -webkit-background-clip:text;
+    background-clip:text;
+    color:transparent;
+  }
+
+  /* grade de novidades: 1 coluna em telas estreitas, 2 colunas quando ha espaco */
+  .ss-grid{
+    display:grid;
+    grid-template-columns:1fr;
+    gap:10px;
+  }
+
+  /* linhas de novidade */
+  .ss-item{
+    display:flex;
+    align-items:flex-start;
+    gap:12px;
+    background:rgba(255,255,255,.07);
+    border:1px solid rgba(130,86,185,.5);
+    border-radius:11px;
+    padding:13px 14px;
+    position:relative;
+  }
+  .ss-icone{
+    flex:0 0 auto;
+    width:36px;height:36px;
+    border-radius:10px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    background:linear-gradient(135deg, #6b31b0 0%, #441c7d 100%);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.25), 0 4px 10px rgba(46,16,93,.5);
+    margin-top:1px;
+  }
+  .ss-item-2 .ss-icone{
+    background:linear-gradient(135deg, #cd1f92 0%, #6b31b0 100%);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.25), 0 4px 10px rgba(205,31,146,.4);
+  }
+  .ss-icone svg{
+    width:20px;height:20px;
+    stroke:#ffffff;fill:none;
+    stroke-width:2;stroke-linecap:round;stroke-linejoin:round;
+  }
+  .ss-texto{flex:1 1 auto;min-width:0;}
+  .ss-item-titulo{
+    font-size:13.5px;
+    font-weight:700;
+    color:#ffffff;
+    margin:0 0 4px;
+    line-height:1.25;
+  }
+  .ss-item-desc{
+    font-size:11.5px;
+    line-height:1.6;
+    color:#b6acc7;
+    margin:0;
+  }
+  .ss-item-desc b{color:#a57dd0;font-weight:600;}
+
+  /* selo de destaque no item principal */
+  .ss-destaque-tag{
+    display:inline-block;
+    font-size:9px;
+    font-weight:700;
+    letter-spacing:.06em;
+    text-transform:uppercase;
+    color:#ffffff;
+    background:linear-gradient(90deg, #f41dab, #cd1f92);
+    padding:2px 7px;
+    border-radius:5px;
+    margin-left:6px;
+    vertical-align:middle;
+  }
+
+  /* interruptor ilustrando o novo parametro */
+  .ss-toggle{
+    flex:0 0 auto;
+    width:40px;height:22px;
+    border-radius:999px;
+    background:linear-gradient(90deg, #f41dab, #cd1f92);
+    position:relative;
+    box-shadow:0 4px 10px rgba(244,29,171,.5);
+    margin-top:1px;
+  }
+  .ss-toggle:after{
+    content:"";
+    position:absolute;
+    top:2.5px;left:2.5px;
+    width:17px;height:17px;
+    border-radius:50%;
+    background:#ffffff;
+    animation:ss-alternar 3.2s ease-in-out infinite;
+  }
+  @keyframes ss-alternar{
+    0%,40%{left:2.5px;}
+    50%,90%{left:20.5px;}
+    100%{left:2.5px;}
+  }
+
+  /* telas maiores: aumenta escala e usa 2 colunas, aproveitando o espaco de 90% da tela */
+  @media (min-width:720px){
+    .ss-panel{padding:24px 28px 20px;}
+    .ss-titulo{font-size:23px;}
+    .ss-intro{font-size:13.5px;}
+    .ss-item-titulo{font-size:15px;}
+    .ss-item-desc{font-size:12.5px;}
+    .ss-icone{width:42px;height:42px;}
+    .ss-icone svg{width:23px;height:23px;}
+  }
+  @media (min-width:980px){
+    .ss-grid{grid-template-columns:1fr 1fr;}
+    .ss-item-dest{grid-column:1 / -1;}
+  }
+</style>
+
+<div class="ss-panel">
+  <div class="ss-glow"></div>
+
+  <div class="ss-topo">
+    <span class="ss-badge"><span class="ss-ponto"></span>Nova vers&atilde;o 20.0003</span>
+    <span class="ss-marca">SmartSupply</span>
+  </div>
+
+  <div class="ss-titulo">Sugest&otilde;es de compra mais <span class="ss-destaque">inteligentes e antecipadas</span></div>
+  <p class="ss-intro">A vers&atilde;o 20.0003 traz a maior evolu&ccedil;&atilde;o do motor de sugest&atilde;o de compras do SmartSupply at&eacute; aqui: o sistema passa a enxergar <b>toda a cadeia produtiva</b> ao redor de cada mat&eacute;ria-prima, al&eacute;m de deixar o c&aacute;lculo muito mais transparente e os par&acirc;metros internos mais confi&aacute;veis. Confira o que mudou:</p>
+
+  <div class="ss-grid">
+    <div class="ss-item ss-item-1 ss-item-dest">
+      <span class="ss-icone">
+        <svg viewBox="0 0 24 24">
+          <circle cx="12" cy="5" r="2"></circle>
+          <circle cx="6" cy="19" r="2"></circle>
+          <circle cx="18" cy="19" r="2"></circle>
+          <path d="M12 7v3.5M12 10.5L6.6 17M12 10.5l5.4 6.5"></path>
+        </svg>
+      </span>
+      <span class="ss-texto">
+        <p class="ss-item-titulo">Nova An&aacute;lise Reversa de Estruturas<span class="ss-destaque-tag">Destaque</span></p>
+        <p class="ss-item-desc">At&eacute; aqui, a sugest&atilde;o de compra de uma mat&eacute;ria-prima olhava somente para o hist&oacute;rico de consumo dela mesma. Agora, quando ela comp&otilde;e outros produtos (estrutura/ficha t&eacute;cnica), o sistema sobe <b>toda a cadeia produtiva</b> at&eacute; os produtos acabados, calcula a necessidade de cada um deles e soma tudo em uma &uacute;nica sugest&atilde;o &mdash; descontando estoque e ordens em aberto dos itens intermedi&aacute;rios pelo caminho, <b>sem contar a mesma necessidade duas vezes</b>. Pode ser ativada por filial em Par&acirc;metros Internos (F12).</p>
+      </span>
+      <span class="ss-toggle"></span>
+    </div>
+
+    <div class="ss-item ss-item-2">
+      <span class="ss-icone">
+        <svg viewBox="0 0 24 24">
+          <path d="M4 6h4M11 6h9M4 12h4M11 12h9M4 18h4M11 18h9"></path>
+        </svg>
+      </span>
+      <span class="ss-texto">
+        <p class="ss-item-titulo">Veja como o sistema calculou, produto a produto</p>
+        <p class="ss-item-desc">A nova tela <b>Sequ&ecirc;ncia de C&aacute;lculo</b>, dispon&iacute;vel em Outras A&ccedil;&otilde;es, mostra em forma de &aacute;rvore exatamente como o sistema chegou naquele n&uacute;mero, n&iacute;vel a n&iacute;vel da estrutura. Funciona tamb&eacute;m para os itens calculados da forma tradicional, exibindo a f&oacute;rmula usada e o valor de cada vari&aacute;vel.</p>
+      </span>
+    </div>
+
+    <div class="ss-item ss-item-1">
+      <span class="ss-icone">
+        <svg viewBox="0 0 24 24">
+          <rect x="3" y="4" width="7" height="16" rx="1.5"></rect>
+          <rect x="14" y="4" width="7" height="16" rx="1.5"></rect>
+        </svg>
+      </span>
+      <span class="ss-texto">
+        <p class="ss-item-titulo">Nova coluna: origem do c&aacute;lculo</p>
+        <p class="ss-item-desc">A grade principal ganhou uma coluna indicando se a sugest&atilde;o de cada produto veio da <b>an&aacute;lise reversa de estrutura</b>, do <b>consumo direto</b> ou de uma combina&ccedil;&atilde;o dos dois entre filiais &mdash; mais transpar&ecirc;ncia para decidir com confian&ccedil;a.</p>
+      </span>
+    </div>
+
+    <div class="ss-item ss-item-2">
+      <span class="ss-icone">
+        <svg viewBox="0 0 24 24">
+          <path d="M12 3l7 3v6c0 5-3.5 8-7 9-3.5-1-7-4-7-9V6l7-3z"></path>
+          <path d="M9 12.2l2 2 4-4.4"></path>
+        </svg>
+      </span>
+      <span class="ss-texto">
+        <p class="ss-item-titulo">Mais solidez nos par&acirc;metros e nos n&uacute;meros</p>
+        <p class="ss-item-desc">Os Par&acirc;metros Internos (F12) ficaram mais robustos: os dados realmente gravam e voltam certos ao reabrir a tela. A op&ccedil;&atilde;o <b>Priorizar lote econ&ocirc;mico</b> agora &eacute; respeitada de verdade, e o sistema confere sozinho, ao abrir, se a configura&ccedil;&atilde;o est&aacute; correta &mdash; orientando o assistente autom&aacute;tico quando necess&aacute;rio.</p>
+      </span>
+    </div>
+  </div>
+</div>
+</div>
+</div>
+</div></body></html>

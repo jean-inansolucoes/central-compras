@@ -121,6 +121,7 @@ User Function GMPAICOM()
 	Private nPosLoj   := 0
 	Private nPosBlq   := 0
 	Private nPosNec   := 0
+	Private nPosOri   := 0
 	Private nPosNeg   := 0
 	Private nPosUlt   := 0
 	Private nPosCon   := 0 
@@ -256,7 +257,7 @@ User Function GMPAICOM()
 
 	// Define hotkeys da rotina
 	SetKey( K_ALT_X, {|| fMarkPro() } )
-	Setkey( VK_F11, {|| U_JSGLBPAR( .F. ) } ) 
+	Setkey( K_ALT_F11, {|| U_JSGLBPAR( .F. ) } ) 
 	SetKey( VK_F4, {|| Processa( {|| U_JSSUPPLY( /* lForce */ ) }, 'Aguarde!','Analisando dados do MRP...' ) } )
 	SetKey( VK_F5, {|| Processa( {|| fLoadInf() }, 'Aguarde!','Analisando dados do MRP...' ) } )
 	SetKey( VK_F12, {|| fManPar(), aConfig := U_JSGETCFG( .F. /*lAuto*/ ) } )
@@ -311,6 +312,7 @@ User Function GMPAICOM()
 	nPosFor := gtMain("A5_FORNECE")
 	nPosLoj := gtMain("A5_LOJA")
 	nPosNec := gtMain("NECCOMP")
+	nPosOri := gtMain("ORIGCALC")
 	nPosNeg := gtMain("PRCNEGOC")
 	nPosUlt := gtMain("ULTPRECO")
 	nPosCon := gtMain("CONSMED")
@@ -392,6 +394,7 @@ User Function GMPAICOM()
 	aAdd( aButtons, { "BTNPROD"  , {|| iif( len( aColPro ) > 0, manutProd( aColPro[oBrwPro:nAt][nPosPrd] ), Nil ) }, 'Manutenção do Produto' } )
 	aAdd( aButtons, { "BTNPRMRP" , {|| iif( len( aColPro ) > 0, mrpRemove( aColPro[oBrwPro:nAt][nPosPrd] ), Nil ) }, 'Remover do MRP' } )
 	aAdd( aButtons, { "BMPCONSUL", {|| iif( len( aColPro ) > 0, viewKardex( aColPro[oBrwPro:nAt][nPosPrd] ), Nil ) }, 'Consultar Kardex do Produto'} )
+	aAdd( aButtons, { "BMPCONSUL", {|| iif( len( aColPro ) > 0, U_JSSEQCAL( aColPro[oBrwPro:nAt][nPosPrd] ), Nil ) }, 'Sequência de Cálculo da Sugestão'} )
 
 	// Valida existência do parâmetro para que o sistema possa alimentar a data e hora da última execução do recálculo dos dados de produtos
 	cLastRun := AllTrim( SuperGetMv( 'MV_X_PNC12',,"" ) )
@@ -570,7 +573,7 @@ User Function GMPAICOM()
 														
 	oAliFor:Delete()
 	oPAs:Delete()	// Apaga alias temporário de PAs
-	if ValType( oRestore ) == 'J'
+	if ValType( oRestore ) == 'J'	
 		FreeObj( oRestore )
 		oRestore := Nil
 	endif
@@ -3465,7 +3468,14 @@ Static Function fLoadInf( aMPs, lAll )
 					aLinPro[nPosTip] := PRDTMP->B1_TIPO
 					aLinPro[nPosDes] := PRDTMP->B1_DESC
 					aLinPro[nPosUnM] := PRDTMP->B1_UM
-					aLinPro[nPosNec] := nQtdCom
+					if PRDTMP->( FieldPos( 'ISCOMP' ) ) > 0 .and. PRDTMP->ISCOMP == 'S' .and. PRDTMP->NECREV >= 0
+						// Componente com análise reversa habilitada: utiliza a sugestão materializada pelo job (U_JSREVEST)
+						aLinPro[nPosNec] := PRDTMP->NECREV
+						aLinPro[nPosOri] := 'E'		// E=Estrutura (análise reversa)
+					else
+						aLinPro[nPosNec] := nQtdCom
+						aLinPro[nPosOri] := 'C'		// C=Consumo (cálculo convencional)
+					endif
 					aLinPro[nPosBlq] := PRDTMP->QTDBLOQ
 					aLinPro[nPosNeg] := nPrice
 					aLinPro[nPosUlt] := nPrice
@@ -3525,6 +3535,10 @@ Static Function fLoadInf( aMPs, lAll )
 				
 				aColPro[aScan( aColPro, {|x| x[nPosPrd] == _aProdFil[nX][nPosPrd] } )][nPosInc] := nIndGir
 				aColPro[aScan( aColPro, {|x| x[nPosPrd] == _aProdFil[nX][nPosPrd] } )][nPosNec] += _aProdFil[nX][nPosNec]		// Necessidade de Compra
+				// Consolida a origem do cálculo entre as filiais (E=Estrutura, C=Consumo, P=Parcial)
+				if ! aColPro[aScan( aColPro, {|x| x[nPosPrd] == _aProdFil[nX][nPosPrd] } )][nPosOri] == _aProdFil[nX][nPosOri]
+					aColPro[aScan( aColPro, {|x| x[nPosPrd] == _aProdFil[nX][nPosPrd] } )][nPosOri] := 'P'
+				endif
 				aColPro[aScan( aColPro, {|x| x[nPosPrd] == _aProdFil[nX][nPosPrd] } )][nPosBlq] += _aProdFil[nX][nPosBlq]		// Ped. Compra Bloq.
 				aColPro[aScan( aColPro, {|x| x[nPosPrd] == _aProdFil[nX][nPosPrd] } )][nPosQtd] += _aProdFil[nX][nPosQtd]		// Quantidade Comprada
 				aColPro[aScan( aColPro, {|x| x[nPosPrd] == _aProdFil[nX][nPosPrd] } )][nPosSol] += _aProdFil[nX][nPosSol]		// Quantidade Solicitada
@@ -4862,33 +4876,50 @@ Return ( lRet )
 +-------------------------------------------------------------------------------------------------+  
 */
 Static Function fManPar()
-	
-	Local aArea   := GetArea()
-	Local cAliCfg := AllTrim( SuperGetMv( 'MV_X_PNC03',,"999" ) ) 
-	
+
+	Local aArea    := GetArea()
+	Local cAliCfg  := AllTrim( SuperGetMv( 'MV_X_PNC03',,"999" ) )
+	local cDictVer := AllTrim( SuperGetMv( 'MV_X_PNC20',,"00" ) )
+	local cTblCfg  := "PNC_CONFIG_"+ cEmpAnt
+
 	Private cCadastro := ""
-	
+
+	// Quando a tabela própria de configurações (fora do dicionário de dados do Protheus) está
+	// disponível, a manutenção passa a ser feita diretamente nela, sem depender do dicionário (SXn)
+	if ! Empty( cDictVer ) .and. cDictVer > "00" .and. TCCanOpen( cTblCfg )
+
+		cCadastro := "Alteração de configurações internas"
+		if U_JSMANPAR( 4 /* nOpc - Alterar */ )
+			aConfig := U_JSGETCFG( .F. /*lAuto*/ )
+			Processa( {|| fLoadInf() }, 'Aguarde!','Analisando dados do MRP...' )
+		endif
+
+		RestArea( aArea )
+		Return ( Nil )
+	endif
+
+	// Fluxo legado (dicionário de dados do Protheus) - mantido para ambientes ainda não migrados
 	// Valida existência do alias criado no ambiente para poder prosseguir
 	if cEmpAnt != Nil .and. cFilAnt != Nil
 		If Empty( cAliCfg ) .or. cAliCfg == "999"
-			Return ( Nil )	
+			Return ( Nil )
 		EndIf
 	Else
 		Return ( Nil )
 	EndIf
-	
+
 	DbSelectArea( cAliCfg )
 	( cAliCfg )->( DbSetOrder( 1 ) )
 	If ( cAliCfg )->( DbSeek( xFilial( cAliCfg ) + cEmpAnt + cFilAnt ) )
-		
+
 		cCadastro := "Alteração de configurações internas"
 		If AxAltera( cAliCfg, ( cAliCfg )->( Recno() ), 4 ) == 1
 			aConfig := U_JSGETCFG(.F. /*lAuto*/ )
 			Processa( {|| fLoadInf() }, 'Aguarde!','Analisando dados do MRP...' )
 		EndIf
-		
+
 	EndIf
-	
+
 	RestArea( aArea )
 Return ( Nil )
 
@@ -4949,6 +4980,9 @@ User Function GMINDPRO( aParam )
 	local lPEPNC08  := ExistBlock( 'PEPNC08' )
 	local xPEPNC08  := Nil
 	local lTrfFil   := .F. as logical
+	local lAnaRev   := .F. as logical
+	local oSnap     := Nil
+	local nDiasAna  := 0 as numeric
 	
 	Private cPerfDef := "" as character
 	Private cPerfil  := "" as character
@@ -5001,6 +5035,10 @@ User Function GMINDPRO( aParam )
 	// Filiais
 	_aFil := { cFilAnt }
 	lTrfFil := U_JSTRFFIL( cFilAnt )			// Indica se a filial considera movimentações intra-grupo no cálculo de média de consumo
+	lAnaRev := U_JSANAREV( cFilAnt )			// Indica se a filial deriva a sugestão de compra dos componentes a partir das estruturas (análise reversa)
+	if lAnaRev
+		oSnap := HMNew()						// Snapshot de dados por produto para a fase de análise reversa (U_JSREVEST)
+	endif
 	cZB6 := AllTrim( SuperGetMv( 'MV_X_PNC04',,"" ) )			// Alias da tabela ZB6 no ambiente do cliente
 	cZB3 := AllTrim( SuperGetMv( 'MV_X_PNC02',,"" ) )			// Alias da tabela ZB3 no ambiente do cliente
 	cFdGroup  := AllTrim( Upper( SuperGetMv( 'MV_X_PNC13',,'B1_GRUPO' ) ) )
@@ -5392,6 +5430,13 @@ User Function GMINDPRO( aParam )
 				nConMed := 0.0001
 			EndIf
 
+			// Guarda a quantidade de dias considerados na média antes da variável ser reutilizada (análise reversa)
+			if nDUteis == 0
+				nDiasAna := 1
+			else
+				nDiasAna := nDUteis
+			endif
+
     		lEvento := .F.
     		cMsg    := ""
     		nPrjEst := 0
@@ -5534,6 +5579,15 @@ User Function GMINDPRO( aParam )
 			( cZB3 )->( FieldPut( FieldPos( cZB3 +'_JUSTIF' ), iif( "IGNORA" $ cMsg, aConfig[18], Space( TAMSX3( cZB3 +"_JUSTIF")[01] ) ) ) )
 			( cZB3 )->( MsUnlock() )
 
+			// Snapshot dos dados do produto para a fase de análise reversa de estruturas (U_JSREVEST)
+			// Layout: 01-ConMed 02-Venda 03-Consumo 04-Dias 05-Estoque 06-Empenho 07-QtdComp 08-QtdSol 09-OrdProd 10-LotMin 11-QtdEmb 12-LotEco 13-EstSeg 14-LeadTime 15-Perfil 16-NecCom 17-PrjEst
+			if lAnaRev
+				HMSet( oSnap, PRDTMP->B1_COD, { nConMed, nVenda, nConsumo, nDiasAna,;
+				                                nEstoque, PRDTMP->EMPENHO, PRDTMP->QTDCOMP, PRDTMP->QTDSOL, PRDTMP->ORDPROD,;
+				                                PRDTMP->B1_LM, PRDTMP->B1_QE, PRDTMP->B1_LE, PRDTMP->B1_EMIN,;
+				                                nLeadTime, cPerfil, nQtdCom, nPrjEst } )
+			endif
+
 			// Adiciona no vetor de workflow para notificar comprador quanto a necessidade de atenção
 			if lWF .and. ( len( aDataWF ) == 0 .or. aScan( aDataWF, {|x| x[1] == PRDTMP->B1_COD } ) == 0 )
 				aAdd( aDataWF, { PRDTMP->B1_COD,;
@@ -5554,6 +5608,16 @@ User Function GMINDPRO( aParam )
     EndIf
     
     PRDTMP->( DbCloseArea() )
+
+    // Fase de análise reversa de estruturas: deriva a sugestão de compra dos componentes a partir da demanda dos produtos finais
+    if lAnaRev
+    	ConOut( FunName() + ' - ' + DtoC( dHoje ) + ' - ' + Time() + ' - INICIANDO ANALISE REVERSA DE ESTRUTURAS...' )
+    	if U_JSREVEST( aConfig, aPerAna, oSnap, dHoje )
+    		ConOut( FunName() + ' - ' + DtoC( dHoje ) + ' - ' + Time() + ' - ANALISE REVERSA DE ESTRUTURAS FINALIZADA' )
+    	else
+    		ConOut( FunName() + ' - ' + DtoC( dHoje ) + ' - ' + Time() + ' - ANALISE REVERSA NAO EXECUTADA (VERIFIQUE OS LOGS)' )
+    	endif
+    endif
 	
 	if lMVPNC12
 		PutMV( 'MV_X_PNC12', cDtTime )
@@ -5584,6 +5648,18 @@ User Function GMINDPRO( aParam )
 	if aConfig[25] > 0
 		ConOut( "GMINDPRO - "+ Time() +": ELIMINANDO SALDO HISTORICO DE CALCULOS" )
 		cQuery := "DELETE FROM "+ RetSqlName( cZB3 ) +" WHERE "+ cZB3 +"_FILIAL = '"+ FWxFilial( cZB3 ) +"' AND "+ cZB3 +"_DATA < '"+ DtoS( dHoje-aConfig[25] ) +"' " 
+		If TcSQLExec( cQuery ) < 0
+			 ConOut( "GMINDPRO - "+ Time() +" - ERRO DURANTE EXECUCAO DO COMANDO: " + CEOL +;
+			         cQuery + CEOL +;
+			         Replicate( '-', 50 ) + CEOL +;
+			         TCSQLError() )
+		EndIf
+	endif
+
+	// Elimina histórico de cálculos da análise reversa (mesma política de retenção da tabela de índices)
+	if lAnaRev .and. aConfig[25] > 0 .and. TCCanOpen( "PNC_RVCALC_"+ cEmpAnt )
+		ConOut( "GMINDPRO - "+ Time() +": ELIMINANDO HISTORICO DE CALCULOS DA ANALISE REVERSA" )
+		cQuery := "DELETE FROM PNC_RVCALC_"+ cEmpAnt +" WHERE FILIAL = '"+ cFilAnt +"' AND DTCALC < '"+ DtoS( dHoje-aConfig[25] ) +"' "
 		If TcSQLExec( cQuery ) < 0
 			 ConOut( "GMINDPRO - "+ Time() +" - ERRO DURANTE EXECUCAO DO COMANDO: " + CEOL +;
 			         cQuery + CEOL +;
@@ -5741,31 +5817,52 @@ Static Function fCalNec( aInfPrd, cPerfil )
 	// Realiza análise de critérios de compras conforme configurações
 	nQtdCom += iif( Round( &( fLoadCri( cFormula, .T. ) ),0) < 0, 0, Round( &( fLoadCri( cFormula, .T. ) ),0) )	// (( nDias + nLdTime ) - nPrjEst ) * nConMed
 	
-	// Verifica cadastro de quantidade de embalagem para o produto
-	if nQtdCom > 0 
-		
-		// Se a quantidade de compra não atingir o lote mínimo, altera para o lote mínimo
-		if nQtdCom < nLotMin
-			nQtdCom := nLotMin
-		endif
-
-		// Define a quantidade de compra com base no lote econômico
-		if lPriLE .and. nLotEco > 0
-			if ( nQtdCom % nLotEco ) != 0
-				nQtdCom := ( Int( nQtdCom/nLotEco ) + 1 ) * nLotEco
-			endif
-		endif
-		
-		// Valida se quantidade da embalagem está cadastrada para tornar a demanda compatível com múltiplos da embalagem
-		if nQtdEmb > 0
-			if ( nQtdCom  % nQtdEmb ) != 0
-				nQtdCom := ( Int( nQtdCom/nQtdEmb ) + 1 ) * nQtdEmb
-			EndIf
-		EndIf
-
-	EndIf
+	// Aplica os ajustes de lote: lote mínimo, lote econômico (quando priorizado) e múltiplo de embalagem
+	nQtdCom := U_JSAPLLOT( nQtdCom, nLotMin, nLotEco, nQtdEmb, lPriLE )
 	
 Return ( nQtdCom )
+
+/*/{Protheus.doc} JSCALNEC
+Wrapper público do cálculo de necessidade de compra (fCalNec) para uso pelo motor de análise
+reversa de estruturas (U_JSREVEST). Pré-condição: deve ser chamado dentro da pilha de execução
+de U_GMINDPRO ou da tela U_GMPAICOM, pois o cálculo depende das variáveis Private cZBM e aConfig.
+@type function
+@version 20.0002
+@author Jean Carlos Pandolfo Saggin
+@since 09/07/2026
+@param aInfPrd, array, vetor com informações sobre o produto (mesmo layout do fCalNec)
+@param cPerfil, character, ID do perfil de cálculo
+@return numeric, nQtdCom - necessidade de compra calculada
+/*/
+user function JSCALNEC( aInfPrd, cPerfil )
+return fCalNec( aInfPrd, cPerfil )
+
+/*/{Protheus.doc} JSFRMTXT
+Devolve a fórmula do perfil de cálculo em formato legível (descrições) ou como expressão
+avaliável (variáveis), para uso da tela Sequência de Cálculo (U_JSSEQCAL).
+Pré-condição: depende da variável Private cZBM (pilha de U_GMPAICOM/U_GMINDPRO).
+@type function
+@version 20.0002
+@author Jean Carlos Pandolfo Saggin
+@since 09/07/2026
+@param cPerfilId, character, ID do perfil de cálculo
+@param lVar, logical, .T. devolve a expressão com variáveis; .F. devolve o texto com descrições
+@return character, cFormTxt
+/*/
+user function JSFRMTXT( cPerfilId, lVar )
+
+	local cFormTxt := "" as character
+	local cFormula := "" as character
+
+	default cPerfilId := ""
+	default lVar      := .F.
+
+	cFormula := AllTrim( RetField( cZBM, 1, FWxFilial( cZBM ) + cPerfilId, cZBM +'_FORMUL' ) )
+	if ! Empty( cFormula )
+		cFormTxt := fLoadCri( cFormula, lVar )
+	endif
+
+return cFormTxt
 
 /*/{Protheus.doc} JSDoFrml 
 Função de manutenção da fórmula de cálculo da necessidade de compra
@@ -8730,6 +8827,25 @@ user function JSCOLPRO( aFields, aAlter, oPrefs )
 							.F.,;                            										// [n][15] Indica se a coluna será exibida nos detalhes do Browse
 							{},;                             										// [n][16] Opções de carga dos dados (Ex: 1=Sim, 2=Não)
 							aFields[nX] })                          								// [n][17] Id da coluna
+		elseif aFields[nX] == 'ORIGCALC'
+			aAdd(aColumns, {;
+							'Origem Calc.',;                     									// [n][01] Título da coluna
+							&("{|oBrw| " + cVarName + "[oBrw:At()]["+ cValToChar(nX+2) +"] }"),; 	// [n][02] Code-Block de carga dos dados
+							"C",;                													// [n][03] Tipo de dados
+							'@!',;                     												// [n][04] Máscara
+							0,;                      												// [n][05] Alinhamento (0=Centralizado, 1=Esquerda ou 2=Direita)
+							U_JSDEFSIZ( aFields[nX], oPrefs )[1] * SIZE_FIELD,;                        // [n][06] Tamanho
+							U_JSDEFSIZ( aFields[nX], oPrefs )[2],;                         			// [n][07] Decimal
+							.F.,;                 													// [n][08] Indica se permite a edição
+							{|| AlwaysTrue() },;                          							// [n][09] Code-Block de validação da coluna após a edição
+							.F.,;                            										// [n][10] Indica se exibe imagem
+							Nil,;                            										// [n][11] Code-Block de execução do duplo clique
+							cVarName +"["+ cBrwName +":At()]["+cValToChar(nX+2)+"]",;               // [n][12] Variável a ser utilizada na edição (ReadVar)
+							{|oBrw| sortCol(oBrw, &(cVarName)) },;              					// [n][13] Code-Block de execução do clique no header
+							.F.,;                            										// [n][14] Indica se a coluna está deletada
+							.F.,;                            										// [n][15] Indica se a coluna será exibida nos detalhes do Browse
+							{'E=Estrutura','C=Consumo','P=Parcial'},;								// [n][16] Opções de carga dos dados (Ex: 1=Sim, 2=Não)
+							aFields[nX] })                          								// [n][17] Id da coluna
 		elseif aFields[nX] == 'QTDSOL'
 			aAdd(aColumns, {;
 							'Qtd.Solic.',;                     										// [n][01] Título da coluna
@@ -11403,24 +11519,31 @@ static function chgFilter( nLocal )
 
 	if nLocal == 3 .or. nLocal == 0		// SpinBox de dias de estoque
 		
-		aEval( aFullPro, {|x| aInfPrd := { nSpinBx /*nDias*/,;
-											x[nPosLdT] /*nLdTime*/,;
-											x[nPosDur],;
-											x[nPosCon] /*nConMed*/,;
-											x[nPosLtM] /*nLotMin*/,;
-											x[nPosQtE] /*nQtdEmb*/,;
-											x[nPosLtE] /* nLotEco */,;
-											x[nPosEMi] /* nEstSeg */,;
-											x[nPosEmE] /* nQtdEst */,; 
-											x[nPosVen] /* nQtdEmp */,;
-											x[nPosQtd] /* nQtdPed */,;
-											x[nPosSol] /*nQtdSol*/ ,;
-											x[nPosOrd] /*nQtdOrd*/ },;
-							  nQtdNec    := fCalNec( aInfPrd, cPerfil ),;
-							  x[nPosNec] := nQtdNec,;
-							  cProduto   := x[nPosPrd],;
-							  iif( aScan( aColPro, {|y| y[nPosPrd] == cProduto } ) > 0,;
-							  	aColPro[aScan( aColPro, {|y| y[nPosPrd] == cProduto } )][nPosNec] := nQtdNec, Nil ) } )
+		for nX := 1 to len( aFullPro )
+			// Componentes com sugestão materializada pela análise reversa não são recalculados pelo spinbox de dias
+			if nPosOri > 2 .and. aFullPro[nX][nPosOri] == 'E'
+				loop
+			endif
+			aInfPrd := { nSpinBx /*nDias*/,;
+							aFullPro[nX][nPosLdT] /*nLdTime*/,;
+							aFullPro[nX][nPosDur],;
+							aFullPro[nX][nPosCon] /*nConMed*/,;
+							aFullPro[nX][nPosLtM] /*nLotMin*/,;
+							aFullPro[nX][nPosQtE] /*nQtdEmb*/,;
+							aFullPro[nX][nPosLtE] /* nLotEco */,;
+							aFullPro[nX][nPosEMi] /* nEstSeg */,;
+							aFullPro[nX][nPosEmE] /* nQtdEst */,; 
+							aFullPro[nX][nPosVen] /* nQtdEmp */,;
+							aFullPro[nX][nPosQtd] /* nQtdPed */,;
+							aFullPro[nX][nPosSol] /*nQtdSol*/ ,;
+							aFullPro[nX][nPosOrd] /*nQtdOrd*/ }
+			nQtdNec  := fCalNec( aInfPrd, cPerfil )
+			aFullPro[nX][nPosNec] := nQtdNec
+			cProduto := aFullPro[nX][nPosPrd]
+			if aScan( aColPro, {|y| y[nPosPrd] == cProduto } ) > 0
+				aColPro[aScan( aColPro, {|y| y[nPosPrd] == cProduto } )][nPosNec] := nQtdNec
+			endif
+		next nX
 	endif
 
 return aColPro
