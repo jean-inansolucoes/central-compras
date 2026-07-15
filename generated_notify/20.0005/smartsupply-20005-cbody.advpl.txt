@@ -1,0 +1,215 @@
+// Conteudo da notificacao (cBody) - gerado pela skill protheus-notification-html
+cBody := ""
+cBody += '<div class="ss-rel">'+ EOL
+cBody += '<style>'+ EOL
+cBody += '  .ss-rel{margin-top:4px;}'+ EOL
+cBody += '  /* painel principal da notificacao */'+ EOL
+cBody += '  .ss-panel{'+ EOL
+cBody += '    position:relative;'+ EOL
+cBody += '    background:radial-gradient(420px 240px at 12% -10%, #441c7d 0%, rgba(68,28,125,0) 60%),'+ EOL
+cBody += '               radial-gradient(360px 220px at 108% 115%, #6b31b0 0%, rgba(107,49,176,0) 55%),'+ EOL
+cBody += '               linear-gradient(160deg, #2e105d 0%, #441c7d 100%);'+ EOL
+cBody += '    border-radius:14px;'+ EOL
+cBody += '    padding:16px 18px 12px;'+ EOL
+cBody += '    color:#ffffff;'+ EOL
+cBody += '    overflow:hidden;'+ EOL
+cBody += '    box-shadow:0 10px 26px rgba(46,16,93,.35);'+ EOL
+cBody += '  }'+ EOL
+cBody += '  /* faixa de brilho no topo do painel */'+ EOL
+cBody += '  .ss-panel:before{'+ EOL
+cBody += '    content:"";'+ EOL
+cBody += '    position:absolute;'+ EOL
+cBody += '    top:0;left:0;right:0;'+ EOL
+cBody += '    height:4px;'+ EOL
+cBody += '    background:linear-gradient(90deg, #6b31b0 0%, #f41dab 50%, #cd1f92 100%);'+ EOL
+cBody += '  }'+ EOL
+cBody += '  /* brilho decorativo */'+ EOL
+cBody += '  .ss-glow{'+ EOL
+cBody += '    position:absolute;'+ EOL
+cBody += '    width:190px;height:190px;'+ EOL
+cBody += '    border-radius:50%;'+ EOL
+cBody += '    background:#f41dab;'+ EOL
+cBody += '    opacity:.22;'+ EOL
+cBody += '    filter:blur(60px);'+ EOL
+cBody += '    top:-70px;right:-50px;'+ EOL
+cBody += '    pointer-events:none;'+ EOL
+cBody += '  }'+ EOL
+cBody += '  /* cabecalho: selo + marca */'+ EOL
+cBody += '  .ss-topo{'+ EOL
+cBody += '    display:flex;'+ EOL
+cBody += '    align-items:center;'+ EOL
+cBody += '    gap:12px;'+ EOL
+cBody += '    margin-bottom:10px;'+ EOL
+cBody += '    position:relative;'+ EOL
+cBody += '  }'+ EOL
+cBody += '  .ss-badge{'+ EOL
+cBody += '    display:inline-flex;'+ EOL
+cBody += '    align-items:center;'+ EOL
+cBody += '    gap:6px;'+ EOL
+cBody += '    background:linear-gradient(90deg, #f41dab, #cd1f92);'+ EOL
+cBody += '    color:#ffffff;'+ EOL
+cBody += '    font-size:10px;'+ EOL
+cBody += '    font-weight:600;'+ EOL
+cBody += '    letter-spacing:.1em;'+ EOL
+cBody += '    text-transform:uppercase;'+ EOL
+cBody += '    padding:4px 12px;'+ EOL
+cBody += '    border-radius:999px;'+ EOL
+cBody += '    box-shadow:0 4px 12px rgba(244,29,171,.45);'+ EOL
+cBody += '    white-space:nowrap;'+ EOL
+cBody += '  }'+ EOL
+cBody += '  .ss-ponto{'+ EOL
+cBody += '    width:6px;height:6px;'+ EOL
+cBody += '    border-radius:50%;'+ EOL
+cBody += '    background:#ffffff;'+ EOL
+cBody += '    animation:ss-pulsar 1.6s ease-in-out infinite;'+ EOL
+cBody += '  }'+ EOL
+cBody += '  @keyframes ss-pulsar{'+ EOL
+cBody += '    0%,100%{opacity:1;transform:scale(1);}'+ EOL
+cBody += '    50%{opacity:.45;transform:scale(.75);}'+ EOL
+cBody += '  }'+ EOL
+cBody += '  .ss-marca{'+ EOL
+cBody += '    font-size:10px;'+ EOL
+cBody += '    font-weight:700;'+ EOL
+cBody += '    letter-spacing:.24em;'+ EOL
+cBody += '    text-transform:uppercase;'+ EOL
+cBody += '    color:#a57dd0;'+ EOL
+cBody += '  }'+ EOL
+cBody += '  /* introducao */'+ EOL
+cBody += '  .ss-intro{'+ EOL
+cBody += '    font-size:12.5px;'+ EOL
+cBody += '    line-height:1.55;'+ EOL
+cBody += '    color:#b6acc7;'+ EOL
+cBody += '    margin:0 0 16px;'+ EOL
+cBody += '    max-width:640px;'+ EOL
+cBody += '  }'+ EOL
+cBody += '  .ss-intro b{color:#a57dd0;font-weight:600;}'+ EOL
+cBody += '  /* titulo interno */'+ EOL
+cBody += '  .ss-titulo{'+ EOL
+cBody += '    font-size:18px;'+ EOL
+cBody += '    font-weight:800;'+ EOL
+cBody += '    line-height:1.2;'+ EOL
+cBody += '    margin-bottom:10px;'+ EOL
+cBody += '    position:relative;'+ EOL
+cBody += '  }'+ EOL
+cBody += '  .ss-titulo .ss-destaque{'+ EOL
+cBody += '    background:linear-gradient(90deg, #f41dab, #a57dd0);'+ EOL
+cBody += '    -webkit-background-clip:text;'+ EOL
+cBody += '    background-clip:text;'+ EOL
+cBody += '    color:transparent;'+ EOL
+cBody += '  }'+ EOL
+cBody += '  /* grade de novidades: 1 coluna em telas estreitas, 2 colunas quando ha espaco */'+ EOL
+cBody += '  .ss-grid{'+ EOL
+cBody += '    display:grid;'+ EOL
+cBody += '    grid-template-columns:1fr;'+ EOL
+cBody += '    gap:10px;'+ EOL
+cBody += '  }'+ EOL
+cBody += '  /* linhas de novidade */'+ EOL
+cBody += '  .ss-item{'+ EOL
+cBody += '    display:flex;'+ EOL
+cBody += '    align-items:flex-start;'+ EOL
+cBody += '    gap:12px;'+ EOL
+cBody += '    background:rgba(255,255,255,.07);'+ EOL
+cBody += '    border:1px solid rgba(130,86,185,.5);'+ EOL
+cBody += '    border-radius:11px;'+ EOL
+cBody += '    padding:13px 14px;'+ EOL
+cBody += '    position:relative;'+ EOL
+cBody += '  }'+ EOL
+cBody += '  .ss-icone{'+ EOL
+cBody += '    flex:0 0 auto;'+ EOL
+cBody += '    width:36px;height:36px;'+ EOL
+cBody += '    border-radius:10px;'+ EOL
+cBody += '    display:flex;'+ EOL
+cBody += '    align-items:center;'+ EOL
+cBody += '    justify-content:center;'+ EOL
+cBody += '    background:linear-gradient(135deg, #6b31b0 0%, #441c7d 100%);'+ EOL
+cBody += '    box-shadow:inset 0 1px 0 rgba(255,255,255,.25), 0 4px 10px rgba(46,16,93,.5);'+ EOL
+cBody += '    margin-top:1px;'+ EOL
+cBody += '  }'+ EOL
+cBody += '  .ss-item-2 .ss-icone{'+ EOL
+cBody += '    background:linear-gradient(135deg, #cd1f92 0%, #6b31b0 100%);'+ EOL
+cBody += '    box-shadow:inset 0 1px 0 rgba(255,255,255,.25), 0 4px 10px rgba(205,31,146,.4);'+ EOL
+cBody += '  }'+ EOL
+cBody += '  .ss-icone svg{'+ EOL
+cBody += '    width:20px;height:20px;'+ EOL
+cBody += '    stroke:#ffffff;fill:none;'+ EOL
+cBody += '    stroke-width:2;stroke-linecap:round;stroke-linejoin:round;'+ EOL
+cBody += '  }'+ EOL
+cBody += '  .ss-texto{flex:1 1 auto;min-width:0;}'+ EOL
+cBody += '  .ss-item-titulo{'+ EOL
+cBody += '    font-size:13.5px;'+ EOL
+cBody += '    font-weight:700;'+ EOL
+cBody += '    color:#ffffff;'+ EOL
+cBody += '    margin:0 0 4px;'+ EOL
+cBody += '    line-height:1.25;'+ EOL
+cBody += '  }'+ EOL
+cBody += '  .ss-item-desc{'+ EOL
+cBody += '    font-size:11.5px;'+ EOL
+cBody += '    line-height:1.6;'+ EOL
+cBody += '    color:#b6acc7;'+ EOL
+cBody += '    margin:0;'+ EOL
+cBody += '  }'+ EOL
+cBody += '  .ss-item-desc b{color:#a57dd0;font-weight:600;}'+ EOL
+cBody += '  /* selo de destaque no item principal */'+ EOL
+cBody += '  .ss-destaque-tag{'+ EOL
+cBody += '    display:inline-block;'+ EOL
+cBody += '    font-size:9px;'+ EOL
+cBody += '    font-weight:700;'+ EOL
+cBody += '    letter-spacing:.06em;'+ EOL
+cBody += '    text-transform:uppercase;'+ EOL
+cBody += '    color:#ffffff;'+ EOL
+cBody += '    background:linear-gradient(90deg, #f41dab, #cd1f92);'+ EOL
+cBody += '    padding:2px 7px;'+ EOL
+cBody += '    border-radius:5px;'+ EOL
+cBody += '    margin-left:6px;'+ EOL
+cBody += '    vertical-align:middle;'+ EOL
+cBody += '  }'+ EOL
+cBody += '  /* telas maiores: aumenta escala e usa 2 colunas, aproveitando o espaco de 90% da tela */'+ EOL
+cBody += '  @media (min-width:720px){'+ EOL
+cBody += '    .ss-panel{padding:24px 28px 20px;}'+ EOL
+cBody += '    .ss-titulo{font-size:23px;}'+ EOL
+cBody += '    .ss-intro{font-size:13.5px;}'+ EOL
+cBody += '    .ss-item-titulo{font-size:15px;}'+ EOL
+cBody += '    .ss-item-desc{font-size:12.5px;}'+ EOL
+cBody += '    .ss-icone{width:42px;height:42px;}'+ EOL
+cBody += '    .ss-icone svg{width:23px;height:23px;}'+ EOL
+cBody += '  }'+ EOL
+cBody += '  @media (min-width:980px){'+ EOL
+cBody += '    .ss-grid{grid-template-columns:1fr 1fr;}'+ EOL
+cBody += '    .ss-item-dest{grid-column:1 / -1;}'+ EOL
+cBody += '  }'+ EOL
+cBody += '</style>'+ EOL
+cBody += '<div class="ss-panel">'+ EOL
+cBody += '  <div class="ss-glow"></div>'+ EOL
+cBody += '  <div class="ss-topo">'+ EOL
+cBody += '    <span class="ss-badge"><span class="ss-ponto"></span>Nova vers&atilde;o 20.0005</span>'+ EOL
+cBody += '    <span class="ss-marca">SmartSupply</span>'+ EOL
+cBody += '  </div>'+ EOL
+cBody += '  <div class="ss-titulo">Fechamento do carrinho de compras <span class="ss-destaque">muito mais r&aacute;pido</span></div>'+ EOL
+cBody += '  <p class="ss-intro">A vers&atilde;o 20.0005 traz uma melhoria importante de performance no Painel de Compras, al&eacute;m de um ajuste fino no contador de Produtos Acabados (PAs) selecionados para produ&ccedil;&atilde;o. Confira o que mudou:</p>'+ EOL
+cBody += '  <div class="ss-grid">'+ EOL
+cBody += '    <div class="ss-item ss-item-1 ss-item-dest">'+ EOL
+cBody += '      <span class="ss-icone">'+ EOL
+cBody += '        <svg viewBox="0 0 24 24">'+ EOL
+cBody += '          <path d="M13 3L4 14h6l-1 7 9-11h-6l1-7z"></path>'+ EOL
+cBody += '        </svg>'+ EOL
+cBody += '      </span>'+ EOL
+cBody += '      <span class="ss-texto">'+ EOL
+cBody += '        <p class="ss-item-titulo">Gerar pedido ou solicita&ccedil;&atilde;o ficou muito mais &aacute;gil<span class="ss-destaque-tag">Destaque</span></p>'+ EOL
+cBody += '        <p class="ss-item-desc">At&eacute; aqui, ao gerar um pedido ou solicita&ccedil;&atilde;o de compra, o sistema recalculava <b>todos os produtos</b> do painel antes de liberar a tela novamente. Agora, apenas os itens que acabaram de ser comprados ou solicitados s&atilde;o atualizados na hora &mdash; a tela responde muito mais r&aacute;pido logo ap&oacute;s fechar o carrinho, principalmente em pain&eacute;is com muitos produtos.</p>'+ EOL
+cBody += '      </span>'+ EOL
+cBody += '    </div>'+ EOL
+cBody += '    <div class="ss-item ss-item-2">'+ EOL
+cBody += '      <span class="ss-icone">'+ EOL
+cBody += '        <svg viewBox="0 0 24 24">'+ EOL
+cBody += '          <circle cx="12" cy="12" r="8"></circle>'+ EOL
+cBody += '          <path d="M9 12.3l2 2 4-4.6"></path>'+ EOL
+cBody += '        </svg>'+ EOL
+cBody += '      </span>'+ EOL
+cBody += '      <span class="ss-texto">'+ EOL
+cBody += '        <p class="ss-item-titulo">Contador de PAs a produzir corrigido</p>'+ EOL
+cBody += '        <p class="ss-item-desc">O bot&atilde;o de Produtos Acabados a produzir estava contando tamb&eacute;m itens que j&aacute; haviam sido desmarcados. Agora o n&uacute;mero exibido reflete corretamente apenas os itens realmente selecionados.</p>'+ EOL
+cBody += '      </span>'+ EOL
+cBody += '    </div>'+ EOL
+cBody += '  </div>'+ EOL
+cBody += '</div>'+ EOL
+cBody += '</div>'+ EOL

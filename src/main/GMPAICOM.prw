@@ -2623,8 +2623,10 @@ Static Function fPedFor( nOpc )
 	Local oBtnExc   as object
 	local nPosBtn   := 0 as numeric
 	local lEnvPed   := AllTrim(SuperGetMv( "MV_ENVPED",, '0')) $ '1|2'
-	local bExcluir  := {|| iif( Len(oGrid:aCols) > 0, orderDel( oGrid:aCols[oGrid:nAt][ColPos(oGrid,'C7_FILIAL')],;
-							oGrid:aCols[oGrid:nAt][ColPos(oGrid,'NUMERO')] ), Nil) }
+	local lDelOk    := .F. as logical
+	local nSaldoFec := 0   as numeric
+	local bExcluir  := {|| iif( Len(oGrid:aCols) > 0, lDelOk := ( orderDel( oGrid:aCols[oGrid:nAt][ColPos(oGrid,'C7_FILIAL')],;
+							oGrid:aCols[oGrid:nAt][ColPos(oGrid,'NUMERO')] ) .or. lDelOk ), Nil) }
 	
 	Private aColsEx := {}
 	Private oGrid   := Nil
@@ -2684,7 +2686,10 @@ Static Function fPedFor( nOpc )
 	oBtnExc:bWhen := {|| Len(oGrid:aCols) > 0 }
 
 	nPosBtn += 39
-    @ 136, nPosBtn BUTTON oBtnFec  PROMPT "&Fechar"   SIZE 037, 012 OF oDlgPed ACTION oDlgPed:End() PIXEL
+    @ 136, nPosBtn BUTTON oBtnFec  PROMPT "&Fechar"   SIZE 037, 012 OF oDlgPed ACTION Eval( {|| nSaldoFec := 0,;
+																								  aEval( oGrid:aCols, {|x| nSaldoFec += x[ ColPos(oGrid,'SALDO') ] } ),;
+																								  oDlgPed:End(),;
+																								  iif( lDelOk, fAtuLinPed( cGetPrd, '1', nSaldoFec ), Nil ) } ) PIXEL
     
     ACTIVATE MSDIALOG oDlgPed CENTERED ON INIT ;
 	Processa( {|| fPedPen( .F./*lNoInt*/, nOpc, aColPro[ oBrwPro:nAt ][ nPosPrd ] /*cProd*/ ) }, 'Aguarde!','Buscando pedidos não atendidos!' )
@@ -2720,8 +2725,10 @@ Static Function fSolPend()
 	Local oBtnLeg   := Nil
 	Local oBtnExc   as object
 	local nPosBtn   := 0 as numeric
-	local bExcluir  := {|| a110Del( aColsEx[oGrid:nAt][aScan(aHeaderEx, {|x| AllTrim(x[2]) == 'C1_FILIAL' })],;
-									aColsEx[oGrid:nAt][aScan(aHeaderEx, {|x| AllTrim(x[2]) == 'C1_NUM' })] ),;
+	local lDelOk    := .F. as logical
+	local nSaldoFec := 0   as numeric
+	local bExcluir  := {|| lDelOk := ( a110Del( aColsEx[oGrid:nAt][aScan(aHeaderEx, {|x| AllTrim(x[2]) == 'C1_FILIAL' })],;
+									aColsEx[oGrid:nAt][aScan(aHeaderEx, {|x| AllTrim(x[2]) == 'C1_NUM' })] ) .or. lDelOk ),;
 							aColsEx := getSolic( aColPro[ oBrwPro:nAt ][ nPosPrd ] /*cProd*/ ),;
 							oGrid:aCols := aClone( aColsEx ),;
 							oGrid:ForceRefresh() }
@@ -2770,13 +2777,15 @@ Static Function fSolPend()
 	oBtnExc:bWhen := {|| Len(oGrid:aCols) > 0 }
 	nPosBtn += 39
 
-    @ 136, nPosBtn BUTTON oBtnFec  PROMPT "&Fechar"   SIZE 038, 012 OF oDlgPed ACTION oDlgPed:End() PIXEL
+    @ 136, nPosBtn BUTTON oBtnFec  PROMPT "&Fechar"   SIZE 038, 012 OF oDlgPed ACTION Eval( {|| nSaldoFec := 0,;
+																								  aEval( oGrid:aCols, {|x| nSaldoFec += x[ ColPos(oGrid,'SALDO') ] } ),;
+																								  oDlgPed:End(),;
+																								  iif( lDelOk, fAtuLinPed( cGetPrd, '2', nSaldoFec ), Nil ) } ) PIXEL
     
     ACTIVATE MSDIALOG oDlgPed CENTERED ON INIT ;
 	Processa( {|| aColsEx := getSolic( aColPro[ oBrwPro:nAt ][ nPosPrd ] /*cProd*/ ),;
 				 oGrid:aCols := aClone( aColsEx ),;
-				 oGrid:ForceRefresh(),;
-				 oDlgPed:End() }, 'Aguarde!','Buscando solicitações não atendidas...' )
+				 oGrid:ForceRefresh() }, 'Aguarde!','Buscando solicitações não atendidas...' )
 
 	SetKey( K_ALT_X, {|| fMarkPro() } ) 
 	SetKey( VK_F4, {|| Processa( {|| U_JSSUPPLY( /* lForce */ ) }, 'Aguarde!','Analisando dados do MRP...' ) } )
@@ -6388,11 +6397,6 @@ Static Function fCarCom( cFor, cLoj, lRecalc )
                                                                                                     
 	oDlgCar:Activate(,,,.T., bValid,,bInit)
 	
-	if lOk
-		oBrwFor:LineRefresh()
-		Processa( {|| fLoadInf() }, 'Aguarde!','Buscando informações dos produtos...' )
-	EndIf
-	
 	SetKey( K_CTRL_R, {|| Nil } )
 	SetKey( VK_F5, {|| Processa( {|| fLoadInf() }, 'Aguarde!','Analisando dados do MRP...' ) } )
 	SetKey( VK_F12, {|| fManPar() } )
@@ -6592,6 +6596,10 @@ Static Function fGrvPed( oCbo, aCbo, cCbo, cFornece, cLoja )
 	local cColor   := "" as character
 	local cFilHist := cFilAnt
 	local cObs     := "" as character
+	local aProdOk  := {} as array
+	local cProdOk  := "" as character
+	local nQtdOk   := 0  as numeric
+	local nAchOk   := 0  as numeric
 	
 	Private lMsErroAuto := .F.
 	
@@ -6751,6 +6759,18 @@ Static Function fGrvPed( oCbo, aCbo, cCbo, cFornece, cLoja )
 					next nX
 					saveData( 'carrinho_filial', aCarFil, aHeaCar )
 
+					// Acumula produto/quantidade incluidos com sucesso, para atualizar a grid principal sem recalcular tudo
+					for nX := 1 to len( aIte )
+						cProdOk := aIte[nX][ aScan( aIte[nX], {|y| AllTrim(y[1]) == "C7_PRODUTO" } ) ][2]
+						nQtdOk  := aIte[nX][ aScan( aIte[nX], {|y| AllTrim(y[1]) == "C7_QUANT"   } ) ][2]
+						nAchOk  := aScan( aProdOk, {|x| x[1] == cProdOk } )
+						if nAchOk > 0
+							aProdOk[nAchOk][2] += nQtdOk
+						else
+							aAdd( aProdOk, { cProdOk, nQtdOk } )
+						endif
+					next nX
+
 					if MsgYesNo( 'Pedido de compra número <b>'+ SC7->C7_NUM +'</b> gerado com SUCESSO!'+;
 								 iif( ! SubStr(aCbo[nCbo],1,len(cFilAnt)) == cFilAnt, ' Entrega na filial: '+ SubStr(aCbo[nCbo],1,len(cFilAnt)), '' )  +'. Deseja realizar a impressão do pedido?','S U C E S S O ! Pedido Nro. '+ SC7->C7_NUM +'' )
 						GMPCPrint( SC7->C7_FILIAL, SC7->C7_NUM )
@@ -6842,6 +6862,18 @@ Static Function fGrvPed( oCbo, aCbo, cCbo, cFornece, cLoja )
 					next nX
 					saveData( 'carrinho_filial', aCarFil, aHeaCar )
 
+					// Acumula produto/quantidade incluidos com sucesso, para atualizar a grid principal sem recalcular tudo
+					for nX := 1 to len( aIte )
+						cProdOk := aIte[nX][ aScan( aIte[nX], {|y| AllTrim(y[1]) == "C1_PRODUTO" } ) ][2]
+						nQtdOk  := aIte[nX][ aScan( aIte[nX], {|y| AllTrim(y[1]) == "C1_QUANT"   } ) ][2]
+						nAchOk  := aScan( aProdOk, {|x| x[1] == cProdOk } )
+						if nAchOk > 0
+							aProdOk[nAchOk][2] += nQtdOk
+						else
+							aAdd( aProdOk, { cProdOk, nQtdOk } )
+						endif
+					next nX
+
 					aAuxWF   := U_JSWFSOL()
 					cMailCom := getMailCom( cGetCom )
 					// Valida estrutura e tambem existência de comprador ligado à solicitação
@@ -6916,9 +6948,145 @@ Static Function fGrvPed( oCbo, aCbo, cCbo, cFornece, cLoja )
 			// Elimina arquivo temporário do carrinho se não houverem mais registros
 			fErase( U_JSPATHSV() )
 		endif
+
+		// Atualiza a grid principal sem recalcular tudo: desmarca e recalcula apenas os produtos incluidos
+		fAtuPosPed( aProdOk )
 	endif
 	
 Return ( lSuccess )
+
+/*/{Protheus.doc} fAtuPosPed
+Atualiza a grid principal de produtos apos a inclusao de pedido/solicitacao de compra,
+desmarcando e recalculando em memoria apenas os produtos incluidos - sem nova consulta ao banco.
+@type function
+@version 12.1.2510
+@author Jean Carlos Pandolfo Saggin
+@since 15/07/2026
+@param aProds, array, vetor { cProduto, nQtd } com os itens incluidos com sucesso
+/*/
+Static Function fAtuPosPed( aProds )
+
+	local nX   := 0 as numeric
+	local nAch := 0 as numeric
+
+	if len( aProds ) == 0
+		return Nil
+	endif
+
+	for nX := 1 to len( aProds )
+
+		nAch := aScan( aFullPro, {|x| x[nPosPrd] == aProds[nX][1] } )
+		if nAch == 0
+			loop
+		endif
+
+		if _cPedSol == '1'
+			aFullPro[nAch][nPosQtd] += aProds[nX][2]		// Ped. Compra
+		else
+			aFullPro[nAch][nPosSol] += aProds[nX][2]		// Solicitado
+		endif
+
+		fRecalcNec( nAch )
+
+		// Desmarca: o produto acabou de ser incluido no pedido/solicitacao
+		aFullPro[nAch][nPosChk] := .F.
+
+	next nX
+
+	// Reprocessa a grid em tela reaproveitando os filtros ativos, sem nova consulta ao banco
+	aColPro := chgFilter()
+	oBrwPro:SetArray( aColPro )
+	oBrwPro:UpdateBrowse()
+
+	// Atualiza o browse de fornecedores para refletir os itens que ainda restam no carrinho
+	oBrwFor:Refresh( .T. /* lGoTop */ )
+	oBrwFor:UpdateBrowse()
+
+Return Nil
+
+/*/{Protheus.doc} fRecalcNec
+Reaplica em memoria, para uma linha ja existente em aFullPro, as mesmas formulas de projecao de
+duracao de estoque e de necessidade de compra do carregamento completo (fLoadInf/chgFilter),
+sem nova consulta ao banco.
+@type function
+@version 12.1.2510
+@author Jean Carlos Pandolfo Saggin
+@since 15/07/2026
+@param nAch, numeric, posicao do produto em aFullPro
+/*/
+Static Function fRecalcNec( nAch )
+
+	local nPrjEst := 0  as numeric
+	local nDurPrv := 0  as numeric
+	local aInfPrd := {} as array
+
+	nPrjEst := Round( ( aFullPro[nAch][nPosEmE] - aFullPro[nAch][nPosEMi] + aFullPro[nAch][nPosQtd] + aFullPro[nAch][nPosOrd] ) / aFullPro[nAch][nPosCon], 0 )
+	if nPrjEst > 999
+		nPrjEst := 999
+	elseif nPrjEst < 0
+		nPrjEst := 0
+	endif
+	aFullPro[nAch][nPosDur] := nPrjEst
+
+	nDurPrv := Round( ( aFullPro[nAch][nPosEmE] - aFullPro[nAch][nPosEMi] + aFullPro[nAch][nPosQtd] + aFullPro[nAch][nPosBlq] + aFullPro[nAch][nPosOrd] ) / aFullPro[nAch][nPosCon], 0 ) - aFullPro[nAch][nPosLdT]
+	if nDurPrv > 999
+		nDurPrv := 999
+	elseif nDurPrv < 0
+		nDurPrv := 0
+	endif
+	aFullPro[nAch][nPosDuP] := nDurPrv
+
+	aInfPrd := { nSpinBx,;
+				 aFullPro[nAch][nPosLdT],;
+				 aFullPro[nAch][nPosDur],;
+				 aFullPro[nAch][nPosCon],;
+				 aFullPro[nAch][nPosLtM],;
+				 aFullPro[nAch][nPosQtE],;
+				 aFullPro[nAch][nPosLtE],;
+				 aFullPro[nAch][nPosEMi],;
+				 aFullPro[nAch][nPosEmE],;
+				 aFullPro[nAch][nPosVen],;
+				 aFullPro[nAch][nPosQtd],;
+				 aFullPro[nAch][nPosSol],;
+				 aFullPro[nAch][nPosOrd] }
+	aFullPro[nAch][nPosNec] := fCalNec( aInfPrd, cPerfil )
+
+Return Nil
+
+/*/{Protheus.doc} fAtuLinPed
+Atualiza em memoria a linha de um unico produto na grid principal apos a exclusao de pedido(s)/
+solicitacao(es) de compra pendentes nas telas de consulta (fPedFor/fSolPend), sem nova consulta
+ao banco: usa o saldo ja recalculado nessas telas para sobrescrever a quantidade em aberto do
+produto e reaplica as formulas de projecao/necessidade de compra.
+@type function
+@version 12.1.2510
+@author Jean Carlos Pandolfo Saggin
+@since 15/07/2026
+@param cProduto, character, ID do produto
+@param cTipo, character, '1' = Ped. Compra (C7) ou '2' = Solicitado (C1)
+@param nValor, numeric, saldo em aberto atualizado (pedidos ou solicitacoes) do produto
+/*/
+Static Function fAtuLinPed( cProduto, cTipo, nValor )
+
+	local nAch := aScan( aFullPro, {|x| x[nPosPrd] == cProduto } )
+
+	if nAch == 0
+		return Nil
+	endif
+
+	if cTipo == '1'
+		aFullPro[nAch][nPosQtd] := nValor
+	else
+		aFullPro[nAch][nPosSol] := nValor
+	endif
+
+	fRecalcNec( nAch )
+
+	aColPro := chgFilter()
+	oBrwPro:SetArray( aColPro )
+	oBrwPro:UpdateBrowse()
+
+Return Nil
 
 /*/{Protheus.doc} getMailCom
 FUnção para obter o e-mail do comprador relacionado à solicitação de compra
@@ -11586,8 +11754,13 @@ Função para chamada do processo de refresh do botão de visualização das PAs
 @since 22/05/2026
 /*/
 static function btnOpRefr()
+
+	local nPAs := 0 as numeric
+
+	DBSelectArea( 'TMPSC2' )
 	TMPSC2->( DBGoTop() )
-	oBtnOPs:CCAPTION := cValToChar( TMPSC2->( RecCount() ) ) + " PA(s)"
+	DBEval( {|| iif( !TMPSC2->( Deleted() ), nPAs++, Nil ) } )
+	oBtnOPs:CCAPTION := cValToChar( nPAs ) + " PA(s)"
 	oBtnOPs:NWIDTH   := Len( AllTrim( oBtnOPs:CCAPTION ))*10
 	oBtnOPs:Refresh()
 	TMPSC2->( DBGoTop() )

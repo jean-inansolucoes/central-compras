@@ -211,6 +211,8 @@ user function JSDETVER()
     aAdd( aDetVer, { '20','0001','08/07/2026', 'Adição de parâmetro para que a empresa/filial possa definir se as movimentações de transferência entre filiais do mesmo grupo econômico devem ou não serem cosideradas para os cálculos de médias dos produtos' } )
     aAdd( aDetVer, { '20','0002','09/07/2026', 'Análise de demanda de MP avaliando estruturas à que a MP faz parte' } )
     aAdd( aDetVer, { '20','0003','09/07/2026', 'Melhorias nas rotinas de configuração interna para uso de estrutura própria de tabelas PNC_***' } )
+    aAdd( aDetVer, { '20','0004','15/07/2026', 'Ajuste no contador de registros do tipo PA selecionados para produção.' } )
+    aAdd( aDetVer, { '20','0005','15/07/2026', 'Remover chamada do processo de recálculo de todos os dados após a inserção do pedido/solicitação de compra' } )
 
 return aDetVer
 
@@ -1016,7 +1018,7 @@ user function RuptWF()
     cWF += '			</br>' + CEOL
     cWF += '			<hr noshade color="#FF8000" size="0.5px">' + CEOL
     cWF += '				<p align="left">' + CEOL
-    cWF += '					<b>Esta mensagem foi enviada de maneira automática pelos nossos sitemas, portante, não há necessidade de resposta.</b>' + CEOL
+    cWF += '					<b>Esta mensagem foi enviada de maneira automática pelos nossos sitemas, portanto, não há necessidade de resposta.</b>' + CEOL
     cWF += '				</p>' + CEOL
     cWF += ' 			</hr>' + CEOL
     cWF += CEOL
