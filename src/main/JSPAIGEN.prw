@@ -213,6 +213,10 @@ user function JSDETVER()
     aAdd( aDetVer, { '20','0003','09/07/2026', 'Melhorias nas rotinas de configuração interna para uso de estrutura própria de tabelas PNC_***' } )
     aAdd( aDetVer, { '20','0004','15/07/2026', 'Ajuste no contador de registros do tipo PA selecionados para produção.' } )
     aAdd( aDetVer, { '20','0005','15/07/2026', 'Remover chamada do processo de recálculo de todos os dados após a inserção do pedido/solicitação de compra' } )
+    aAdd( aDetVer, { '20','0006','16/07/2026', 'Correção para que a tela de MPs do JSORDPRD utilize a mesma análise reversa de estruturas (NECREV) já usada pela grid principal, exibindo todos os componentes da estrutura independente de cadastro de fornecedor ou flag de MRP' } )
+    aAdd( aDetVer, { '20','0007','17/07/2026', 'Tornado função de análise reversa padrão para execução via JOB/Schedule' } )
+    aAdd( aDetVer, { '20','0008','20/07/2026', 'Adição da data e hora atualizada referente ao cálculo reverso no cabeçalho da grid de produtos' } )
+    aAdd( aDetVer, { '21','0001','20/07/2026', 'Novo parâmetro de cálculo para permitir à empresa definir se o lead-time deve ser considerado no cálculo reverso de matéria-prima' } )
 
 return aDetVer
 
@@ -609,7 +613,7 @@ return cRet
 /*/{Protheus.doc} JSQRYINF
 Função para montagem de query de análise do MRP para Painel de Compras
 @type function
-@version 1.0
+@version 20.0006
 @author Jean Carlos Pandolfo Saggin
 @since 11/21/2024
 @param aConf, array, vetor de configurações do painel
@@ -617,6 +621,12 @@ Função para montagem de query de análise do MRP para Painel de Compras
 @param cPedSol, character, Indica o tipo de pedido que vai ser gerado 1-Pedido ou 2-Solicitacao
 @param aCustom, array, campos customizados pelo cliente
 @param aMPs, array, array contendo os itens específicos que estão sendo analisados (MPs)
+Obs.: a partir da versão 20.0006, quando aMPs vem preenchido (consulta de MPs específicas,
+tela JSORDPRD): (1) o JOIN com a análise reversa de estruturas (PNC_RVCALC) também é avaliado,
+para usar a mesma sugestão materializada (NECREV/ISCOMP) já usada pela grid principal; (2) o
+JOIN com fornecedor (SA5/SA2) passa a ser LEFT JOIN, e o filtro B1_MRP='S' deixa de ser aplicado,
+para que todo componente da estrutura seja exibido, mesmo sem fornecedor cadastrado ou sem a
+flag de MRP habilitada.
 @return character, cQuery
 /*/
 user function JSQRYINF( aConf, aFilters, cPedSol, aCustom, aMPs )
@@ -682,7 +692,7 @@ user function JSQRYINF( aConf, aFilters, cPedSol, aCustom, aMPs )
         cFilAnt := _aFil[nFil]
 
         // Indica se a filial utiliza a análise reversa de estruturas (resultado materializado pelo U_JSREVEST)
-        lRevFil := len( aMPs ) == 0 .and. ! isInCallStack( 'U_GMINDPRO' ) .and. U_JSANAREV( cFilAnt ) .and. TCCanOpen( "PNC_RVCALC_"+ cEmpAnt )
+        lRevFil := ! isInCallStack( 'U_GMINDPRO' ) .and. U_JSANAREV( cFilAnt ) .and. TCCanOpen( "PNC_RVCALC_"+ cEmpAnt )
 
         cQuery += "SELECT '"+ cFilAnt +"' FILIAL, B1.B1_COD, B1.B1_DESC, B1.B1_TIPO, B1.B1_UM, B1.B1_LM, B1.B1_QE, B1.B1_LE, "
         if len( aMPs ) > 0 .or. ! Empty( aFilters[3] )
@@ -797,7 +807,11 @@ user function JSQRYINF( aConf, aFilters, cPedSol, aCustom, aMPs )
             if aConf[22] $ '2|3' .or. len( aMPs ) > 0   // 2=Prod.x Fornecedor ou 3=Hist.Compras 
                 
                 // Se o fornecedor for informado, o join é exato, do contrário, apresenta os produtos sem fornecedor
-                cQuery += "INNER JOIN "+ RetSqlName( 'SA5' ) +" A5 " + CEOL
+                if len( aMPs ) > 0
+                    cQuery += "LEFT JOIN "+ RetSqlName( 'SA5' ) +" A5 " + CEOL
+                else
+                    cQuery += "INNER JOIN "+ RetSqlName( 'SA5' ) +" A5 " + CEOL
+                endif
                 cQuery += " ON A5.A5_FILIAL = '"+ FWxFilial( 'SA5' ) +"' "+ CEOL
                 cQuery += "AND A5.A5_PRODUTO = B1.B1_COD " + CEOL
                 if len( aMPs ) == 0 .and. ! Empty( aFilters[3] )      // Quando fornecedor é informado, faz join com a tabela de fornecedores para filtrar apenas os produtos do fornecedor informado
@@ -809,7 +823,11 @@ user function JSQRYINF( aConf, aFilters, cPedSol, aCustom, aMPs )
                 cQuery += "AND A5.D_E_L_E_T_ = ' ' " + CEOL
 
                 // Se o fornecedor for informado, o join é exato, do contrário, apresenta os produtos sem fornecedor
-                cQuery += "INNER JOIN "+ RetSqlName( 'SA2' ) +" A2 "+ CEOL
+                if len( aMPs ) > 0
+                    cQuery += "LEFT JOIN "+ RetSqlName( 'SA2' ) +" A2 "+ CEOL
+                else
+                    cQuery += "INNER JOIN "+ RetSqlName( 'SA2' ) +" A2 "+ CEOL
+                endif
                 cQuery += " ON A2.A2_FILIAL  = '"+ FWxFilial( 'SA2' ) +"' "+ CEOL    
                 cQuery += "AND A2.A2_COD     = A5.A5_FORNECE " + CEOL
                 cQuery += "AND A2.A2_LOJA    = A5.A5_LOJA " + CEOL
@@ -874,7 +892,9 @@ user function JSQRYINF( aConf, aFilters, cPedSol, aCustom, aMPs )
         if len( aMPs ) == 0
             cQuery += "  AND B1.B1_TIPO IN ( "+ cTypes +" ) " + CEOL	// Considera apenas tipos de produtos informados pelo usuário
         endif
-        cQuery += "  AND B1.B1_MRP     = 'S' " + CEOL				// Apenas os produtos que devem entrar no MRP
+        if len( aMPs ) == 0
+            cQuery += "  AND B1.B1_MRP     = 'S' " + CEOL				// Apenas os produtos que devem entrar no MRP (não se aplica à consulta de MPs específicas)
+        endif
         
         if ValType( aTmp ) == 'A' .and. Len( aTmp ) > 0 .and. len( aMPs ) == 0
             For nX := 1 to Len( aTmp )
@@ -1283,6 +1303,85 @@ user function JSANAREV( cFilRev )
 
 return lAtivo
 
+/*/{Protheus.doc} JSPERANA
+Calcula o período de análise (dias úteis ou corridos, conforme a configuração TPDIAS da
+filial) utilizado tanto pelo recálculo de índices (U_GMINDPRO) quanto pela atualização parcial
+da análise reversa (U_JSREVSCH), evitando duplicar a regra em mais de um lugar.
+@type function
+@version 20.0003
+@author Jean Carlos Pandolfo Saggin
+@since 17/07/2026
+@param aConfig, array, vetor de configurações internas da filial (U_JSGETCFG)
+@param dRef, date, data de referência para o cálculo do período (default Date())
+@return array, aPerAna - { dInicio, dFim }
+/*/
+user function JSPERANA( aConfig, dRef )
+
+    local aPerAna := {} as array
+    local nDUteis := 0 as numeric
+    local nAux    := 0 as numeric
+
+    default dRef := Date()
+
+    if aConfig[15] == 'C'
+        aPerAna := { dRef-(aConfig[14]-1), dRef }
+    Else
+        While nDUteis < aConfig[14]
+            nDUteis := DateWorkDay( dRef - nAux, dRef, .T. /* lSaturday */, .F. /* lSunday */, .F. /* lHoliday */ )
+            nAux++
+        EndDo
+        aPerAna := { dRef - nAux, dRef }
+    EndIf
+
+return aPerAna
+
+/*/{Protheus.doc} JSLASTREV
+Devolve a data/hora da última execução da fase de análise reversa de estruturas (último
+DTEXEC materializado em PNC_RVCALC_<empresa> para a filial informada), formatada no mesmo
+padrão dd/mm/aaaa hh:mm:ss usado por MV_X_PNC12. Diferente de MV_X_PNC12 (atualizado somente
+pelo ciclo completo de U_GMINDPRO), este valor também reflete atualizações parciais realizadas
+por U_JSREVSCH ao longo do dia. Devolve vazio quando a filial não tem análise reversa ativa
+(U_JSANAREV) ou quando ainda não há nenhum cálculo materializado.
+@type function
+@version 20.0003
+@author Jean Carlos Pandolfo Saggin
+@since 20/07/2026
+@param cFilRev, character, ID da filial a ser consultada (default cFilAnt)
+@return character, cUltExec - data/hora do último cálculo reverso ("" quando não aplicável)
+/*/
+user function JSLASTREV( cFilRev )
+
+    local cUltExec := "" as character
+    local cDtExec  := "" as character
+    local cTable   := "PNC_RVCALC_"+ cEmpAnt
+    local cAlias   := "" as character
+    local cQuery   := "" as character
+
+    default cFilRev := cFilAnt
+
+    if U_JSANAREV( cFilRev ) .and. TCCanOpen( cTable )
+
+        cQuery := "SELECT MAX(DTEXEC) DTEXEC " + CEOL
+        cQuery += "FROM "+ cTable +" " + CEOL
+        cQuery += "WHERE FILIAL = '"+ cFilRev +"' " + CEOL
+        cQuery += "  AND D_E_L_E_T_ = ' ' " + CEOL
+
+        cAlias := GetNextAlias()
+        DBUseArea( .T., 'TOPCONN', TcGenQry(,,cQuery), cAlias, .F., .T. )
+        if ! ( cAlias )->( EOF() )
+            cDtExec := AllTrim( ( cAlias )->DTEXEC )
+        endif
+        ( cAlias )->( DbCloseArea() )
+
+        if Len( cDtExec ) == 14
+            cUltExec := SubStr( cDtExec, 07, 02 ) +'/'+ SubStr( cDtExec, 05, 02 ) +'/'+ SubStr( cDtExec, 01, 04 ) +' '+;
+                        SubStr( cDtExec, 09, 02 ) +':'+ SubStr( cDtExec, 11, 02 ) +':'+ SubStr( cDtExec, 13, 02 )
+        endif
+
+    endif
+
+return cUltExec
+
 /*/{Protheus.doc} JSAPLLOT
 Aplica os ajustes de lote sobre uma quantidade de compra calculada: lote mínimo, lote econômico
 (quando priorizado pela configuração PRILE) e múltiplo de embalagem - na mesma sequência utilizada
@@ -1512,6 +1611,12 @@ user function JSGETCFG( lAuto )
 				aAdd( aConfig, 'N' )		// S=Sim ou N=Não
 			endif
 
+			if ( cAlias )->( FieldPos( 'CONSLT' ) ) > 0 .and. ! Empty( &( cPref + 'CONSLT' ) )
+				aAdd( aConfig, &( cPref + 'CONSLT' ) )		// [31] - Indica se considera o lead time do fornecedor na previsão de demanda de compra da análise reversa
+			else
+				aAdd( aConfig, 'N' )		// S=Sim ou N=Não
+			endif
+
 			// Encerra o handle da PNC_CONFIG antes de retornar, evitando vazamento de área de trabalho
 			( cAlias )->( DBCloseArea() )
 
@@ -1652,6 +1757,12 @@ user function JSGETCFG( lAuto )
 
         if ( cAliCfg )->( FieldPos( cAliCfg + '_TRFFIL' ) ) > 0
             aAdd( aConfig, iif( Empty( &( cPref + 'TRFFIL' ) ), 'N', &( cPref + 'TRFFIL' ) ) )		// [30] - Indica se ativa ou não a função Transferência de Filial
+        else
+            aAdd( aConfig, 'N' )		// S=Sim ou N=Não
+        endif
+
+        if ( cAliCfg )->( FieldPos( cAliCfg + '_CONSLT' ) ) > 0 .and. ! Empty( &( cPref + 'CONSLT' ) )
+            aAdd( aConfig, &( cPref + 'CONSLT' ) )		// [31] - Indica se considera o lead time do fornecedor na previsão de demanda de compra da análise reversa
         else
             aAdd( aConfig, 'N' )		// S=Sim ou N=Não
         endif

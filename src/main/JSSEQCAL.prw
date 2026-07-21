@@ -28,7 +28,7 @@ variáveis Private da tela (_aProdFil, nPos*, nSpinBx, cPerfil, aConfig, _aFil).
 @version 20.0002
 @author Jean Carlos Pandolfo Saggin
 @since 09/07/2026
-@param cProduto, character, código do produto posicionado na grid principal
+@param cProduto, character, código do produto posicionado na grid principal (ou na grid de MPs, quando chamado a partir de showMP/U_JSORDPRD)
 @return logical, lSucesso
 /*/
 user function JSSEQCAL( cProduto )
@@ -72,7 +72,8 @@ user function JSSEQCAL( cProduto )
     endif
 
     // Quando a análise contempla mais de uma filial, o usuário escolhe qual filial auditar
-    if Type( '_aFil' ) == 'A' .and. len( _aFil ) > 1
+    // (não se aplica dentro da tela de MPs - U_JSORDPRD/showMP -, pois a matéria-prima já vem consolidada entre as filiais)
+    if ! isInCallStack( 'U_JSORDPRD' ) .and. Type( '_aFil' ) == 'A' .and. len( _aFil ) > 1
         cFilSel := askFil( _aFil )
         if Empty( cFilSel )
             return .F.      // usuário cancelou a seleção
@@ -97,8 +98,11 @@ user function JSSEQCAL( cProduto )
     oDlgSeq := FWDialogModal():New()
     oDlgSeq:SetEscClose( .T. )
     oDlgSeq:SetTitle( cTitle )
+    oDlgSeq:SetSize( (MsAdvSize()[6]/2)*0.8, (MsAdvSize()[5]/2)*0.8 )	// 80% da resolução da tela (largura, altura)
     if len( aTrace ) > 0
         oDlgSeq:SetSubTitle( 'Análise reversa de estruturas - filial '+ AllTrim( cFilSel ) +' - cálculo de '+ DtoC( dDtCalc ) )
+    elseif isInCallStack( 'U_JSORDPRD' )
+        oDlgSeq:SetSubTitle( 'Cálculo convencional (fórmula do perfil) - matéria-prima (consolidado entre filiais)' )
     else
         oDlgSeq:SetSubTitle( 'Cálculo convencional (fórmula do perfil) - filial '+ AllTrim( cFilSel ) )
     endif
@@ -487,17 +491,28 @@ static function buildConv( oTree, cProduto, cFilSel )
     local nAposEm := 0 as numeric
     local nPosRow := 0 as numeric
 
-    // Localiza a linha do produto/filial na granularidade por filial da tela
-    nPosRow := aScan( _aProdFil, {|x| x[nPosPrd] == cProduto .and. x[len(x)] == cFilSel } )
-    if nPosRow == 0
-        nPosRow := aScan( _aProdFil, {|x| x[nPosPrd] == cProduto } )
+    if isInCallStack( 'U_JSORDPRD' )
+        // Dentro da tela de MPs (showMP): localiza a linha na grid de matérias-primas (aData, Private de showMP)
+        nPosRow := aScan( aData, {|x| x[nPosPrd] == cProduto } )
+        if nPosRow == 0
+            oTree:AddTreeItem( 'Produto não localizado na análise corrente', 'PMSTASK4',, '1' )
+            aAdd( aDetTxt, 'O produto '+ AllTrim( cProduto ) +' não foi localizado nos dados carregados da análise corrente.' )
+            return aDetTxt
+        endif
+        aRowFil := aData[nPosRow]
+    else
+        // Localiza a linha do produto/filial na granularidade por filial da tela
+        nPosRow := aScan( _aProdFil, {|x| x[nPosPrd] == cProduto .and. x[len(x)] == cFilSel } )
+        if nPosRow == 0
+            nPosRow := aScan( _aProdFil, {|x| x[nPosPrd] == cProduto } )
+        endif
+        if nPosRow == 0
+            oTree:AddTreeItem( 'Produto não localizado na análise corrente', 'PMSTASK4',, '1' )
+            aAdd( aDetTxt, 'O produto '+ AllTrim( cProduto ) +' não foi localizado nos dados carregados da análise corrente. Atualize a análise (F5) e tente novamente.' )
+            return aDetTxt
+        endif
+        aRowFil := _aProdFil[nPosRow]
     endif
-    if nPosRow == 0
-        oTree:AddTreeItem( 'Produto não localizado na análise corrente', 'PMSTASK4',, '1' )
-        aAdd( aDetTxt, 'O produto '+ AllTrim( cProduto ) +' não foi localizado nos dados carregados da análise corrente. Atualize a análise (F5) e tente novamente.' )
-        return aDetTxt
-    endif
-    aRowFil := _aProdFil[nPosRow]
     cDesc   := aRowFil[nPosDes]
 
     // Variáveis da fórmula (mesmos insumos do fCalNec da tela)
@@ -536,7 +551,7 @@ static function buildConv( oTree, cProduto, cFilSel )
     oTree:AddTree( AllTrim( cProduto ) +' - '+ AllTrim( SubStr( cDesc, 01, 30 ) ) +' | Sugestão: '+ fmtNum( nAposEm ), .T., 'FOLDER5', 'FOLDER6',,, '1' )
     aAdd( aDetTxt, 'CÁLCULO CONVENCIONAL' + CRLF + Replicate( '-', 60 ) + CRLF +;
                    'Produto: '+ AllTrim( cProduto ) +' - '+ AllTrim( cDesc ) + CRLF +;
-                   'Filial: '+ AllTrim( cFilSel ) + CRLF + CRLF +;
+                   iif( isInCallStack( 'U_JSORDPRD' ), 'Filial: consolidado entre as filiais selecionadas', 'Filial: '+ AllTrim( cFilSel ) ) + CRLF + CRLF +;
                    'A sugestão é calculada pela fórmula do perfil de cálculo em uso,' + CRLF +;
                    'seguida dos ajustes de lote. Navegue pelos itens da árvore para' + CRLF +;
                    'visualizar cada etapa.' )

@@ -1,5 +1,6 @@
 #include 'totvs.ch'
 #include 'topconn.ch'
+#include 'tbiconn.ch'
 
 #define CEOL        chr(13)+chr(10)
 
@@ -105,6 +106,101 @@ user function JSREVEST( aCfgRev, aPerRev, oSnap, dCalc )
     lSucesso := saveAll( aOrdem, aGrafo[2] /*oPais*/, oSnap, aCalc, aCfgRev, dCalc, cTabCal, cTabTrc )
 
 return lSucesso
+
+/*/{Protheus.doc} JSREVSCH
+Rotina híbrida de atualização parcial da análise reversa de estruturas do SmartSupply, pensada
+para execução mais frequente via Schedule (ou manualmente para testes) ao longo do dia, sem
+repetir o recálculo completo de índices convencionais (loop de U_GMINDPRO sobre a tabela de
+índices). Executa somente a fase de análise reversa (U_JSREVEST) com um snapshot vazio: todos os
+produtos da cadeia de estruturas (finais e componentes) são resolvidos por loadMiss, sem
+depender do loop de índices. Reduz a percepção de atraso nas demandas de matéria-prima
+derivadas de estrutura sem aguardar o próximo ciclo completo de U_GMINDPRO.
+Não atualiza o parâmetro MV_X_PNC12 (isso permanece exclusivo de U_GMINDPRO); o resultado é
+materializado em PNC_RVCALC_<empresa>/PNC_RVTRC_<empresa> com DTCALC igual à data atualmente
+gravada em MV_X_PNC12, para que a grid continue localizando o resultado pelo mesmo JOIN
+(U_JSQRYINF) já utilizado hoje. Não executa o loop de índices convencionais, o expurgo de
+histórico nem o disparo de workflow de ruptura - escopo restrito à materialização das tabelas
+de análise reversa. Só produz efeito quando a filial tem análise reversa ativa (U_JSANAREV).
+@type function
+@version 20.0003
+@author Jean Carlos Pandolfo Saggin
+@since 17/07/2026
+@param aParam, array, parâmetros recebidos para execução da rotina via schedule ({ cEmpresa, cFilial })
+/*/
+user function JSREVSCH( aParam )
+
+    local lManual  := .F. as logical
+    local lAnaRev  := .F. as logical
+    local dHoje    := Date() as date
+    local dCalc    := Date() as date
+    local aPerAna  := {} as array
+
+    Private aConfig  := {} as array
+    Private cZBM     := "" as character
+    Private cPerfDef := "" as character
+
+    Default aParam := {}
+
+    // Conecta ao ambiente quando executada via schedule ({ cEmpresa, cFilial }); reaproveita o ambiente já conectado em execução manual
+    if aParam != Nil .and. Len( aParam ) > 0
+        ConOut( FunName() + ' - ' + DtoC( dHoje ) + ' - ' + Time() + ' - CONECTANDO NA EMPRESA '+ aParam[01] +' E FILIAL '+ aParam[02] +'!' )
+        RpcClearEnv()
+        RpcSetType( 3 )
+        PREPARE ENVIRONMENT EMPRESA aParam[01] FILIAL aParam[02] TABLES "SB1,SD1,SA2" MODULO "COM"
+        aConfig := U_JSGETCFG( .T. /*lAuto*/ )
+    else
+        lManual := .T.
+        aConfig := U_JSGETCFG( .F. /*lAuto*/ )
+    endif
+
+    // Valida existência dos parâmetros do painel de compras antes de executar a rotina
+    if Len( aConfig ) == 0
+        ConOut( FunName() + ' - ' + DtoC( dHoje ) + ' - ' + Time() + ' - PARAMETROS DO PAINEL DE COMPRAS NAO CADASTRADOS PARA A EMPRESA '+ cEmpAnt +' E FILIAL '+ cFilAnt +'!' )
+        if ! lManual
+            RESET ENVIRONMENT
+        endif
+        Return Nil
+    endif
+
+    // Só há o que atualizar quando a filial deriva a sugestão de compra a partir da análise reversa das estruturas
+    lAnaRev := U_JSANAREV( cFilAnt )
+    if ! lAnaRev
+        ConOut( FunName() + ' - ' + DtoC( dHoje ) + ' - ' + Time() + ' - ANALISE REVERSA NAO ATIVA PARA A FILIAL '+ cFilAnt +'. NADA A FAZER.' )
+        if ! lManual
+            RESET ENVIRONMENT
+        endif
+        Return Nil
+    endif
+
+    // Valida existência da tabela de perfis de cálculo (necessária para U_JSCALNEC dentro de U_JSREVEST/loadMiss)
+    cZBM := AllTrim( GetMv( 'MV_X_PNC16' ) )
+    if Empty( cZBM ) .or. ! U_JSPERCHK()
+        ConOut( FunName() + ' - ' + DtoC( dHoje ) + ' - ' + Time() + ' - AUSENCIA DE CONFIGURACAO PARA A TABELA DE PERFIS DE CALCULO' )
+        if ! lManual
+            RESET ENVIRONMENT
+        endif
+        Return Nil
+    endif
+    cPerfDef := StrZero( 1, TAMSX3( cZBM +'_ID' )[1] )
+
+    aPerAna := U_JSPERANA( aConfig, dHoje )
+
+    // Data de referência do cálculo: a mesma já gravada em MV_X_PNC12, para manter compatível com o JOIN da grid (U_JSQRYINF) sem atualizar o parâmetro
+    dCalc := CtoD( SubStr( GetMv( 'MV_X_PNC12',, DtoC( dHoje ) ), 01, 10 ) )
+
+    ConOut( FunName() + ' - ' + DtoC( dHoje ) + ' - ' + Time() + ' - INICIANDO ATUALIZACAO PARCIAL DA ANALISE REVERSA (DTCALC '+ DtoC( dCalc ) +')...' )
+    if U_JSREVEST( aConfig, aPerAna, HMNew(), dCalc )
+        ConOut( FunName() + ' - ' + DtoC( dHoje ) + ' - ' + Time() + ' - ATUALIZACAO PARCIAL DA ANALISE REVERSA FINALIZADA' )
+    else
+        ConOut( FunName() + ' - ' + DtoC( dHoje ) + ' - ' + Time() + ' - ATUALIZACAO PARCIAL NAO EXECUTADA (VERIFIQUE OS LOGS)' )
+    endif
+
+    if ! lManual
+        ConOut( FunName() + ' - ' + DtoC( dHoje ) + ' - ' + Time() + ' - DESCONECTANDO DA EMPRESA '+ cEmpAnt +' E FILIAL '+ cFilAnt +'!' )
+        RESET ENVIRONMENT
+    endif
+
+return Nil
 
 /*/{Protheus.doc} loadSG1
 Carrega a estrutura de produtos (SG1) da filial corrente em memória com uma única query,
@@ -590,6 +686,10 @@ estrutura) grava o resultado consolidado na PNC_RVCALC (sugestão reversa com par
 direta, abatimento de posição e ajustes de lote) e o trace da sequência de cálculo na PNC_RVTRC
 (árvore ascendente do componente até os produtos finais). Regrava integralmente a execução da
 filial: o trace guarda apenas a última execução e o resultado é regravado por filial + data.
+Quando o parâmetro CONSLT da filial estiver ativo, a parcela de venda direta do componente
+(DEMVND) passa a considerar também o lead time do fornecedor do próprio componente na janela
+de cobertura (além dos dias padrão de estoque já configurados), o que tende a aumentar a
+sugestão de compra (estoque de segurança implícito para o prazo de entrega); default 'Falso'.
 @type function
 @version 20.0002
 @author Jean Carlos Pandolfo Saggin
@@ -618,12 +718,14 @@ static function saveAll( aOrdem, oPais, oSnap, aCalc, aCfgRev, dCalc, cTabCal, c
     local cQuery   := "" as character
     local cDtExec  := DtoS( Date() ) + StrTran( Time(), ':', '' )
     local cProd    := "" as character
-    local lPriLE   := aCfgRev[19] == 'S'
+    local lPriLE    := aCfgRev[19] == 'S'
+    local lConsidLT := aCfgRev[31] == 'S'	// Considera o lead time do fornecedor na previsão de demanda de compra do componente (parâmetro CONSLT)
     local nTamB1   := TAMSX3( 'B1_COD' )[1]
     local nVenDia  := 0 as numeric
     local nConDia  := 0 as numeric
     local nDemEst  := 0 as numeric
     local nDemVnd  := 0 as numeric
+    local nDiasVnd := 0 as numeric
     local nEstDisp := 0 as numeric
     local nPosAbt  := 0 as numeric
     local nNecRev  := 0 as numeric
@@ -667,7 +769,11 @@ static function saveAll( aOrdem, oPais, oSnap, aCalc, aCfgRev, dCalc, cTabCal, c
         HMGet( oBruta, cProd, @nDemEst )
         nVenDia := Round( aSnpAux[SNAP_VENDA] / aSnpAux[SNAP_DIAS], 4 )
         nConDia := Round( aSnpAux[SNAP_CONSUMO] / aSnpAux[SNAP_DIAS], 4 )
-        nDemVnd := nVenDia * ( aCfgRev[01] + aSnpAux[SNAP_LEADTIME] )
+        nDiasVnd := aCfgRev[01]
+        if lConsidLT
+            nDiasVnd += aSnpAux[SNAP_LEADTIME]	// Estende a janela de cobertura pelo lead time do fornecedor do próprio componente
+        endif
+        nDemVnd := nVenDia * nDiasVnd
 
         // Posição abatida no nível do componente: estoque disponível + pedidos em carteira + solicitações
         nEstDisp := aSnpAux[SNAP_ESTOQUE]

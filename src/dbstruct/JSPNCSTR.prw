@@ -48,6 +48,7 @@ user function JSGETSTR( cTable )
         aAdd( aStruct, { "CMT"    , "C", 1, 0 } )
         aAdd( aStruct, { "TRFFIL" , "C", 1, 0 } )
         aAdd( aStruct, { "ANAREV" , "C", 1, 0 } )
+        aAdd( aStruct, { "CONSLT" , "C", 1, 0 } )		// Considera o lead time do fornecedor na previsão de demanda de compra da análise reversa (default 'Falso')
 
     // Resultado da análise reversa de estruturas por produto (consumido pela grid principal)
     elseif cTable == "PNC_RVCALC_"+ cEmpAnt

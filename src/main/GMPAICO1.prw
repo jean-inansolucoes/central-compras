@@ -336,6 +336,8 @@ static function showMP( lAll )
 	local nX       := 0 as numeric
 	local aTemp2   := {} as array
 	local lChange  := .F. as logical
+	local nPosFul   := 0 as numeric
+	local nConMedPA := 0 as numeric
 
 	local cTitulo := "Matéria-Prima para PA: "+ AllTrim(TMPSC2->B1_DESC) + " - " + AllTrim(TMPSC2->C2_PRODUTO )
 
@@ -355,8 +357,11 @@ static function showMP( lAll )
 	TMPSC2->( DBGoTop() )
 	while ! TMPSC2->( EOF() )
 		if TMPSC2->MARK	// Verifica se o registro está marcado
-			// Obtém as MPs ligadas ao PA
-			aTemp := getMPs( TMPSC2->C2_PRODUTO, TMPSC2->C2_QUANT )
+			// Recupera o consumo médio diário real do PA (mesmo índice exibido na grid principal), base para explodir a estrutura
+			nPosFul   := aScan( aFullPro, {|x| x[nPosPrd] == TMPSC2->C2_PRODUTO } )
+			nConMedPA := iif( nPosFul > 0, aFullPro[nPosFul][nPosCon], 0 )
+			// Obtém as MPs ligadas ao PA, explodindo o consumo médio (e não a necessidade de compra) pela estrutura
+			aTemp := getMPs( TMPSC2->C2_PRODUTO, nConMedPA )
 			if len( aTemp ) > 0
 				for nX := 1 to len( aTemp )
 					// Se o produto já está relacionado no vetor de MPs, apenas soma as quantidades, do contrário, adiciona o produto e quantidade
@@ -372,11 +377,14 @@ static function showMP( lAll )
 		TMPSC2->( DBSkip() )
 	enddo
 
-	// Chama processo de cálculo da média necessária para os próximos X dias
-	aEval( aTemp2, {|x| aAdd( aMPs, { x[1], x[2] / nSpinBx } ) } )
+	// aTemp2 já contém o consumo médio diário de cada MP (soma das contribuições de cada PA marcado, explodidas pela estrutura)
+	aMPs := aClone( aTemp2 )
 
 	// Chama processamento do cálculo das MPs para mostrar ao usuário
 	aData := U_JSCALCMP( aMPs, lAll )
+
+	// Botão "Outras Ações" para consultar como o sistema chegou na sugestão calculada para a MP posicionada na grid
+	aAdd( aButtons, { "BMPCONSUL", {|| iif( len( aData ) > 0, U_JSSEQCAL( aData[oBrw:nAt][nPosPrd] ), Nil ) }, 'Sequência de Cálculo da Sugestão'} )
 
 	// Limpa conteúdo das teclas de atalho para evitar conflitos com a rotina principal do MRP
 	SetKey( VK_F4, {|| Processa( {|| U_JSSUPPLY( /* lForce */, aData, oBrw ) }, 'Aguarde!','Analisando fornecedores da MP...' ) } )
@@ -448,8 +456,8 @@ Retornar todas as MPs ligadas ao PA (e subprodutos) retornando o código de cada 
 @author Jean Carlos Pandolfo Saggin
 @since 12/05/2026
 @param cProduto, character, Código do produto tipo PA
-@param nQuant, numeric, Quantidade de produto que deverá ser produzida
-@return array, aMPs, vetor contendo codigo, média/dia e quantidade total por matéria-prima que será consumida
+@param nQuant, numeric, Quantidade diária (consumo médio) do produto a ser explodida pela estrutura
+@return array, aMPs, vetor contendo código e consumo médio diário por matéria-prima que será consumida
 /*/
 static function getMPs( cProduto, nQuant )
 

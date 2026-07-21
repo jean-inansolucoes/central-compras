@@ -39,6 +39,7 @@ user function JSMANPAR( nOpc )
     private lCmt     := .F. as logical
     private lTrfFil  := .F. as logical
     private lAnaRev  := .F. as logical
+    private lConSlt  := .F. as logical
 
     default nOpc := 3 // 3-Incluir, 4-Alterar
 
@@ -80,6 +81,7 @@ user function JSMANPAR( nOpc )
         M->CMT       := "S" // S=Sim ou N=Não
         M->TRFFIL    := "N" // N=Não, S=Sim (considera movimentações de transferência intra-grupo no cálculo de média)
         M->ANAREV    := "N" // N=Não, S=Sim (deriva a sugestão de compra dos componentes a partir das estruturas - análise reversa)
+        M->CONSLT    := "N" // N=Não, S=Sim (considera o lead time do fornecedor na previsão de demanda de compra da análise reversa)
 
         // Na alteração, sobrepõe os defaults acima pelos valores efetivamente gravados na PNC_CONFIG da filial
         if ALTERA
@@ -92,6 +94,7 @@ user function JSMANPAR( nOpc )
         lCmt    := M->CMT    == 'S'
         lTrfFil := M->TRFFIL == 'S'
         lAnaRev := M->ANAREV == 'S'
+        lConSlt := M->CONSLT == 'S'
 
     endif
 
@@ -180,6 +183,7 @@ user function JSMANPAR( nOpc )
 	@ 250, 280 CHECKBOX oCtlB13 VAR lCmt    PROMPT "Habilita Continuar Mais Tarde"     SIZE 220, 008 OF oContainer PIXEL
 	@ 270, 280 CHECKBOX oCtlB14 VAR lTrfFil PROMPT "Considera Transf. Intra-Grupo"     SIZE 220, 008 OF oContainer PIXEL
 	@ 290, 280 CHECKBOX oCtlB15 VAR lAnaRev PROMPT "Habilita Análise Reversa"          SIZE 220, 008 OF oContainer PIXEL
+	@ 310, 280 CHECKBOX oCtlB16 VAR lConSlt PROMPT "Considera Lead Time na Análise Reversa" SIZE 220, 008 OF oContainer PIXEL
 
 	oDlgPar:Activate()
 
@@ -228,6 +232,12 @@ static function applyAux( aCampos )
         M->ANAREV := 'S'
     else
         M->ANAREV := 'N'
+    endif
+
+    if lConSlt
+        M->CONSLT := 'S'
+    else
+        M->CONSLT := 'N'
     endif
 
     lSuccess := saveCfg( aCampos )

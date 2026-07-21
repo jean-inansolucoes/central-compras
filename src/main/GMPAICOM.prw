@@ -51,7 +51,6 @@ User Function GMPAICOM()
 	Local aAlter   := U_JSMAINFD()[2]												// Campos editáveis no grid de produtos
 	Local oPanAna  := Nil
 	local oAliFor  as object
-	local oLayer   as object
 	Local oGroup1  as object
 	local oWinFor  as object
 	local oWinPcp  as object 
@@ -65,7 +64,6 @@ User Function GMPAICOM()
 	local oPerfil  as object
 	local oDescPer as object
 	local aRadMenu := { "Todos os produtos", "Apenas sugestões de compra", "Apenas risco de ruptura" }
-	local cLastRun := "" as character
 	local oLine    as object
 	local cFileWF  := "" as character
 	local aAuxHea  := doHeadCar()
@@ -107,6 +105,9 @@ User Function GMPAICOM()
 	Private cMark     := GetMark()
 	Private lGir001   := lGir002 := lGir003 := lGir004 := lGir005 := /* lGir006 := */ .T.
 	Private oDlgCom   := Nil
+	Private oLayer    as object
+	Private cLastRun  := "" as character
+	Private cLastRev  := "" as character												// Data/hora do último cálculo reverso (PNC_RVCALC), atualizado a cada refresh da tela
 	Private oBrwFor   := Nil
 	Private aColPro   := {}
 	Private oBrwPro   := Nil
@@ -398,6 +399,7 @@ User Function GMPAICOM()
 
 	// Valida existência do parâmetro para que o sistema possa alimentar a data e hora da última execução do recálculo dos dados de produtos
 	cLastRun := AllTrim( SuperGetMv( 'MV_X_PNC12',,"" ) )
+	cLastRev := U_JSLASTREV( cFilAnt )
 	if ! GetMV( 'MV_X_PNC12', .T. /* lCheck */ )
 		Hlp( 'MV_X_PNC12',;
 			 'Parâmetro interno que armazena data da última execução do JOB de recálculo dos índices individuais dos produtos '+;
@@ -445,7 +447,7 @@ User Function GMPAICOM()
 	
 	oLayer:AddLine( "line2", 100-round(((250+60)/aSize[6])*100,0), .T. )
 	oLayer:AddColumn( "colPro", 100, .F., "line2" )
-	oLayer:AddWindow( 'colPro' , 'winPro' , 'Produtos | U.C.M.: '+ cLastRun, 100, .F., .F., {|| Nil }, "line2")
+	oLayer:AddWindow( 'colPro' , 'winPro' , 'Produtos | U.C.M.: '+ cLastRun +' | U.C.R.: '+ iif( Empty( cLastRev ), 'N/A', cLastRev ), 100, .F., .F., {|| Nil }, "line2")
 	oWinPro  := oLayer:GetWinPanel( 'colPro' , 'winPro', "line2")
 	oLine := oLayer:GetLinePanel( 'line2' )
 
@@ -3615,6 +3617,11 @@ Static Function fLoadInf( aMPs, lAll )
 			oBrwFor:UpdateBrowse()
 		endif
 		fLoadAna()
+
+		// Atualiza o título da janela de produtos com a data/hora dos últimos cálculos (convencional e reverso) a cada refresh da tela principal
+		cLastRun := AllTrim( SuperGetMv( 'MV_X_PNC12',,"" ) )
+		cLastRev := U_JSLASTREV( cFilAnt )
+		oLayer:SetWinTitle( 'colPro', 'winPro', 'Produtos | U.C.M.: '+ cLastRun +' | U.C.R.: '+ iif( Empty( cLastRev ), 'N/A', cLastRev ), 'line2' )
 	endif
 
 Return aReturn
@@ -5092,18 +5099,7 @@ User Function GMINDPRO( aParam )
 		ExecBlock( 'GMPCACLA', .T., .T., Nil )
 	endif
 	
-	aPerAna := {}
-	if aConfig[15] == 'C'
-		aPerAna := { dHoje-(aConfig[14]-1), dHoje } 
-	Else
-		nDUteis := 0
-		nAux    := 0
-		While nDUteis < aConfig[14]
-			nDUteis := DateWorkDay( Date() - nAux, Date(), .T. /* lSaturday */, .F. /* lSunday */, .F. /* lHoliday */ )
-			nAux++
-		EndDo
-		aPerAna := { Date() - nAux, Date() }
-	EndIf
+	aPerAna := U_JSPERANA( aConfig, dHoje )
 	
 	if lManual	
 		_aFilters := prodFilter( _aFilters, lManual )
