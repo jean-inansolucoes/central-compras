@@ -1,0 +1,245 @@
+// Conteudo da notificacao (cBody) - gerado pela skill protheus-notification-html
+cBody := ""
+cBody += '<div class="ss-rel">'+ EOL
+cBody += '<style>'+ EOL
+cBody += '  .ss-rel{margin-top:4px;}'+ EOL
+cBody += '  /* painel principal da notificacao */'+ EOL
+cBody += '  .ss-panel{'+ EOL
+cBody += '    position:relative;'+ EOL
+cBody += '    background:radial-gradient(420px 240px at 12% -10%, #441c7d 0%, rgba(68,28,125,0) 60%),'+ EOL
+cBody += '               radial-gradient(360px 220px at 108% 115%, #6b31b0 0%, rgba(107,49,176,0) 55%),'+ EOL
+cBody += '               linear-gradient(160deg, #2e105d 0%, #441c7d 100%);'+ EOL
+cBody += '    border-radius:14px;'+ EOL
+cBody += '    padding:16px 18px 12px;'+ EOL
+cBody += '    color:#ffffff;'+ EOL
+cBody += '    overflow:hidden;'+ EOL
+cBody += '    box-shadow:0 10px 26px rgba(46,16,93,.35);'+ EOL
+cBody += '  }'+ EOL
+cBody += '  /* faixa de brilho no topo do painel */'+ EOL
+cBody += '  .ss-panel:before{'+ EOL
+cBody += '    content:"";'+ EOL
+cBody += '    position:absolute;'+ EOL
+cBody += '    top:0;left:0;right:0;'+ EOL
+cBody += '    height:4px;'+ EOL
+cBody += '    background:linear-gradient(90deg, #6b31b0 0%, #f41dab 50%, #cd1f92 100%);'+ EOL
+cBody += '  }'+ EOL
+cBody += '  /* brilho decorativo */'+ EOL
+cBody += '  .ss-glow{'+ EOL
+cBody += '    position:absolute;'+ EOL
+cBody += '    width:190px;height:190px;'+ EOL
+cBody += '    border-radius:50%;'+ EOL
+cBody += '    background:#f41dab;'+ EOL
+cBody += '    opacity:.22;'+ EOL
+cBody += '    filter:blur(60px);'+ EOL
+cBody += '    top:-70px;right:-50px;'+ EOL
+cBody += '    pointer-events:none;'+ EOL
+cBody += '  }'+ EOL
+cBody += '  /* cabecalho: selo + marca */'+ EOL
+cBody += '  .ss-topo{'+ EOL
+cBody += '    display:flex;'+ EOL
+cBody += '    align-items:center;'+ EOL
+cBody += '    gap:12px;'+ EOL
+cBody += '    margin-bottom:10px;'+ EOL
+cBody += '    position:relative;'+ EOL
+cBody += '  }'+ EOL
+cBody += '  .ss-badge{'+ EOL
+cBody += '    display:inline-flex;'+ EOL
+cBody += '    align-items:center;'+ EOL
+cBody += '    gap:6px;'+ EOL
+cBody += '    background:linear-gradient(90deg, #f41dab, #cd1f92);'+ EOL
+cBody += '    color:#ffffff;'+ EOL
+cBody += '    font-size:10px;'+ EOL
+cBody += '    font-weight:600;'+ EOL
+cBody += '    letter-spacing:.1em;'+ EOL
+cBody += '    text-transform:uppercase;'+ EOL
+cBody += '    padding:4px 12px;'+ EOL
+cBody += '    border-radius:999px;'+ EOL
+cBody += '    box-shadow:0 4px 12px rgba(244,29,171,.45);'+ EOL
+cBody += '    white-space:nowrap;'+ EOL
+cBody += '  }'+ EOL
+cBody += '  .ss-ponto{'+ EOL
+cBody += '    width:6px;height:6px;'+ EOL
+cBody += '    border-radius:50%;'+ EOL
+cBody += '    background:#ffffff;'+ EOL
+cBody += '    animation:ss-pulsar 1.6s ease-in-out infinite;'+ EOL
+cBody += '  }'+ EOL
+cBody += '  @keyframes ss-pulsar{'+ EOL
+cBody += '    0%,100%{opacity:1;transform:scale(1);}'+ EOL
+cBody += '    50%{opacity:.45;transform:scale(.75);}'+ EOL
+cBody += '  }'+ EOL
+cBody += '  .ss-marca{'+ EOL
+cBody += '    font-size:10px;'+ EOL
+cBody += '    font-weight:700;'+ EOL
+cBody += '    letter-spacing:.24em;'+ EOL
+cBody += '    text-transform:uppercase;'+ EOL
+cBody += '    color:#a57dd0;'+ EOL
+cBody += '  }'+ EOL
+cBody += '  /* introducao */'+ EOL
+cBody += '  .ss-intro{'+ EOL
+cBody += '    font-size:12.5px;'+ EOL
+cBody += '    line-height:1.55;'+ EOL
+cBody += '    color:#b6acc7;'+ EOL
+cBody += '    margin:0 0 16px;'+ EOL
+cBody += '    max-width:640px;'+ EOL
+cBody += '  }'+ EOL
+cBody += '  .ss-intro b{color:#a57dd0;font-weight:600;}'+ EOL
+cBody += '  /* titulo interno */'+ EOL
+cBody += '  .ss-titulo{'+ EOL
+cBody += '    font-size:18px;'+ EOL
+cBody += '    font-weight:800;'+ EOL
+cBody += '    line-height:1.2;'+ EOL
+cBody += '    margin-bottom:10px;'+ EOL
+cBody += '    position:relative;'+ EOL
+cBody += '  }'+ EOL
+cBody += '  .ss-titulo .ss-destaque{'+ EOL
+cBody += '    background:linear-gradient(90deg, #f41dab, #a57dd0);'+ EOL
+cBody += '    -webkit-background-clip:text;'+ EOL
+cBody += '    background-clip:text;'+ EOL
+cBody += '    color:transparent;'+ EOL
+cBody += '  }'+ EOL
+cBody += '  /* grade de novidades: 1 coluna em telas estreitas, 2 colunas quando ha espaco */'+ EOL
+cBody += '  .ss-grid{'+ EOL
+cBody += '    display:grid;'+ EOL
+cBody += '    grid-template-columns:1fr;'+ EOL
+cBody += '    gap:10px;'+ EOL
+cBody += '  }'+ EOL
+cBody += '  /* linhas de novidade */'+ EOL
+cBody += '  .ss-item{'+ EOL
+cBody += '    display:flex;'+ EOL
+cBody += '    align-items:flex-start;'+ EOL
+cBody += '    gap:12px;'+ EOL
+cBody += '    background:rgba(255,255,255,.07);'+ EOL
+cBody += '    border:1px solid rgba(130,86,185,.5);'+ EOL
+cBody += '    border-radius:11px;'+ EOL
+cBody += '    padding:13px 14px;'+ EOL
+cBody += '    position:relative;'+ EOL
+cBody += '  }'+ EOL
+cBody += '  .ss-icone{'+ EOL
+cBody += '    flex:0 0 auto;'+ EOL
+cBody += '    width:36px;height:36px;'+ EOL
+cBody += '    border-radius:10px;'+ EOL
+cBody += '    display:flex;'+ EOL
+cBody += '    align-items:center;'+ EOL
+cBody += '    justify-content:center;'+ EOL
+cBody += '    background:linear-gradient(135deg, #6b31b0 0%, #441c7d 100%);'+ EOL
+cBody += '    box-shadow:inset 0 1px 0 rgba(255,255,255,.25), 0 4px 10px rgba(46,16,93,.5);'+ EOL
+cBody += '    margin-top:1px;'+ EOL
+cBody += '  }'+ EOL
+cBody += '  .ss-item-2 .ss-icone,'+ EOL
+cBody += '  .ss-item-4 .ss-icone{'+ EOL
+cBody += '    background:linear-gradient(135deg, #cd1f92 0%, #6b31b0 100%);'+ EOL
+cBody += '    box-shadow:inset 0 1px 0 rgba(255,255,255,.25), 0 4px 10px rgba(205,31,146,.4);'+ EOL
+cBody += '  }'+ EOL
+cBody += '  .ss-icone svg{'+ EOL
+cBody += '    width:20px;height:20px;'+ EOL
+cBody += '    stroke:#ffffff;fill:none;'+ EOL
+cBody += '    stroke-width:2;stroke-linecap:round;stroke-linejoin:round;'+ EOL
+cBody += '  }'+ EOL
+cBody += '  .ss-texto{flex:1 1 auto;min-width:0;}'+ EOL
+cBody += '  .ss-item-titulo{'+ EOL
+cBody += '    font-size:13.5px;'+ EOL
+cBody += '    font-weight:700;'+ EOL
+cBody += '    color:#ffffff;'+ EOL
+cBody += '    margin:0 0 4px;'+ EOL
+cBody += '    line-height:1.25;'+ EOL
+cBody += '  }'+ EOL
+cBody += '  .ss-item-desc{'+ EOL
+cBody += '    font-size:11.5px;'+ EOL
+cBody += '    line-height:1.6;'+ EOL
+cBody += '    color:#b6acc7;'+ EOL
+cBody += '    margin:0;'+ EOL
+cBody += '  }'+ EOL
+cBody += '  .ss-item-desc b{color:#a57dd0;font-weight:600;}'+ EOL
+cBody += '  /* selo de destaque no item principal */'+ EOL
+cBody += '  .ss-destaque-tag{'+ EOL
+cBody += '    display:inline-block;'+ EOL
+cBody += '    font-size:9px;'+ EOL
+cBody += '    font-weight:700;'+ EOL
+cBody += '    letter-spacing:.06em;'+ EOL
+cBody += '    text-transform:uppercase;'+ EOL
+cBody += '    color:#ffffff;'+ EOL
+cBody += '    background:linear-gradient(90deg, #f41dab, #cd1f92);'+ EOL
+cBody += '    padding:2px 7px;'+ EOL
+cBody += '    border-radius:5px;'+ EOL
+cBody += '    margin-left:6px;'+ EOL
+cBody += '    vertical-align:middle;'+ EOL
+cBody += '  }'+ EOL
+cBody += '  /* telas maiores: aumenta escala e usa 2 colunas, aproveitando o espaco de 90% da tela */'+ EOL
+cBody += '  @media (min-width:720px){'+ EOL
+cBody += '    .ss-panel{padding:24px 28px 20px;}'+ EOL
+cBody += '    .ss-titulo{font-size:23px;}'+ EOL
+cBody += '    .ss-intro{font-size:13.5px;}'+ EOL
+cBody += '    .ss-item-titulo{font-size:15px;}'+ EOL
+cBody += '    .ss-item-desc{font-size:12.5px;}'+ EOL
+cBody += '    .ss-icone{width:42px;height:42px;}'+ EOL
+cBody += '    .ss-icone svg{width:23px;height:23px;}'+ EOL
+cBody += '  }'+ EOL
+cBody += '  @media (min-width:980px){'+ EOL
+cBody += '    .ss-grid{grid-template-columns:1fr 1fr;}'+ EOL
+cBody += '    .ss-item-dest{grid-column:1 / -1;}'+ EOL
+cBody += '  }'+ EOL
+cBody += '</style>'+ EOL
+cBody += '<div class="ss-panel">'+ EOL
+cBody += '  <div class="ss-glow"></div>'+ EOL
+cBody += '  <div class="ss-topo">'+ EOL
+cBody += '    <span class="ss-badge"><span class="ss-ponto"></span>Nova vers&atilde;o 21.0004</span>'+ EOL
+cBody += '    <span class="ss-marca">SmartSupply</span>'+ EOL
+cBody += '  </div>'+ EOL
+cBody += '  <div class="ss-titulo">An&aacute;lise reversa de mat&eacute;ria-prima <span class="ss-destaque">mais precisa e automatizada</span></div>'+ EOL
+cBody += '  <p class="ss-intro">Desde a vers&atilde;o 20.0005, a an&aacute;lise reversa de estruturas evoluiu bastante: agora ela roda sozinha, pode considerar o lead-time de entrega do fornecedor da mat&eacute;ria-prima e a tela de rastreabilidade ficou mais clara e completa. Confira o que mudou:</p>'+ EOL
+cBody += '  <div class="ss-grid">'+ EOL
+cBody += '    <div class="ss-item ss-item-1 ss-item-dest">'+ EOL
+cBody += '      <span class="ss-icone">'+ EOL
+cBody += '        <svg viewBox="0 0 24 24">'+ EOL
+cBody += '          <rect x="1" y="7" width="13" height="10" rx="1"></rect>'+ EOL
+cBody += '          <path d="M14 10h4l3 3v4h-7z"></path>'+ EOL
+cBody += '          <circle cx="6" cy="19" r="1.6"></circle>'+ EOL
+cBody += '          <circle cx="17" cy="19" r="1.6"></circle>'+ EOL
+cBody += '        </svg>'+ EOL
+cBody += '      </span>'+ EOL
+cBody += '      <span class="ss-texto">'+ EOL
+cBody += '        <p class="ss-item-titulo">Novo par&acirc;metro: considere o lead-time do fornecedor da MP<span class="ss-destaque-tag">Destaque</span></p>'+ EOL
+cBody += '        <p class="ss-item-desc">Um novo par&acirc;metro interno permite que a empresa decida se o <b>lead-time de entrega do fornecedor</b> deve ser somado &agrave; sugest&atilde;o de compra da mat&eacute;ria-prima, evitando ruptura durante o prazo de entrega. O sistema busca o prazo cadastrado no produto e, quando ausente, cai automaticamente para a m&eacute;dia do fornecedor ou para o hist&oacute;rico de compras. Na tela de rastreabilidade e na exporta&ccedil;&atilde;o dos dados, a <b>quantidade adicional gerada pelo lead-time</b> agora aparece separada da demanda vinda das estruturas, para voc&ecirc; saber exatamente de onde veio cada parte da sugest&atilde;o.</p>'+ EOL
+cBody += '      </span>'+ EOL
+cBody += '    </div>'+ EOL
+cBody += '    <div class="ss-item ss-item-2">'+ EOL
+cBody += '      <span class="ss-icone">'+ EOL
+cBody += '        <svg viewBox="0 0 24 24">'+ EOL
+cBody += '          <path d="M21 12a9 9 0 1 1-2.6-6.35"></path>'+ EOL
+cBody += '          <path d="M21 3v6h-6"></path>'+ EOL
+cBody += '        </svg>'+ EOL
+cBody += '      </span>'+ EOL
+cBody += '      <span class="ss-texto">'+ EOL
+cBody += '        <p class="ss-item-titulo">An&aacute;lise reversa sempre atualizada</p>'+ EOL
+cBody += '        <p class="ss-item-desc">O c&aacute;lculo da an&aacute;lise reversa passou a rodar tamb&eacute;m de forma autom&aacute;tica (job/agendamento), sem depender apenas do rec&aacute;lculo completo. O cabe&ccedil;alho da grade de produtos agora mostra a <b>data e hora do &uacute;ltimo c&aacute;lculo reverso</b>, para voc&ecirc; saber a que momento a sugest&atilde;o exibida se refere.</p>'+ EOL
+cBody += '      </span>'+ EOL
+cBody += '    </div>'+ EOL
+cBody += '    <div class="ss-item ss-item-3">'+ EOL
+cBody += '      <span class="ss-icone">'+ EOL
+cBody += '        <svg viewBox="0 0 24 24">'+ EOL
+cBody += '          <path d="M3 7l9-4 9 4-9 4-9-4z"></path>'+ EOL
+cBody += '          <path d="M3 7v10l9 4 9-4V7"></path>'+ EOL
+cBody += '          <path d="M12 11v10"></path>'+ EOL
+cBody += '        </svg>'+ EOL
+cBody += '      </span>'+ EOL
+cBody += '      <span class="ss-texto">'+ EOL
+cBody += '        <p class="ss-item-titulo">Tela de mat&eacute;rias-primas mais consistente</p>'+ EOL
+cBody += '        <p class="ss-item-desc">A tela de mat&eacute;rias-primas passou a usar a <b>mesma sugest&atilde;o</b> j&aacute; calculada pela grade principal, exibindo todos os componentes da estrutura mesmo sem fornecedor cadastrado ou sem a op&ccedil;&atilde;o de MRP habilitada.</p>'+ EOL
+cBody += '      </span>'+ EOL
+cBody += '    </div>'+ EOL
+cBody += '    <div class="ss-item ss-item-4">'+ EOL
+cBody += '      <span class="ss-icone">'+ EOL
+cBody += '        <svg viewBox="0 0 24 24">'+ EOL
+cBody += '          <path d="M4 4h11l5 5v11H4z"></path>'+ EOL
+cBody += '          <path d="M15 4v5h5"></path>'+ EOL
+cBody += '          <path d="M8 13h8M8 17h5"></path>'+ EOL
+cBody += '        </svg>'+ EOL
+cBody += '      </span>'+ EOL
+cBody += '      <span class="ss-texto">'+ EOL
+cBody += '        <p class="ss-item-titulo">Sequ&ecirc;ncia de C&aacute;lculo renovada</p>'+ EOL
+cBody += '        <p class="ss-item-desc">A tela de rastreabilidade da sugest&atilde;o ganhou mais espa&ccedil;o para exibir as descri&ccedil;&otilde;es, um novo bot&atilde;o para <b>exportar todos os dados do rastreio</b> (impress&atilde;o, PDF, Excel etc.) e n&atilde;o carrega mais produtos da estrutura sem cadastro no sistema.</p>'+ EOL
+cBody += '      </span>'+ EOL
+cBody += '    </div>'+ EOL
+cBody += '  </div>'+ EOL
+cBody += '</div>'+ EOL
+cBody += '</div>'+ EOL

@@ -3,6 +3,7 @@
 #include 'tbiconn.ch'
 
 #define CEOL        chr(13)+chr(10)
+#define DIAS_LT_HIS 365		// Janela de dias para o cálculo histórico do lead time (espelha DIAS_LT_FOR de GMPAICOM.prw)
 
 // Índices do vetor de snapshot por produto (montado em U_GMINDPRO e completado em loadMiss)
 #define SNAP_CONMED   01      // Consumo médio diário total (venda + consumo)
@@ -345,7 +346,11 @@ tipo/MRP/fornecedor da query principal. Para os produtos completados aqui a nece
 convencional é calculada com a mesma fórmula do perfil (U_JSCALNEC).
 Limitações da primeira versão (documentadas): não considera código anterior (B1_CODANT) e o
 ponto de entrada PEPNC08 não é aplicado nas queries de venda/consumo destes produtos; lead time
-utiliza apenas B1_PE (zero quando não cadastrado, com registro em log).
+prioriza B1_PE e, quando o parâmetro CONSLT estiver ativo e o produto não tiver B1_PE cadastrado,
+cai para o lead time médio do fornecedor vinculado (SA5/SA2.A2_X_LTIME) e, na ausência deste,
+para a média histórica do produto entre a digitação do pedido de compra e a emissão da nota de
+entrada nos últimos 365 dias (mesma régua de DIAS_LT_FOR/calcLt de GMPAICOM.prw); continua
+zerado (com registro em log) quando nenhuma das três fontes estiver disponível.
 @type function
 @version 20.0002
 @author Jean Carlos Pandolfo Saggin
@@ -360,6 +365,8 @@ static function loadMiss( aFalta, aCfgRev, aPerRev, oSnap, oPais )
 
     local oVenda   := HMNew()
     local oConsumo := HMNew()
+    local oLdTFor  := HMNew()
+    local oLdTHist := HMNew()
     local aChunks  := inChunks( aFalta )
     local aLocais  := {} as array
     local aPaisAux := {} as array
@@ -370,6 +377,8 @@ static function loadMiss( aFalta, aCfgRev, aPerRev, oSnap, oPais )
     local cPerfMis := "" as character
     local cSemLT   := "" as character
     local lPerca   := SB1->( FieldPos( 'B1_X_PERCA' ) ) > 0
+    local lTemLTF  := SA2->( FieldPos( 'A2_X_LTIME' ) ) > 0
+    local lConsidLT := aCfgRev[31] == 'S'	// Considera o lead time do fornecedor na previsão de demanda de compra da análise reversa (parâmetro CONSLT)
     local lTrfMis  := U_JSTRFFIL( cFilAnt )
     local nDiasMis := 0 as numeric
     local nConMed  := 0 as numeric
@@ -443,6 +452,64 @@ static function loadMiss( aFalta, aCfgRev, aPerRev, oSnap, oPais )
             ( cAlias )->( DbSkip() )
         end
         ( cAlias )->( DbCloseArea() )
+
+        // Lead time médio do fornecedor vinculado (fallback usado somente quando o parâmetro CONSLT
+        // estiver ativo e o produto não tiver B1_PE cadastrado - ver bloco de lead time mais abaixo)
+        if lConsidLT .and. lTemLTF
+            cQuery := "SELECT A5.A5_PRODUTO PROD, MIN(A2.A2_X_LTIME) LDTIME " + CEOL
+            cQuery += "FROM "+ RetSqlName( 'SA5' ) +" A5 " + CEOL
+            cQuery += "INNER JOIN "+ RetSqlName( 'SA2' ) +" A2 " + CEOL
+            cQuery += " ON A2.A2_FILIAL  = '"+ FWxFilial( 'SA2' ) +"' " + CEOL
+            cQuery += "AND A2.A2_COD     = A5.A5_FORNECE " + CEOL
+            cQuery += "AND A2.A2_LOJA    = A5.A5_LOJA " + CEOL
+            cQuery += "AND A2.A2_MSBLQL <> '1' " + CEOL				// Evita considerar fornecedores bloqueados
+            cQuery += "AND A2.D_E_L_E_T_ = ' ' " + CEOL
+            cQuery += "WHERE A5.A5_FILIAL   = '"+ FWxFilial( 'SA5' ) +"' " + CEOL
+            cQuery += "  AND A5.A5_PRODUTO IN ( "+ aChunks[nChunk] +" ) " + CEOL
+            cQuery += "  AND A2.A2_X_LTIME > 0 " + CEOL
+            cQuery += "  AND A5.D_E_L_E_T_ = ' ' " + CEOL
+            cQuery += "GROUP BY A5.A5_PRODUTO " + CEOL
+
+            cAlias := GetNextAlias()
+            DBUseArea( .T., 'TOPCONN', TcGenQry(,,cQuery), cAlias, .F., .T. )
+            while ! ( cAlias )->( EOF() )
+                HMSet( oLdTFor, ( cAlias )->PROD, ( cAlias )->LDTIME )
+                ( cAlias )->( DbSkip() )
+            end
+            ( cAlias )->( DbCloseArea() )
+
+            // Lead time médio histórico do produto (2º fallback, mesma lógica de calcLt/GMPAICOM.prw: prazo
+            // médio entre a digitação do pedido de compra e a emissão da nota de entrada, últimos 365 dias)
+            cQuery := "SELECT D1.D1_COD PROD, " + CEOL
+            if TCGetDB() == 'MSSQL'
+                cQuery += "   AVG(DATEDIFF(day,CONVERT(DATETIME,COALESCE(C7.C7_EMISSAO,D1.D1_DTDIGIT),112),CONVERT(DATETIME,D1.D1_DTDIGIT,112))) LDTIME " + CEOL
+            else
+                cQuery += "   AVG(TO_DATE(D1.D1_DTDIGIT,'YYYYMMDD') - TO_DATE(COALESCE(C7.C7_EMISSAO,D1.D1_DTDIGIT),'YYYYMMDD')) LDTIME " + CEOL
+            endif
+            cQuery += "FROM "+ RetSqlName( 'SD1' ) +" D1 " + CEOL
+            cQuery += "LEFT JOIN "+ RetSqlName( 'SC7' ) +" C7 " + CEOL
+            cQuery += " ON C7.C7_FILIAL  = D1.D1_FILIAL " + CEOL
+            cQuery += "AND C7.C7_NUM     = D1.D1_PEDIDO " + CEOL
+            cQuery += "AND C7.C7_ITEM    = D1.D1_ITEMPC " + CEOL
+            cQuery += "AND C7.D_E_L_E_T_ = ' ' " + CEOL
+            cQuery += "WHERE D1.D1_FILIAL  = '"+ FWxFilial( 'SD1' ) +"' " + CEOL
+            cQuery += "  AND D1.D1_COD IN ( "+ aChunks[nChunk] +" ) " + CEOL
+            cQuery += "  AND D1.D1_DTDIGIT >= '"+ DtoS( Date()-DIAS_LT_HIS ) +"' " + CEOL
+            cQuery += "  AND D1.D1_TES     <> '   ' " + CEOL
+            cQuery += "  AND D1.D1_TIPO    = 'N' " + CEOL
+            cQuery += "  AND D1.D_E_L_E_T_ = ' ' " + CEOL
+            cQuery += "GROUP BY D1.D1_COD " + CEOL
+
+            cAlias := GetNextAlias()
+            DBUseArea( .T., 'TOPCONN', TcGenQry(,,cQuery), cAlias, .F., .T. )
+            while ! ( cAlias )->( EOF() )
+                if ( cAlias )->LDTIME > 0
+                    HMSet( oLdTHist, ( cAlias )->PROD, Round( ( cAlias )->LDTIME, 0 ) )
+                endif
+                ( cAlias )->( DbSkip() )
+            end
+            ( cAlias )->( DbCloseArea() )
+        endif
 
     next nChunk
 
@@ -520,8 +587,16 @@ static function loadMiss( aFalta, aCfgRev, aPerRev, oSnap, oPais )
                 nPrjEst := 0
             endif
 
-            // Lead time: somente B1_PE nesta primeira versão (registra em log quando zerado)
+            // Lead time: prioriza B1_PE; quando ausente e o parâmetro CONSLT estiver ativo, cai para o lead
+            // time médio do fornecedor vinculado (A2_X_LTIME) e, na falta deste, para a média histórica do
+            // produto (pedidos x notas de entrada); registra em log quando nenhuma das fontes resolver
             nLdTime := ( cAlias )->B1_PE
+            if nLdTime <= 0 .and. lConsidLT
+                HMGet( oLdTFor, ( cAlias )->B1_COD, @nLdTime )
+                if nLdTime <= 0
+                    HMGet( oLdTHist, ( cAlias )->B1_COD, @nLdTime )
+                endif
+            endif
             if nLdTime <= 0
                 nLdTime := 0
                 if Empty( cSemLT )
@@ -686,10 +761,17 @@ estrutura) grava o resultado consolidado na PNC_RVCALC (sugestão reversa com par
 direta, abatimento de posição e ajustes de lote) e o trace da sequência de cálculo na PNC_RVTRC
 (árvore ascendente do componente até os produtos finais). Regrava integralmente a execução da
 filial: o trace guarda apenas a última execução e o resultado é regravado por filial + data.
-Quando o parâmetro CONSLT da filial estiver ativo, a parcela de venda direta do componente
-(DEMVND) passa a considerar também o lead time do fornecedor do próprio componente na janela
-de cobertura (além dos dias padrão de estoque já configurados), o que tende a aumentar a
-sugestão de compra (estoque de segurança implícito para o prazo de entrega); default 'Falso'.
+Quando o parâmetro CONSLT da filial estiver ativo, o lead time do fornecedor do próprio
+componente passa a ser considerado em duas frentes: (1) a parcela de venda direta (DEMVND)
+estende sua janela de cobertura pelo lead time, além dos dias padrão de estoque já configurados;
+(2) é calculada uma quantidade adicional (DEMLDT), proporcional ao lead time, com base na média
+diária prevista da demanda derivada das estruturas (DEMESTR - consolidado da necessidade de MP
+com base na necessidade de produção de todos os PAs que a utilizam). DEMESTR permanece com o
+valor bruto (sem a parcela de lead time) e DEMLDT é gravado separadamente, para que a tela de
+rastreabilidade e a exportação possam distinguir o que veio da estrutura do que veio do lead
+time; a soma de ambos compõe a sugestão final (NECREV). Em todos os casos o resultado tende a
+aumentar a sugestão de compra (estoque de segurança implícito para o prazo de entrega); default
+'Falso'.
 @type function
 @version 20.0002
 @author Jean Carlos Pandolfo Saggin
@@ -724,6 +806,7 @@ static function saveAll( aOrdem, oPais, oSnap, aCalc, aCfgRev, dCalc, cTabCal, c
     local nVenDia  := 0 as numeric
     local nConDia  := 0 as numeric
     local nDemEst  := 0 as numeric
+    local nDemLdt  := 0 as numeric
     local nDemVnd  := 0 as numeric
     local nDiasVnd := 0 as numeric
     local nEstDisp := 0 as numeric
@@ -764,9 +847,18 @@ static function saveAll( aOrdem, oPais, oSnap, aCalc, aCfgRev, dCalc, cTabCal, c
             loop        // Sem dados do produto: mantém fluxo convencional na tela (sem registro)
         endif
 
-        // Demanda derivada das estruturas + parcela de venda direta do próprio componente
+        // Demanda derivada das estruturas (bruta, baseada na média de venda dos PAs cuja MP é
+        // componente) + parcela adicional pelo lead time do fornecedor + parcela de venda direta
         nDemEst := 0
         HMGet( oBruta, cProd, @nDemEst )
+        nDemLdt := 0
+        if lConsidLT .and. aCfgRev[01] > 0 .and. aSnpAux[SNAP_LEADTIME] > 0
+            // Quantidade adicional sugerida em virtude do lead time do fornecedor, calculada à parte
+            // da demanda estrutural bruta (exibida separadamente na tela de rastreabilidade e na
+            // exportação): média diária prevista de consumo desta MP (nDemEst / dias padrão de
+            // projeção) x dias de lead time
+            nDemLdt := Round( ( nDemEst / aCfgRev[01] ) * aSnpAux[SNAP_LEADTIME], 2 )
+        endif
         nVenDia := Round( aSnpAux[SNAP_VENDA] / aSnpAux[SNAP_DIAS], 4 )
         nConDia := Round( aSnpAux[SNAP_CONSUMO] / aSnpAux[SNAP_DIAS], 4 )
         nDiasVnd := aCfgRev[01]
@@ -786,7 +878,7 @@ static function saveAll( aOrdem, oPais, oSnap, aCalc, aCfgRev, dCalc, cTabCal, c
         nPosAbt := nEstDisp + aSnpAux[SNAP_QTDCOMP] + aSnpAux[SNAP_QTDSOL]
 
         // Sugestão reversa final com ajustes de lote (mesma sequência do cálculo convencional)
-        nNecRev := Round( nDemEst + nDemVnd - nPosAbt, 0 )
+        nNecRev := Round( nDemEst + nDemLdt + nDemVnd - nPosAbt, 0 )
         if nNecRev < 0
             nNecRev := 0
         endif
@@ -803,6 +895,7 @@ static function saveAll( aOrdem, oPais, oSnap, aCalc, aCfgRev, dCalc, cTabCal, c
         ( cAliCal )->( FieldPut( FieldPos( 'ISCOMP' ), 'S' ) )
         ( cAliCal )->( FieldPut( FieldPos( 'NECREV' ), nNecRev ) )
         ( cAliCal )->( FieldPut( FieldPos( 'DEMESTR' ), Round( nDemEst, 2 ) ) )
+        ( cAliCal )->( FieldPut( FieldPos( 'DEMLDT' ), nDemLdt ) )
         ( cAliCal )->( FieldPut( FieldPos( 'DEMVND' ), Round( nDemVnd, 2 ) ) )
         ( cAliCal )->( FieldPut( FieldPos( 'VENDIA' ), nVenDia ) )
         ( cAliCal )->( FieldPut( FieldPos( 'CONDIA' ), nConDia ) )

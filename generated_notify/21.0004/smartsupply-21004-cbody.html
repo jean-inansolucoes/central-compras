@@ -1,0 +1,260 @@
+<div class="ss-rel">
+<style>
+  .ss-rel{margin-top:4px;}
+
+  /* painel principal da notificacao */
+  .ss-panel{
+    position:relative;
+    background:radial-gradient(420px 240px at 12% -10%, #441c7d 0%, rgba(68,28,125,0) 60%),
+               radial-gradient(360px 220px at 108% 115%, #6b31b0 0%, rgba(107,49,176,0) 55%),
+               linear-gradient(160deg, #2e105d 0%, #441c7d 100%);
+    border-radius:14px;
+    padding:16px 18px 12px;
+    color:#ffffff;
+    overflow:hidden;
+    box-shadow:0 10px 26px rgba(46,16,93,.35);
+  }
+
+  /* faixa de brilho no topo do painel */
+  .ss-panel:before{
+    content:"";
+    position:absolute;
+    top:0;left:0;right:0;
+    height:4px;
+    background:linear-gradient(90deg, #6b31b0 0%, #f41dab 50%, #cd1f92 100%);
+  }
+
+  /* brilho decorativo */
+  .ss-glow{
+    position:absolute;
+    width:190px;height:190px;
+    border-radius:50%;
+    background:#f41dab;
+    opacity:.22;
+    filter:blur(60px);
+    top:-70px;right:-50px;
+    pointer-events:none;
+  }
+
+  /* cabecalho: selo + marca */
+  .ss-topo{
+    display:flex;
+    align-items:center;
+    gap:12px;
+    margin-bottom:10px;
+    position:relative;
+  }
+  .ss-badge{
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    background:linear-gradient(90deg, #f41dab, #cd1f92);
+    color:#ffffff;
+    font-size:10px;
+    font-weight:600;
+    letter-spacing:.1em;
+    text-transform:uppercase;
+    padding:4px 12px;
+    border-radius:999px;
+    box-shadow:0 4px 12px rgba(244,29,171,.45);
+    white-space:nowrap;
+  }
+  .ss-ponto{
+    width:6px;height:6px;
+    border-radius:50%;
+    background:#ffffff;
+    animation:ss-pulsar 1.6s ease-in-out infinite;
+  }
+  @keyframes ss-pulsar{
+    0%,100%{opacity:1;transform:scale(1);}
+    50%{opacity:.45;transform:scale(.75);}
+  }
+  .ss-marca{
+    font-size:10px;
+    font-weight:700;
+    letter-spacing:.24em;
+    text-transform:uppercase;
+    color:#a57dd0;
+  }
+
+  /* introducao */
+  .ss-intro{
+    font-size:12.5px;
+    line-height:1.55;
+    color:#b6acc7;
+    margin:0 0 16px;
+    max-width:640px;
+  }
+  .ss-intro b{color:#a57dd0;font-weight:600;}
+
+  /* titulo interno */
+  .ss-titulo{
+    font-size:18px;
+    font-weight:800;
+    line-height:1.2;
+    margin-bottom:10px;
+    position:relative;
+  }
+  .ss-titulo .ss-destaque{
+    background:linear-gradient(90deg, #f41dab, #a57dd0);
+    -webkit-background-clip:text;
+    background-clip:text;
+    color:transparent;
+  }
+
+  /* grade de novidades: 1 coluna em telas estreitas, 2 colunas quando ha espaco */
+  .ss-grid{
+    display:grid;
+    grid-template-columns:1fr;
+    gap:10px;
+  }
+
+  /* linhas de novidade */
+  .ss-item{
+    display:flex;
+    align-items:flex-start;
+    gap:12px;
+    background:rgba(255,255,255,.07);
+    border:1px solid rgba(130,86,185,.5);
+    border-radius:11px;
+    padding:13px 14px;
+    position:relative;
+  }
+  .ss-icone{
+    flex:0 0 auto;
+    width:36px;height:36px;
+    border-radius:10px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    background:linear-gradient(135deg, #6b31b0 0%, #441c7d 100%);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.25), 0 4px 10px rgba(46,16,93,.5);
+    margin-top:1px;
+  }
+  .ss-item-2 .ss-icone,
+  .ss-item-4 .ss-icone{
+    background:linear-gradient(135deg, #cd1f92 0%, #6b31b0 100%);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.25), 0 4px 10px rgba(205,31,146,.4);
+  }
+  .ss-icone svg{
+    width:20px;height:20px;
+    stroke:#ffffff;fill:none;
+    stroke-width:2;stroke-linecap:round;stroke-linejoin:round;
+  }
+  .ss-texto{flex:1 1 auto;min-width:0;}
+  .ss-item-titulo{
+    font-size:13.5px;
+    font-weight:700;
+    color:#ffffff;
+    margin:0 0 4px;
+    line-height:1.25;
+  }
+  .ss-item-desc{
+    font-size:11.5px;
+    line-height:1.6;
+    color:#b6acc7;
+    margin:0;
+  }
+  .ss-item-desc b{color:#a57dd0;font-weight:600;}
+
+  /* selo de destaque no item principal */
+  .ss-destaque-tag{
+    display:inline-block;
+    font-size:9px;
+    font-weight:700;
+    letter-spacing:.06em;
+    text-transform:uppercase;
+    color:#ffffff;
+    background:linear-gradient(90deg, #f41dab, #cd1f92);
+    padding:2px 7px;
+    border-radius:5px;
+    margin-left:6px;
+    vertical-align:middle;
+  }
+
+  /* telas maiores: aumenta escala e usa 2 colunas, aproveitando o espaco de 90% da tela */
+  @media (min-width:720px){
+    .ss-panel{padding:24px 28px 20px;}
+    .ss-titulo{font-size:23px;}
+    .ss-intro{font-size:13.5px;}
+    .ss-item-titulo{font-size:15px;}
+    .ss-item-desc{font-size:12.5px;}
+    .ss-icone{width:42px;height:42px;}
+    .ss-icone svg{width:23px;height:23px;}
+  }
+  @media (min-width:980px){
+    .ss-grid{grid-template-columns:1fr 1fr;}
+    .ss-item-dest{grid-column:1 / -1;}
+  }
+</style>
+
+<div class="ss-panel">
+  <div class="ss-glow"></div>
+
+  <div class="ss-topo">
+    <span class="ss-badge"><span class="ss-ponto"></span>Nova vers&atilde;o 21.0004</span>
+    <span class="ss-marca">SmartSupply</span>
+  </div>
+
+  <div class="ss-titulo">An&aacute;lise reversa de mat&eacute;ria-prima <span class="ss-destaque">mais precisa e automatizada</span></div>
+  <p class="ss-intro">Desde a vers&atilde;o 20.0005, a an&aacute;lise reversa de estruturas evoluiu bastante: agora ela roda sozinha, pode considerar o lead-time de entrega do fornecedor da mat&eacute;ria-prima e a tela de rastreabilidade ficou mais clara e completa. Confira o que mudou:</p>
+
+  <div class="ss-grid">
+    <div class="ss-item ss-item-1 ss-item-dest">
+      <span class="ss-icone">
+        <svg viewBox="0 0 24 24">
+          <rect x="1" y="7" width="13" height="10" rx="1"></rect>
+          <path d="M14 10h4l3 3v4h-7z"></path>
+          <circle cx="6" cy="19" r="1.6"></circle>
+          <circle cx="17" cy="19" r="1.6"></circle>
+        </svg>
+      </span>
+      <span class="ss-texto">
+        <p class="ss-item-titulo">Novo par&acirc;metro: considere o lead-time do fornecedor da MP<span class="ss-destaque-tag">Destaque</span></p>
+        <p class="ss-item-desc">Um novo par&acirc;metro interno permite que a empresa decida se o <b>lead-time de entrega do fornecedor</b> deve ser somado &agrave; sugest&atilde;o de compra da mat&eacute;ria-prima, evitando ruptura durante o prazo de entrega. O sistema busca o prazo cadastrado no produto e, quando ausente, cai automaticamente para a m&eacute;dia do fornecedor ou para o hist&oacute;rico de compras. Na tela de rastreabilidade e na exporta&ccedil;&atilde;o dos dados, a <b>quantidade adicional gerada pelo lead-time</b> agora aparece separada da demanda vinda das estruturas, para voc&ecirc; saber exatamente de onde veio cada parte da sugest&atilde;o.</p>
+      </span>
+    </div>
+
+    <div class="ss-item ss-item-2">
+      <span class="ss-icone">
+        <svg viewBox="0 0 24 24">
+          <path d="M21 12a9 9 0 1 1-2.6-6.35"></path>
+          <path d="M21 3v6h-6"></path>
+        </svg>
+      </span>
+      <span class="ss-texto">
+        <p class="ss-item-titulo">An&aacute;lise reversa sempre atualizada</p>
+        <p class="ss-item-desc">O c&aacute;lculo da an&aacute;lise reversa passou a rodar tamb&eacute;m de forma autom&aacute;tica (job/agendamento), sem depender apenas do rec&aacute;lculo completo. O cabe&ccedil;alho da grade de produtos agora mostra a <b>data e hora do &uacute;ltimo c&aacute;lculo reverso</b>, para voc&ecirc; saber a que momento a sugest&atilde;o exibida se refere.</p>
+      </span>
+    </div>
+
+    <div class="ss-item ss-item-3">
+      <span class="ss-icone">
+        <svg viewBox="0 0 24 24">
+          <path d="M3 7l9-4 9 4-9 4-9-4z"></path>
+          <path d="M3 7v10l9 4 9-4V7"></path>
+          <path d="M12 11v10"></path>
+        </svg>
+      </span>
+      <span class="ss-texto">
+        <p class="ss-item-titulo">Tela de mat&eacute;rias-primas mais consistente</p>
+        <p class="ss-item-desc">A tela de mat&eacute;rias-primas passou a usar a <b>mesma sugest&atilde;o</b> j&aacute; calculada pela grade principal, exibindo todos os componentes da estrutura mesmo sem fornecedor cadastrado ou sem a op&ccedil;&atilde;o de MRP habilitada.</p>
+      </span>
+    </div>
+
+    <div class="ss-item ss-item-4">
+      <span class="ss-icone">
+        <svg viewBox="0 0 24 24">
+          <path d="M4 4h11l5 5v11H4z"></path>
+          <path d="M15 4v5h5"></path>
+          <path d="M8 13h8M8 17h5"></path>
+        </svg>
+      </span>
+      <span class="ss-texto">
+        <p class="ss-item-titulo">Sequ&ecirc;ncia de C&aacute;lculo renovada</p>
+        <p class="ss-item-desc">A tela de rastreabilidade da sugest&atilde;o ganhou mais espa&ccedil;o para exibir as descri&ccedil;&otilde;es, um novo bot&atilde;o para <b>exportar todos os dados do rastreio</b> (impress&atilde;o, PDF, Excel etc.) e n&atilde;o carrega mais produtos da estrutura sem cadastro no sistema.</p>
+      </span>
+    </div>
+  </div>
+</div>
+</div>

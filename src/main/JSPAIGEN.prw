@@ -217,6 +217,9 @@ user function JSDETVER()
     aAdd( aDetVer, { '20','0007','17/07/2026', 'Tornado função de análise reversa padrão para execução via JOB/Schedule' } )
     aAdd( aDetVer, { '20','0008','20/07/2026', 'Adição da data e hora atualizada referente ao cálculo reverso no cabeçalho da grid de produtos' } )
     aAdd( aDetVer, { '21','0001','20/07/2026', 'Novo parâmetro de cálculo para permitir à empresa definir se o lead-time deve ser considerado no cálculo reverso de matéria-prima' } )
+    aAdd( aDetVer, { '21','0002','22/07/2026', 'Melhorias visuais na exibição do roteiro de cálculo da sugestão' } )
+    aAdd( aDetVer, { '21','0003','22/07/2026', 'Melhorias pontuais no algoritmo de cálculo da sugestão de compra/produção e adição de exportação de dados do roteiro de cálculo para relatório' } )
+    aAdd( aDetVer, { '21','0004','22/07/2026', 'Ajuste para que a sequência de cálculo não carregue produtos de estrutura sem cadastro na SB1; aprimorado o fallback do lead-time do fornecedor (inclui média histórica) e separada a quantidade adicional por lead-time da demanda bruta das estruturas (novo campo DEMLDT), exibida individualmente na tela e na exportação' } )
 
 return aDetVer
 
