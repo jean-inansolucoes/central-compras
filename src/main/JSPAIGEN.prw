@@ -220,6 +220,7 @@ user function JSDETVER()
     aAdd( aDetVer, { '21','0002','22/07/2026', 'Melhorias visuais na exibição do roteiro de cálculo da sugestão' } )
     aAdd( aDetVer, { '21','0003','22/07/2026', 'Melhorias pontuais no algoritmo de cálculo da sugestão de compra/produção e adição de exportação de dados do roteiro de cálculo para relatório' } )
     aAdd( aDetVer, { '21','0004','22/07/2026', 'Ajuste para que a sequência de cálculo não carregue produtos de estrutura sem cadastro na SB1; aprimorado o fallback do lead-time do fornecedor (inclui média histórica) e separada a quantidade adicional por lead-time da demanda bruta das estruturas (novo campo DEMLDT), exibida individualmente na tela e na exportação' } )
+    aAdd( aDetVer, { '21','0005','24/07/2026', 'Correção de bug que fazia com que houvesse inconsistências na exibição dos dados do carrinho de compras por fornecedor' } )
 
 return aDetVer
 

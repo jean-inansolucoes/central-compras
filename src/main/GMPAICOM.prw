@@ -4116,7 +4116,7 @@ Static Function fMarkPro( aData, oBrw )
 					// Prepara vetores para carrinho de compra por produto e por filial
 					for nFil := 1 to len( _aFil )
 						cFilAnt := _aFil[nFil]
-						nProdFil := aScan( _aProdFil, {|x| x[nPosPrd] == aLinCar[carPos('C7_PRODUTO')] .and. x[len(x)] == AllTrim(_aFil[nFil]) } )
+						nProdFil := aScan( _aProdFil, {|x| x[nPosPrd] == aData[oBrw:nAt][nPosPrd] .and. x[len(x)] == AllTrim(_aFil[nFil]) } )
 						if nProdFil > 0 .and. _aProdFil[nProdFil][nPosNec] > 0
 							aLinFil     := aClone( aCarCom[nFound] )
 							aLinFil[carPos('QUANT')]  := _aProdFil[nProdFil][nPosNec]
