@@ -30,6 +30,7 @@ A janela (`FWDialogModal`) é auto-expansível: ocupa ~90% da resolução de tel
 5. **Não usar `h1`** no fragmento (o título azul vem do `cTitle` do AdvPL). Títulos internos são `div`/`p` com classe.
 6. **Sem `position:fixed`**, sem unidades de viewport (`vw/vh/vmin`), sem `overflow` no body, sem JavaScript. O fragmento se adapta à largura do card naturalmente.
 7. **Sem fontes externas**: herdar a fonte do wrapper (Segoe UI). Sem imagens externas; ícones sempre em SVG inline (stroke branco, `fill:none`, `stroke-width` ~2, cantos arredondados).
+8. **Nunca usar links `http(s)://` no fragmento**: o TWebEngine do wrapper é um Chromium embutido sem acesso à internet e, mesmo com `target="_blank"`, um `<a href>` não consegue abrir o navegador padrão do sistema operacional de dentro dele (confirmado na prática). Quando a notificação precisar de uma ação externa (ex.: contato via WhatsApp), ela deve ser implementada como um botão nativo do diálogo (`FWDialogModal:AddButtons`) que chama `ShellExecute()` no AdvPL — nunca como link dentro do HTML. No fragmento, no máximo sinalize a ação com uma dica visual (ex.: seta apontando para a barra de botões) apontando para esse botão.
 
 ## Padrão visual (identidade da marca)
 

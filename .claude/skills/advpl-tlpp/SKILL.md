@@ -29,11 +29,21 @@ Testes/Automaзгo Protheus/<Country>/
 ### Naming
 
 - **Mandatory Hungarian notation**: `c` (character), `n` (numeric), `l` (logical), `a` (array), `o` (object), `d` (date), `b` (codeblock), `x` (variant), `j` (json)
-- **AdvPL function names**: maximum 8 characters to comply with AdvPL identifier limits
+- **AdvPL identifier length limit (mandatory, see "AdvPL Identifier Length Limit" below)**: `function`/`static function`/`method`/variable names -> maximum 10 characters. `User Function` -> maximum 8 characters (the `U_` prefix added at call time brings it to 10).
 - **Source file names**: Module prefix (4 chars) + number (3 digits) Ч e.g.: `MATA010`, `FINA138`, `ATFA002`
 - **Table fields**: Table prefix (2-3 chars) + `_` + name Ч e.g.: `A1_COD`, `E1_FILIAL`
 - **Tables**: Alias (2-3 chars) Ч e.g.: `SA1` (customers), `SE1` (accounts receivable), `SD1` (purchase invoice items)
 - **Multilingual constants**: `STR0001` to `STR9999` defined in `.ch`
+
+### AdvPL Identifier Length Limit (Mandatory)
+
+AdvPL enforces a **hard 10-character limit** on identifiers compiled by RDMake: `function`/`static function`/`method` names, and `Local`/`Private`/`Static` variable names. This is a real compiler restriction, not a style preference Ч a name over the limit risks silent truncation/collision or a compile error, not just a lint warning.
+
+- **`User Function`** (called externally as `U_<name>`) has an effective limit of **8 characters** Ч the `U_` prefix is prepended at call-resolution time, and 8 + 2 = 10, the hard ceiling.
+- **`static function`**, **`Method`** (inside a class body and in its implementation), and **variable names** (`Local`/`Private`/`Static`) all have the full **10-character** ceiling (no prefix is added to these).
+- This applies to every identifier you introduce, including new classes' methods Ч do not assume a longer, more descriptive name is safe just because it reads better in isolation. **Count the characters before finalizing any new function/method/variable name**, the same way you validate API symbols (see "API Symbol Validation" in CLAUDE.md).
+- Prefer short Hungarian-style abbreviations over full descriptive words when the natural name would exceed the limit, e.g. `montaCfgPadrao` (14, over) -> `monCfgPad` (9); `avaliaFormula` (13, over) -> `avalForm` (8); `SetAlignSerieLabel` (18, over) -> `SetAlinLb` (9).
+- **Before renaming a symbol that already exists in the codebase** (not one you are newly introducing), check `git log`/`git blame` first Ч a long-standing production identifier that already exceeds 10/8 characters is very likely called from many places (including other client-specific folders in this multi-tenant repo) and renaming it is a separate, higher-risk task that needs explicit user approval; do not rename it opportunistically while fixing an unrelated new violation.
 
 ### Type System
 
@@ -230,7 +240,7 @@ return
 - **`Function` is forbidden**: Customizations **MUST NOT** use `Function` (public scope) Ч **ALWAYS** use `User Function` (prefix `U_`) or `Static Function` (file-private). The standard RPO reserves the `Function` scope for the product; customizations must use `User Function` for public routines and `Static Function` for file-internal helper functions.
 - **Entry Points Ч `U_` prefix forbidden in the function name**: When declaring an Entry Point, **NEVER** add the `U_` prefix to the function name in the source code. The declared name must match **exactly** the EP name defined by the standard routine (e.g., `User Function MT410INC()`, **never** `User Function U_MT410INC()`). The compiler resolves the `U_` prefix automatically at runtime via `ExistBlock()`; declaring it with `U_` prevents the EP from being located by the standard routine.
 - **Entry Points Ч file name must match the EP name (mandatory)**: Every file implementing an Entry Point **MUST** have a file name equal to the Entry Point name, in uppercase, with the appropriate extension (`.prw` for AdvPL, `.tlpp` for TLPP). Examples: `MT410INC.tlpp`, `FA080BUT.tlpp`, `A010TOK.prw`. **DO NOT** use namespaces or prefixes/suffixes in the file name (e.g., no `custom.sigafat.pedidovenda.mt410inc.tlpp`).
-- **File encoding**: All AdvPL/TLPP source files (`.prw`,`.PRW`,`.prg`, `.prx`, `.tlpp`, `.ch`, `.aph`) **MUST** use **CP-1252 (Windows-1252)** encoding Ч **NEVER** UTF-8 or any other encoding. The RDMake/AppServer compiler expects Windows-1252; accented and special characters will be corrupted in UTF-8
+- **File encoding**: All AdvPL/TLPP source files (`.prw`,`.PRW`,`.prg`, `.prx`, `.tlpp`, `.ch`, `.aph`) **MUST** use **CP-1252 (Windows-1252)** encoding Ч **NEVER** UTF-8 or any other encoding. The RDMake/AppServer compiler expects Windows-1252; accented and special characters will be corrupted in UTF-8. **See "CP-1252 Encoding Enforcement" below for the mandatory verification/recovery workflow Ч the standard Edit/Write tools are known to silently corrupt these files.**
 - **Object destruction**: ALWAYS use the class's `Destroy()` method to destroy the instantiated object and free memory, whenever this method is available in the class. **NEVER** use `FwFreeObj()`, `FreeObj()`, or `FwFreeArray()` as a substitute when the class provides `Destroy()`. The `Destroy()` method ensures correct release of the object's internal resources, whereas generic functions may not perform a complete cleanup
 - **`IIF` is forbidden**: Never use `IIF()` or `IF()` inline expressions Ч always use explicit `If/Else/EndIf` blocks for readability and testability (SonarQube CA4000)
 - **No UI inside transactions**: Never call `MsgAlert()`, `MsgYesNo()`, `MsgInfo()`, `Aviso()`, `Help()`, `Pergunte()`, or `ParamBox()` inside `Begin Transaction / End Transaction` blocks Ч UI calls block multi-user scenarios and can deadlock (SonarQube CA1002)
@@ -238,6 +248,31 @@ return
 - **No console output**: Never use `ConOut()`, `OutErr()`, or `?` for logging Ч always use `FWLogMsg()` (SonarQube CA1004)
 - **`cFilial` is forbidden**: Never use the variable `cFilial` directly Ч it is a reserved system variable. Use variations like `cFilAux`, `cFilBkp`, `cFilSA1`, etc., or obtain the branch value via `xFilial('XXX')` or `FWxFilial('XXX')`
 - **REST API consumption MUST use `FWRest`**: All code that **consumes** external REST APIs (HTTP client) **MUST** use the framework class `FWRest`. **NEVER** use legacy functions `HTTPCGet()`, `HTTPCPost()`, or `HTTPQuote()` for new code Ч these are only acceptable for workstation-side calls that require WebAgent, or when PATCH is needed (FWRest does not support PATCH). The `FWRest` client provides SSL encapsulation, standardized header handling, timeout control (`SetTimeOut`), HTTP code inspection (`GetHTTPCode`), and 2xx-range success detection (`SetLegacySuccess(.F.)`). Secrets MUST be read from `GetMV()` parameters Ч never hardcoded. See the `fwrest-client-generator` skill for templates and authentication patterns (Basic, Bearer/JWT, OAuth 2.0). Note: `FWRest` is the **client** (consumer). For **exposing** endpoints from Protheus, use the annotation-based REST framework (`@Get`, `@Post`, `@Put`, `@Patch`, `@Delete`) Ч see the `tlpp-rest-endpoint-generator` skill
+
+### CP-1252 Encoding Enforcement (Critical Tooling Gotcha)
+
+Stating "must be CP-1252" is not enough by itself: the standard `Edit`/`Write` tools (and this environment's own file-change notifications) treat file content as UTF-8 by default. On a CP-1252 file with accented characters (`з`, `г`, `х`, `й`, etc.), this silently replaces every non-ASCII byte with the Unicode replacement character (U+FFFD, `ef bf bd`) on save Ч and it is **not limited to the edited lines**: the whole file gets re-saved, so previously-untouched regions (old comments, unrelated strings) get corrupted too, and the damage is cumulative across successive edits in the same session. This is a real, repeatedly-observed failure mode in this project, not a hypothetical.
+
+**Mandatory workflow whenever you `Edit` or `Write` any `.prw`/`.prg`/`.prx`/`.tlpp`/`.ch`/`.aph` file:**
+
+1. **After every edit, verify immediately** with Python (not a shell pipe, not the `Read` tool, not a file-changed notification preview Ч all three can show stale or UTF-8-rendered previews that are not the real on-disk bytes):
+   ```python
+   data = open(path, 'rb').read()
+   try:
+       text = data.decode('utf-8')
+       fffd = text.count(chr(0xFFFD))   # > 0 means corruption already happened
+   except UnicodeDecodeError:
+       pass  # good sign: file is not valid UTF-8, likely still proper cp1252
+   ```
+   If `fffd == 0` and the file is not valid UTF-8, it is fine as-is (accented bytes are correct CP-1252). If it decodes as UTF-8 with any `U+FFFD`, the file is corrupted and needs reconstruction Ч do this before making any further edit to that file.
+2. **Reconstruct from the last known-good baseline** (`git show HEAD:<path>` for a tracked file, or a local checkpoint copy you made earlier in the session for a file already modified beyond HEAD) using a line-level diff that treats *all* non-ASCII characters (both correct accents and `U+FFFD`) as equal for alignment purposes, e.g. via Python `difflib.SequenceMatcher` on a version of each line with every `ord(ch) > 127` char mapped to one placeholder byte. For `equal` blocks, emit the clean baseline line (restores the original accents byte-for-byte); for `replace`/`insert` blocks, emit the current (edited) line (that is your real change).
+3. **Hand-fix the residue**: after step 2, grep the reconstructed text for any remaining `U+FFFD` Ч these are your *own* newly-typed accented text that also got corrupted (nothing to recover from HEAD, since it never existed there). Retype the correct word from context (you wrote it, you know what it should say).
+4. **Watch for a rarer, more serious side-effect of the same reconstruction**: when the edited region contains a line that is textually identical to a line elsewhere near the diff boundary, `difflib` can duplicate or drop blocks (e.g. a repeated `printData(...)` call, or an entire loop body, getting copy-pasted twice with a dangling extra `endif`/`enddo`). Always re-read the reconstructed function(s) end-to-end afterward and sanity-check control-flow balance (`if`/`endif`, `for`/`next`, `while`/`enddo` counts) before trusting the result Ч don't rely on the U+FFFD count alone.
+5. **Encode back to CP-1252 and write directly**, bypassing `Edit`/`Write` for this final corrective step (they are the source of the corruption): `open(path, 'wb').write(text.encode('cp1252'))`. Preserve each file's existing line-ending convention (`\n` vs `\r\n`) Ч this repo has **mixed** conventions (e.g. `GMPAICOM.prw` is LF-only while most others are CRLF), so detect per file rather than assuming.
+6. **For a brand-new file with no git history**, there is no baseline to recover from. Either write the whole file's comments/strings in plain ASCII (zero corruption risk, but loses proper Portuguese diacritics Ч disclose this trade-off explicitly if you choose it), or accept the risk and manually fix any `U+FFFD` spots afterward the same way (step 3), since you know what you originally typed.
+7. **Take a local checkpoint copy of files you've already fixed once**, before further edits to them in the same session (e.g. into the scratchpad directory). Diffing against your own recent checkpoint instead of the original `git HEAD` keeps the "residue to hand-fix" list small (just the newest edit) instead of re-surfacing every accented line ever touched that session.
+
+---
 
 ### MVC Pattern
 
