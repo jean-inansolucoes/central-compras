@@ -1,0 +1,618 @@
+MANIFESTO DE ATUALIZAÇÃO
+
+Data : 04/08/2026
+Hora : 17:54:20
+Arquivo de atualização diferencial baseado em projeto gerado pelo Configurador
+Projeto : 000028
+Descrição : SMART SUPPLY - 12.1.2510                          
+Versão : 0002
+Release de referência : 12.1.2510 
+Responsável pelo Projeto: 000000 - Administrador
+Geração do Pacote: 000000 - Administrador
+-----------------------------
+Componentes do arquivo de atualização :
+
+------------
+SIX
+
+Operação:Inclusão ou Alteração
+Tabela : ZBH
+Ordem : 1
+
+Operação:Inclusão ou Alteração
+Tabela : ZBJ
+Ordem : 1
+
+Operação:Inclusão ou Alteração
+Tabela : ZBJ
+Ordem : 2
+
+Operação:Inclusão ou Alteração
+Tabela : ZBK
+Ordem : 1
+
+Operação:Inclusão ou Alteração
+Tabela : ZBK
+Ordem : 2
+
+Operação:Inclusão ou Alteração
+Tabela : ZBK
+Ordem : 3
+
+Operação:Inclusão ou Alteração
+Tabela : ZBL
+Ordem : 1
+
+Operação:Inclusão ou Alteração
+Tabela : ZBL
+Ordem : 2
+
+Operação:Inclusão ou Alteração
+Tabela : ZBM
+Ordem : 1
+
+
+------------
+SX2
+
+Operação:Inclusão ou Alteração
+Tabela : ZBH
+
+Operação:Inclusão ou Alteração
+Tabela : ZBJ
+
+Operação:Inclusão ou Alteração
+Tabela : ZBK
+
+Operação:Inclusão ou Alteração
+Tabela : ZBL
+
+Operação:Inclusão ou Alteração
+Tabela : ZBM
+
+
+------------
+SX6
+
+Operação:Inclusão ou Alteração
+Filial :   
+Parâmetro : MV_X_PNC01
+
+Operação:Inclusão ou Alteração
+Filial :   
+Parâmetro : MV_X_PNC02
+
+Operação:Inclusão ou Alteração
+Filial :   
+Parâmetro : MV_X_PNC04
+
+Operação:Inclusão ou Alteração
+Filial :   
+Parâmetro : MV_X_PNC05
+
+Operação:Inclusão ou Alteração
+Filial :   
+Parâmetro : MV_X_PNC06
+
+Operação:Inclusão ou Alteração
+Filial :   
+Parâmetro : MV_X_PNC07
+
+Operação:Inclusão ou Alteração
+Filial :   
+Parâmetro : MV_X_PNC08
+
+Operação:Inclusão ou Alteração
+Filial :   
+Parâmetro : MV_X_PNC09
+
+Operação:Inclusão ou Alteração
+Filial :   
+Parâmetro : MV_X_PNC10
+
+Operação:Inclusão ou Alteração
+Filial :   
+Parâmetro : MV_X_PNC11
+
+Operação:Inclusão ou Alteração
+Filial :   
+Parâmetro : MV_X_PNC12
+
+Operação:Inclusão ou Alteração
+Filial :   
+Parâmetro : MV_X_PNC13
+
+Operação:Inclusão ou Alteração
+Filial :   
+Parâmetro : MV_X_PNC14
+
+Operação:Inclusão ou Alteração
+Filial :   
+Parâmetro : MV_X_PNC15
+
+Operação:Inclusão ou Alteração
+Filial :   
+Parâmetro : MV_X_PNC16
+
+Operação:Inclusão ou Alteração
+Filial :   
+Parâmetro : MV_X_PNC17
+
+Operação:Inclusão ou Alteração
+Filial :   
+Parâmetro : MV_X_PNC18
+
+
+------------
+SXB
+
+Operação:Inclusão ou Alteração
+Consulta : SA2   
+Tipo : 1
+Sequência : 01
+Coluna : DB
+
+Operação:Inclusão ou Alteração
+Consulta : SA2   
+Tipo : 2
+Sequência : 01
+Coluna : 01
+
+Operação:Inclusão ou Alteração
+Consulta : SA2   
+Tipo : 2
+Sequência : 02
+Coluna : 02
+
+Operação:Inclusão ou Alteração
+Consulta : SA2   
+Tipo : 2
+Sequência : 03
+Coluna : 03
+
+Operação:Inclusão ou Alteração
+Consulta : SA2   
+Tipo : 3
+Sequência : 01
+Coluna : 01
+
+Operação:Inclusão ou Alteração
+Consulta : SA2   
+Tipo : 4
+Sequência : 01
+Coluna : 01
+
+Operação:Inclusão ou Alteração
+Consulta : SA2   
+Tipo : 4
+Sequência : 01
+Coluna : 02
+
+Operação:Inclusão ou Alteração
+Consulta : SA2   
+Tipo : 4
+Sequência : 01
+Coluna : 03
+
+Operação:Inclusão ou Alteração
+Consulta : SA2   
+Tipo : 4
+Sequência : 01
+Coluna : 04
+
+Operação:Inclusão ou Alteração
+Consulta : SA2   
+Tipo : 4
+Sequência : 01
+Coluna : 05
+
+Operação:Inclusão ou Alteração
+Consulta : SA2   
+Tipo : 4
+Sequência : 01
+Coluna : 06
+
+Operação:Inclusão ou Alteração
+Consulta : SA2   
+Tipo : 4
+Sequência : 02
+Coluna : 01
+
+Operação:Inclusão ou Alteração
+Consulta : SA2   
+Tipo : 4
+Sequência : 02
+Coluna : 02
+
+Operação:Inclusão ou Alteração
+Consulta : SA2   
+Tipo : 4
+Sequência : 02
+Coluna : 03
+
+Operação:Inclusão ou Alteração
+Consulta : SA2   
+Tipo : 4
+Sequência : 02
+Coluna : 04
+
+Operação:Inclusão ou Alteração
+Consulta : SA2   
+Tipo : 4
+Sequência : 02
+Coluna : 05
+
+Operação:Inclusão ou Alteração
+Consulta : SA2   
+Tipo : 4
+Sequência : 02
+Coluna : 06
+
+Operação:Inclusão ou Alteração
+Consulta : SA2   
+Tipo : 4
+Sequência : 03
+Coluna : 01
+
+Operação:Inclusão ou Alteração
+Consulta : SA2   
+Tipo : 4
+Sequência : 03
+Coluna : 02
+
+Operação:Inclusão ou Alteração
+Consulta : SA2   
+Tipo : 4
+Sequência : 03
+Coluna : 03
+
+Operação:Inclusão ou Alteração
+Consulta : SA2   
+Tipo : 4
+Sequência : 03
+Coluna : 04
+
+Operação:Inclusão ou Alteração
+Consulta : SA2   
+Tipo : 4
+Sequência : 03
+Coluna : 05
+
+Operação:Inclusão ou Alteração
+Consulta : SA2   
+Tipo : 5
+Sequência : 01
+Coluna :   
+
+Operação:Inclusão ou Alteração
+Consulta : SA2   
+Tipo : 5
+Sequência : 02
+Coluna :   
+
+Operação:Inclusão ou Alteração
+Consulta : SA2PAN
+Tipo : 1
+Sequência : 01
+Coluna : DB
+
+Operação:Inclusão ou Alteração
+Consulta : SA2PAN
+Tipo : 2
+Sequência : 01
+Coluna : 01
+
+Operação:Inclusão ou Alteração
+Consulta : SA2PAN
+Tipo : 2
+Sequência : 02
+Coluna : 02
+
+Operação:Inclusão ou Alteração
+Consulta : SA2PAN
+Tipo : 2
+Sequência : 03
+Coluna : 03
+
+Operação:Inclusão ou Alteração
+Consulta : SA2PAN
+Tipo : 3
+Sequência : 01
+Coluna : 01
+
+Operação:Inclusão ou Alteração
+Consulta : SA2PAN
+Tipo : 4
+Sequência : 01
+Coluna : 01
+
+Operação:Inclusão ou Alteração
+Consulta : SA2PAN
+Tipo : 4
+Sequência : 01
+Coluna : 02
+
+Operação:Inclusão ou Alteração
+Consulta : SA2PAN
+Tipo : 4
+Sequência : 01
+Coluna : 03
+
+Operação:Inclusão ou Alteração
+Consulta : SA2PAN
+Tipo : 4
+Sequência : 01
+Coluna : 04
+
+Operação:Inclusão ou Alteração
+Consulta : SA2PAN
+Tipo : 4
+Sequência : 01
+Coluna : 05
+
+Operação:Inclusão ou Alteração
+Consulta : SA2PAN
+Tipo : 4
+Sequência : 02
+Coluna : 01
+
+Operação:Inclusão ou Alteração
+Consulta : SA2PAN
+Tipo : 4
+Sequência : 02
+Coluna : 02
+
+Operação:Inclusão ou Alteração
+Consulta : SA2PAN
+Tipo : 4
+Sequência : 02
+Coluna : 03
+
+Operação:Inclusão ou Alteração
+Consulta : SA2PAN
+Tipo : 4
+Sequência : 02
+Coluna : 04
+
+Operação:Inclusão ou Alteração
+Consulta : SA2PAN
+Tipo : 4
+Sequência : 02
+Coluna : 05
+
+Operação:Inclusão ou Alteração
+Consulta : SA2PAN
+Tipo : 4
+Sequência : 03
+Coluna : 01
+
+Operação:Inclusão ou Alteração
+Consulta : SA2PAN
+Tipo : 4
+Sequência : 03
+Coluna : 02
+
+Operação:Inclusão ou Alteração
+Consulta : SA2PAN
+Tipo : 4
+Sequência : 03
+Coluna : 03
+
+Operação:Inclusão ou Alteração
+Consulta : SA2PAN
+Tipo : 4
+Sequência : 03
+Coluna : 04
+
+Operação:Inclusão ou Alteração
+Consulta : SA2PAN
+Tipo : 4
+Sequência : 03
+Coluna : 05
+
+Operação:Inclusão ou Alteração
+Consulta : SA2PAN
+Tipo : 4
+Sequência : 03
+Coluna : 06
+
+Operação:Inclusão ou Alteração
+Consulta : SA2PAN
+Tipo : 5
+Sequência : 01
+Coluna :   
+
+
+------------
+SXA
+
+Operação:Inclusão ou Alteração
+Tabela : SA2
+Ordem : 9
+Agrupamento :    
+
+Operação:Inclusão ou Alteração
+Tabela : SB1
+Ordem : A
+Agrupamento :    
+
+Operação:Inclusão ou Alteração
+Tabela : SBZ
+Ordem : 4
+Agrupamento :    
+
+
+------------
+SX3
+
+Operação:Inclusão ou Alteração
+Campo : A2_X_LTIME
+
+Operação:Inclusão ou Alteração
+Campo : B1_X_DTINC
+
+Operação:Inclusão ou Alteração
+Campo : B1_X_PERCA
+
+Operação:Inclusão ou Alteração
+Campo : B1_X_PA   
+
+Operação:Inclusão ou Alteração
+Campo : B1_X_LUCRO
+
+Operação:Inclusão ou Alteração
+Campo : BZ_X_LUCRO
+
+Operação:Inclusão ou Alteração
+Campo : C7_VALFRE 
+
+Operação:Inclusão ou Alteração
+Campo : C7_TRANSP 
+
+Operação:Inclusão ou Alteração
+Campo : C7_TRANSLJ
+
+Operação:Inclusão ou Alteração
+Campo : C7_FRETCON
+
+Operação:Inclusão ou Alteração
+Campo : C7_X_TRANS
+
+Operação:Inclusão ou Alteração
+Campo : F1_X_FPRC 
+
+Operação:Inclusão ou Alteração
+Campo : ZBH_FILIAL
+
+Operação:Inclusão ou Alteração
+Campo : ZBH_PROD  
+
+Operação:Inclusão ou Alteração
+Campo : ZBH_DTLIM 
+
+Operação:Inclusão ou Alteração
+Campo : ZBH_COMPL 
+
+Operação:Inclusão ou Alteração
+Campo : ZBH_DESCO 
+
+Operação:Inclusão ou Alteração
+Campo : ZBH_DATA  
+
+Operação:Inclusão ou Alteração
+Campo : ZBH_ULTTEN
+
+Operação:Inclusão ou Alteração
+Campo : ZBJ_FILIAL
+
+Operação:Inclusão ou Alteração
+Campo : ZBJ_ID    
+
+Operação:Inclusão ou Alteração
+Campo : ZBJ_DESC  
+
+Operação:Inclusão ou Alteração
+Campo : ZBJ_ICO   
+
+Operação:Inclusão ou Alteração
+Campo : ZBJ_MSBLQL
+
+Operação:Inclusão ou Alteração
+Campo : ZBK_FILIAL
+
+Operação:Inclusão ou Alteração
+Campo : ZBK_ID    
+
+Operação:Inclusão ou Alteração
+Campo : ZBK_DESC  
+
+Operação:Inclusão ou Alteração
+Campo : ZBK_TAG   
+
+Operação:Inclusão ou Alteração
+Campo : ZBK_EMAIL 
+
+Operação:Inclusão ou Alteração
+Campo : ZBK_MSBLQL
+
+Operação:Inclusão ou Alteração
+Campo : ZBK_FORMUL
+
+Operação:Inclusão ou Alteração
+Campo : ZBL_FILIAL
+
+Operação:Inclusão ou Alteração
+Campo : ZBL_ID    
+
+Operação:Inclusão ou Alteração
+Campo : ZBL_DATA  
+
+Operação:Inclusão ou Alteração
+Campo : ZBL_TAG   
+
+Operação:Inclusão ou Alteração
+Campo : ZBL_ALERT 
+
+Operação:Inclusão ou Alteração
+Campo : ZBL_EMAIL 
+
+Operação:Inclusão ou Alteração
+Campo : ZBL_HORA  
+
+Operação:Inclusão ou Alteração
+Campo : ZBM_FILIAL
+
+Operação:Inclusão ou Alteração
+Campo : ZBM_ID    
+
+Operação:Inclusão ou Alteração
+Campo : ZBM_DESC  
+
+Operação:Inclusão ou Alteração
+Campo : ZBM_FORMUL
+
+Operação:Inclusão ou Alteração
+Campo : ZBM_MSBLQL
+
+
+------------
+Helps (hlppack*.txt)
+
+Chave : A2_X_LTIME
+Chave : B1_X_DTINC
+Chave : B1_X_PERCA
+Chave : B1_X_PA   
+Chave : B1_X_LUCRO
+Chave : BZ_X_LUCRO
+Chave : C7_VALFRE 
+Chave : C7_TRANSP 
+Chave : C7_TRANSLJ
+Chave : C7_FRETCON
+Chave : C7_X_TRANS
+Chave : F1_X_FPRC 
+Chave : ZBH_PROD  
+Chave : ZBH_DTLIM 
+Chave : ZBH_COMPL 
+Chave : ZBH_DESCO 
+Chave : ZBH_DATA  
+Chave : ZBH_ULTTEN
+Chave : ZBJ_ID    
+Chave : ZBJ_DESC  
+Chave : ZBJ_ICO   
+Chave : ZBJ_MSBLQL
+Chave : ZBK_ID    
+Chave : ZBK_DESC  
+Chave : ZBK_TAG   
+Chave : ZBK_EMAIL 
+Chave : ZBK_MSBLQL
+Chave : ZBK_FORMUL
+Chave : ZBL_ID    
+Chave : ZBL_DATA  
+Chave : ZBL_TAG   
+Chave : ZBL_ALERT 
+Chave : ZBL_EMAIL 
+Chave : ZBL_HORA  
+Chave : ZBM_ID    
+Chave : ZBM_DESC  
+Chave : ZBM_FORMUL
+Chave : ZBM_MSBLQL

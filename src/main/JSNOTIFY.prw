@@ -269,6 +269,7 @@ Static Function showWizard( aRows, nCompany, cUser, cCurVer )
     aAdd( aButtons, { , "Ver anterior",     {|| btnPrev() },  "Volta para a notificação anterior (atualiza a leitura)", , .T., .T. } )
     aAdd( aButtons, { , "Ver depois",       {|| btnLater() }, "Registra a leitura e avança mantendo a notificação visível", , .T., .T. } )
     aAdd( aButtons, { , "Marcar como lido", {|| btnRead() },  "Marca como lida e não exibe novamente", , .T., .T. } )
+    aAdd( aButtons, { , "WhatsApp",         {|| btnWhats() }, "Abre uma conversa no WhatsApp para tirar dúvidas sobre o SmartSupply", , .T., .T. } )
 
     oDlg := FWDialogModal():New()
     oDlg:SetEscClose( .F. )
@@ -349,7 +350,7 @@ Static Function buildHtml( cTitle, cBody )
     cHtml += 'img{max-width:100%;height:auto;}'+ EOL
     cHtml += '</style></head><body><div class="wrap">'+ EOL
     cHtml += '<div class="badge">Notificacao '+ cPos +'</div>'+ EOL
-    cHtml += '<div class="card"><h1>'+ cTitle +'</h1>'+ DecodeUTF8( cBody ) +'</div>'+ EOL
+    cHtml += '<div class="card"><h1>'+ DecodeUTF8( cTitle ) +'</h1>'+ DecodeUTF8( cBody ) +'</div>'+ EOL
     cHtml += '</div></body></html>'+ EOL
 
 Return cHtml
@@ -453,6 +454,18 @@ Static Function btnRead()
     goNext()
 
 Return nil
+
+/*/{Protheus.doc} btnWhats
+Ação "WhatsApp": abre, no navegador padrão do sistema operacional da estação (Windows,
+macOS ou Linux), uma conversa com o suporte via WhatsApp. O TWebEngine que renderiza a
+notificação é um Chromium embutido sem acesso à internet, por isso a abertura é feita por
+fora dele, via ShellExecute na estação do SmartClient.
+@type function
+@author Jean Carlos Pandolfo Saggin
+@since 07/08/2026
+/*/
+Static Function btnWhats()
+Return ShellExecute( "open", "https://wa.me/5545999815097", "", "", 1 )
 
 /*/{Protheus.doc} askPwd
 Solicita a senha do mantenedor e valida contra a constante hardcoded.

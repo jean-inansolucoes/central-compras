@@ -42,13 +42,15 @@ user function JSGETSTR( cTable )
         aAdd( aStruct, { "MAILWF" , "C", 100, 0 } )
         aAdd( aStruct, { "EMSATU" , "C", 1, 0 } )
         aAdd( aStruct, { "DHIST"  , "N", 3, 0 } )
-        aAdd( aStruct, { "LOCPAD" , "C", TAMSX3('NNR_CODIGO')[1], 0 } )
+        aAdd( aStruct, { "LOCPAD" , "C", TAMSX3('B2_LOCAL')[1], 0 } )
         aAdd( aStruct, { "TPDOC"  , "C", 1, 0 } )
         aAdd( aStruct, { "MDPED"  , "C", 1, 0 } )
         aAdd( aStruct, { "CMT"    , "C", 1, 0 } )
         aAdd( aStruct, { "TRFFIL" , "C", 1, 0 } )
         aAdd( aStruct, { "ANAREV" , "C", 1, 0 } )
         aAdd( aStruct, { "CONSLT" , "C", 1, 0 } )		// Considera o lead time do fornecedor na previsão de demanda de compra da análise reversa (default 'Falso')
+        aAdd( aStruct, { "ULTORI" , "C", 1, 0 } )		// Origem do último preço: 1=Última Nota de Entrada (default) ou 2=Último Pedido de Compra
+        aAdd( aStruct, { "MODNEC" , "C", 1, 0 } )		// Modo de cálculo multi-filial: 1=Individual por Filial (default) ou 2=Pool/Consolidado
 
     // Resultado da análise reversa de estruturas por produto (consumido pela grid principal)
     elseif cTable == "PNC_RVCALC_"+ cEmpAnt
@@ -84,6 +86,32 @@ user function JSGETSTR( cTable )
         aAdd( aStruct, { "NECLIQ" , "N", 14, 2 } )
         aAdd( aStruct, { "CONTRIB", "N", 14, 2 } )
         aAdd( aStruct, { "TIPO"   , "C", 1, 0 } )
+
+    // Snapshot diário de índices por produto (materializado por U_GMINDPRO, consumido pelo Painel de Compras)
+    elseif cTable == "PNC_PROD_"+ cEmpAnt
+
+        aAdd( aStruct, { "FILIAL" , "C", len( cFilAnt ), 0 } )
+        aAdd( aStruct, { "PROD"   , "C", TAMSX3('B1_COD')[1], 0 } )
+        aAdd( aStruct, { "DTREF"  , "D", 8, 0 } )
+        aAdd( aStruct, { "SALDO"  , "N", 12, 2 } )
+        aAdd( aStruct, { "CONMED" , "N", 14, 4 } )
+        aAdd( aStruct, { "NECCOM" , "N", 12, 2 } )
+        aAdd( aStruct, { "QTDCOM" , "N", 12, 2 } )
+        aAdd( aStruct, { "QTDEMP" , "N", 12, 2 } )
+        aAdd( aStruct, { "PRJEST" , "N", 3, 0 } )
+        aAdd( aStruct, { "LDTIME" , "N", 3, 0 } )
+        aAdd( aStruct, { "TMPGIR" , "N", 3, 0 } )
+        aAdd( aStruct, { "TPDIAS" , "C", 1, 0 } )
+        aAdd( aStruct, { "INDINC" , "N", 10, 6 } )
+        aAdd( aStruct, { "PRVENT" , "D", 8, 0 } )
+        aAdd( aStruct, { "CM03M"  , "N", 14, 4 } )		// Média de consumo dos últimos 3 meses
+        aAdd( aStruct, { "CM06M"  , "N", 14, 4 } )		// Média de consumo dos últimos 6 meses
+        aAdd( aStruct, { "CM12M"  , "N", 14, 4 } )		// Média de consumo dos últimos 12 meses
+        aAdd( aStruct, { "CMANT"  , "N", 14, 4 } )		// Média de consumo do mês anterior
+        aAdd( aStruct, { "AVISO"  , "C", 1, 0 } )
+        aAdd( aStruct, { "MSG"    , "C", 250, 0 } )
+        aAdd( aStruct, { "JUSTIF" , "C", 3, 0 } )
+        aAdd( aStruct, { "COMPL"  , "M", 10, 0 } )
 
     endif
 
@@ -200,6 +228,8 @@ user function JSTBLIDX( cTable )
         aAdd( aIndex, { "PNC_RVCALC_"+ cEmpAnt+'_01', 'FILIAL+PROD+DTCALC', {|| 'FILIAL+PROD+DTCALC' } } )
     elseif cTable == "PNC_RVTRC_"+ cEmpAnt
         aAdd( aIndex, { "PNC_RVTRC_"+ cEmpAnt+'_01', 'FILIAL+MP+DTCALC+SEQ', {|| 'FILIAL+MP+DTCALC+SEQ' } } )
+    elseif cTable == "PNC_PROD_"+ cEmpAnt
+        aAdd( aIndex, { "PNC_PROD_"+ cEmpAnt+'_01', 'FILIAL+PROD+DTOS(DTREF)', {|| 'FILIAL+PROD+DTOS(DTREF)' } } )
     endif
 return aIndex
 

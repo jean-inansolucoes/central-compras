@@ -1,0 +1,286 @@
+<div class="ss-rel">
+<style>
+  .ss-rel{margin-top:4px;}
+
+  /* painel principal da notificacao */
+  .ss-panel{
+    position:relative;
+    background:radial-gradient(420px 240px at 12% -10%, #441c7d 0%, rgba(68,28,125,0) 60%),
+               radial-gradient(360px 220px at 108% 115%, #6b31b0 0%, rgba(107,49,176,0) 55%),
+               linear-gradient(160deg, #2e105d 0%, #441c7d 100%);
+    border-radius:14px;
+    padding:16px 18px 12px;
+    color:#ffffff;
+    overflow:hidden;
+    box-shadow:0 10px 26px rgba(46,16,93,.35);
+  }
+
+  /* faixa de brilho no topo do painel */
+  .ss-panel:before{
+    content:"";
+    position:absolute;
+    top:0;left:0;right:0;
+    height:4px;
+    background:linear-gradient(90deg, #6b31b0 0%, #f41dab 50%, #cd1f92 100%);
+  }
+
+  /* brilho decorativo */
+  .ss-glow{
+    position:absolute;
+    width:190px;height:190px;
+    border-radius:50%;
+    background:#f41dab;
+    opacity:.22;
+    filter:blur(60px);
+    top:-70px;right:-50px;
+    pointer-events:none;
+  }
+
+  /* cabecalho: selo + marca */
+  .ss-topo{
+    display:flex;
+    align-items:center;
+    gap:12px;
+    margin-bottom:10px;
+    position:relative;
+  }
+  .ss-badge{
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    background:linear-gradient(90deg, #f41dab, #cd1f92);
+    color:#ffffff;
+    font-size:10px;
+    font-weight:600;
+    letter-spacing:.1em;
+    text-transform:uppercase;
+    padding:4px 12px;
+    border-radius:999px;
+    box-shadow:0 4px 12px rgba(244,29,171,.45);
+    white-space:nowrap;
+  }
+  .ss-ponto{
+    width:6px;height:6px;
+    border-radius:50%;
+    background:#ffffff;
+    animation:ss-pulsar 1.6s ease-in-out infinite;
+  }
+  @keyframes ss-pulsar{
+    0%,100%{opacity:1;transform:scale(1);}
+    50%{opacity:.45;transform:scale(.75);}
+  }
+  .ss-marca{
+    font-size:10px;
+    font-weight:700;
+    letter-spacing:.24em;
+    text-transform:uppercase;
+    color:#a57dd0;
+  }
+
+  /* introducao */
+  .ss-intro{
+    font-size:12.5px;
+    line-height:1.55;
+    color:#b6acc7;
+    margin:0 0 16px;
+    max-width:640px;
+  }
+  .ss-intro b{color:#a57dd0;font-weight:600;}
+
+  /* titulo interno */
+  .ss-titulo{
+    font-size:18px;
+    font-weight:800;
+    line-height:1.2;
+    margin-bottom:10px;
+    position:relative;
+  }
+  .ss-titulo .ss-destaque{
+    background:linear-gradient(90deg, #f41dab, #a57dd0);
+    -webkit-background-clip:text;
+    background-clip:text;
+    color:transparent;
+  }
+
+  /* grade de novidades: 1 coluna em telas estreitas, 2 colunas quando ha espaco */
+  .ss-grid{
+    display:grid;
+    grid-template-columns:1fr;
+    gap:10px;
+  }
+
+  /* linhas de novidade */
+  .ss-item{
+    display:flex;
+    align-items:flex-start;
+    gap:12px;
+    background:rgba(255,255,255,.07);
+    border:1px solid rgba(130,86,185,.5);
+    border-radius:11px;
+    padding:13px 14px;
+    position:relative;
+  }
+  .ss-icone{
+    flex:0 0 auto;
+    width:36px;height:36px;
+    border-radius:10px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    background:linear-gradient(135deg, #6b31b0 0%, #441c7d 100%);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.25), 0 4px 10px rgba(46,16,93,.5);
+    margin-top:1px;
+  }
+  .ss-item-2 .ss-icone,
+  .ss-item-4 .ss-icone{
+    background:linear-gradient(135deg, #cd1f92 0%, #6b31b0 100%);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.25), 0 4px 10px rgba(205,31,146,.4);
+  }
+  .ss-icone svg{
+    width:20px;height:20px;
+    stroke:#ffffff;fill:none;
+    stroke-width:2;stroke-linecap:round;stroke-linejoin:round;
+  }
+  .ss-texto{flex:1 1 auto;min-width:0;}
+  .ss-item-titulo{
+    font-size:13.5px;
+    font-weight:700;
+    color:#ffffff;
+    margin:0 0 4px;
+    line-height:1.25;
+  }
+  .ss-item-desc{
+    font-size:11.5px;
+    line-height:1.6;
+    color:#b6acc7;
+    margin:0;
+  }
+  .ss-item-desc b{color:#a57dd0;font-weight:600;}
+
+  /* selo de destaque no item principal */
+  .ss-destaque-tag{
+    display:inline-block;
+    font-size:9px;
+    font-weight:700;
+    letter-spacing:.06em;
+    text-transform:uppercase;
+    color:#ffffff;
+    background:linear-gradient(90deg, #f41dab, #cd1f92);
+    padding:2px 7px;
+    border-radius:5px;
+    margin-left:6px;
+    vertical-align:middle;
+  }
+
+  /* dica apontando para o botao nativo "WhatsApp" do dialogo, fora do html renderizado */
+  .ss-ajuda{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:2px;
+    margin-top:14px;
+  }
+  .ss-seta{
+    width:30px;height:30px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    animation:ss-descer 1.3s ease-in-out infinite;
+  }
+  .ss-seta svg{
+    width:100%;height:100%;
+    stroke:#f41dab;fill:none;
+    stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round;
+  }
+  @keyframes ss-descer{
+    0%,100%{transform:translateY(0);}
+    50%{transform:translateY(7px);}
+  }
+  .ss-ajuda-txt{
+    font-size:12px;
+    font-weight:600;
+    color:#b6acc7;
+    text-align:center;
+    margin:2px 0 0;
+  }
+  .ss-ajuda-txt b{color:#f41dab;font-weight:700;}
+
+  /* telas maiores: aumenta escala e usa 2 colunas, aproveitando o espaco de 90% da tela */
+  @media (min-width:720px){
+    .ss-panel{padding:24px 28px 20px;}
+    .ss-titulo{font-size:23px;}
+    .ss-intro{font-size:13.5px;}
+    .ss-item-titulo{font-size:15px;}
+    .ss-item-desc{font-size:12.5px;}
+    .ss-icone{width:42px;height:42px;}
+    .ss-icone svg{width:23px;height:23px;}
+    .ss-ajuda-txt{font-size:13px;}
+  }
+  @media (min-width:980px){
+    .ss-grid{grid-template-columns:1fr 1fr;}
+    .ss-item-dest{grid-column:1 / -1;}
+  }
+</style>
+<div class="ss-panel">
+  <div class="ss-glow"></div>
+
+  <div class="ss-topo">
+    <span class="ss-badge"><span class="ss-ponto"></span>Nova vers&atilde;o 23.0001</span>
+    <span class="ss-marca">SmartSupply</span>
+  </div>
+
+  <div class="ss-titulo">Personalize o <span class="ss-destaque">layout do pedido de compra em PDF</span></div>
+  <p class="ss-intro">Agora &eacute; poss&iacute;vel configurar como o PDF do pedido de compra &eacute; impresso, sem alterar nenhum c&oacute;digo-fonte:</p>
+
+  <div class="ss-grid">
+    <div class="ss-item ss-item-1 ss-item-dest">
+      <span class="ss-icone">
+        <svg viewBox="0 0 24 24">
+          <path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h13"></path>
+          <circle cx="15" cy="6" r="2"></circle>
+          <circle cx="7" cy="12" r="2"></circle>
+          <circle cx="17" cy="18" r="2"></circle>
+        </svg>
+      </span>
+      <span class="ss-texto">
+        <p class="ss-item-titulo">Nova tela de configura&ccedil;&atilde;o de layout<span class="ss-destaque-tag">Destaque</span></p>
+        <p class="ss-item-desc">Escolha quais campos aparecem no cabe&ccedil;alho e nos itens do pedido, em que ordem, largura e alinhamento &mdash; inclusive campos vindos de f&oacute;rmulas j&aacute; cadastradas no Configurador.</p>
+      </span>
+    </div>
+    <div class="ss-item ss-item-2">
+      <span class="ss-icone">
+        <svg viewBox="0 0 24 24">
+          <path d="M6 2h9l3 3v17H6z"></path>
+          <path d="M9 13l2 2 4-4"></path>
+        </svg>
+      </span>
+      <span class="ss-texto">
+        <p class="ss-item-titulo">O relat&oacute;rio aplica sua configura&ccedil;&atilde;o automaticamente</p>
+        <p class="ss-item-desc">Ao gerar o PDF do pedido, o relat&oacute;rio passa a usar o layout configurado; sem nenhuma configura&ccedil;&atilde;o feita, o comportamento continua exatamente o mesmo de hoje.</p>
+      </span>
+    </div>
+    <div class="ss-item ss-item-3">
+      <span class="ss-icone">
+        <svg viewBox="0 0 24 24">
+          <rect x="3" y="3" width="18" height="18" rx="2"></rect>
+          <path d="M8 12h8M12 8l4 4-4 4"></path>
+        </svg>
+      </span>
+      <span class="ss-texto">
+        <p class="ss-item-titulo">Acesso r&aacute;pido em dois lugares</p>
+        <p class="ss-item-desc">Um novo bot&atilde;o <b>Configurar Layout do Relat&oacute;rio</b> foi adicionado tanto na barra principal do painel quanto na tela de Par&acirc;metros Internos (quando o Modelo do Pedido &eacute; Customizado).</p>
+      </span>
+    </div>
+  </div>
+
+  <div class="ss-ajuda">
+  <span class="ss-seta">
+    <svg viewBox="0 0 24 24">
+      <path d="M12 4v14"></path>
+      <path d="M5 12l7 7 7-7"></path>
+    </svg>
+  </span>
+  <p class="ss-ajuda-txt">Clique no bot&atilde;o <b>WhatsApp</b> para mais informa&ccedil;&otilde;es...</p>
+</div>
+</div>
+</div>

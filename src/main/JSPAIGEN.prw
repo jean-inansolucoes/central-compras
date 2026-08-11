@@ -221,6 +221,7 @@ user function JSDETVER()
     aAdd( aDetVer, { '21','0003','22/07/2026', 'Melhorias pontuais no algoritmo de cálculo da sugestão de compra/produção e adição de exportação de dados do roteiro de cálculo para relatório' } )
     aAdd( aDetVer, { '21','0004','22/07/2026', 'Ajuste para que a sequência de cálculo não carregue produtos de estrutura sem cadastro na SB1; aprimorado o fallback do lead-time do fornecedor (inclui média histórica) e separada a quantidade adicional por lead-time da demanda bruta das estruturas (novo campo DEMLDT), exibida individualmente na tela e na exportação' } )
     aAdd( aDetVer, { '21','0005','24/07/2026', 'Correção de bug que fazia com que houvesse inconsistências na exibição dos dados do carrinho de compras por fornecedor' } )
+    aAdd( aDetVer, { '23','0001','04/08/2026', 'Novos recursos para o motor de cálculo de sugestão de compra multi-filial' } )
 
 return aDetVer
 
@@ -243,8 +244,8 @@ user function JSCOLSIZ( aHeader, oPrefs )
     Private aAtual   := aClone( aHeader )
     Private oCampos  as object
     
-    // Adiciona coluna editável para usuário poder personalizar 
-    aEval( aAtual, {|x| aAdd( x, U_JSDEFSIZ( x[17], oPrefs )[1] ) } )
+    // Adiciona backup do título original (para detectar alteração em JSPREFSV) e coluna editável de tamanho
+    aEval( aAtual, {|x| aAdd( x, x[01] ), aAdd( x, U_JSDEFSIZ( x[17], oPrefs )[1] ) } )
 
     aAdd( aColumns, FWBrwColumn():New() )
 	aColumns[len(aColumns)]:SetTitle( 'Campo' )
@@ -259,6 +260,8 @@ user function JSCOLSIZ( aHeader, oPrefs )
 	aColumns[len(aColumns)]:SetType( 'C' )
 	aColumns[len(aColumns)]:SetPicture( '@x' )
 	aColumns[len(aColumns)]:SetData( {|| aAtual[oCampos:nAt][01] } )
+    aColumns[len(aColumns)]:SetEdit(.T.)
+    aColumns[len(aColumns)]:SetReadVar( 'aAtual[oCampos:nAt][01]' )
 
     aAdd( aColumns, FWBrwColumn():New() )
 	aColumns[len(aColumns)]:SetTitle( 'Tamanho' )
@@ -353,6 +356,24 @@ user function JSDEFSIZ( cField, oPrefs )
 
 return { nSize, nDecimal, lCanChange }
 
+/*/{Protheus.doc} JSDEFTIT
+Função para definição do título de exibição de um campo da grid de produtos, permitindo que o
+usuário substitua o título padrão por um mais curto (personalização gravada nas preferências)
+@type function
+@version 12.1.2510
+@author Visualize - Software e Inovação
+@since 08/06/2026
+@param cField, character, ID do campo
+@param cTitulo, character, título padrão do campo
+@param oPrefs, object, objeto contendo preferências do usuário
+@return character, cTitulo
+/*/
+user function JSDEFTIT( cField, cTitulo, oPrefs )
+    local cRet := cTitulo as character
+    if ValType( oPrefs ) == 'J' .and. oPrefs:hasProperty( cField +"_TIT" )
+        cRet := oPrefs[ cField +"_TIT" ]
+    endif
+return cRet
 
 /*/{Protheus.doc} JSSUPSM0
 Função para obter as filiais da empresa que o usuário estiver conectado
@@ -638,7 +659,7 @@ user function JSQRYINF( aConf, aFilters, cPedSol, aCustom, aMPs )
     Local cTmp     := ""
 	Local aTmp     := {}
     local cQuery   := "" as character
-    local cZB3     := AllTrim( SuperGetMv( 'MV_X_PNC02' ,,"" ) ) // Alias da tabela de índices de produtos
+    local cZB3     := "PNC_PROD_"+ cEmpAnt // Nome fixo da tabela de índices por produto (fora do dicionário)
     local nX       := 0  as numeric
     local cLocais  := "" as character
     local cTypes   := "" as character
@@ -784,11 +805,11 @@ user function JSQRYINF( aConf, aFilters, cPedSol, aCustom, aMPs )
             if len( aMPs ) > 0
                 cQuery += "CASE "+ CEOL
                 aEval( aMPs, {|x| cQuery += "WHEN B1.B1_COD = '"+ x[1] +"' THEN "+ cValToChar( x[2] ) +" "+ CEOL } )
-                cQuery += "END "+ cZB3 +"_CONMED, " + CEOL
+                cQuery += "END "+ "CONMED, " + CEOL
             else
-                cQuery += "COALESCE( "+ cZB3 +"_CONMED,0.0001) "+ cZB3 +"_CONMED, " + CEOL
+                cQuery += "COALESCE( "+ "CONMED,0.0001) "+ "CONMED, " + CEOL
             endif
-            cQuery += "COALESCE( "+ cZB3 +"_INDINC,0) "+ cZB3 +"_INDINC " + CEOL
+            cQuery += "COALESCE( "+ "INDINC,0) "+ "INDINC " + CEOL
 
             // Campos da análise reversa de estruturas (constantes quando desabilitada, para manter as colunas do UNION ALL)
             if lRevFil
@@ -860,10 +881,10 @@ user function JSQRYINF( aConf, aFilters, cPedSol, aCustom, aMPs )
 
         // Quando a demanda vier da rotina de recálculo de índices, desconsidera os índices existentes
         if ! isInCallStack( 'U_GMINDPRO' )
-            cQuery += "LEFT JOIN "+ RetSqlName( cZB3 ) +" "+ cZB3 +" " + CEOL
-            cQuery += " ON "+ cZB3 +"."+ cZB3 +"_FILIAL = '"+ FWxFilial( cZB3 ) +"' " + CEOL
-            cQuery += "AND "+ cZB3 +"."+ cZB3 +"_PROD   = B1.B1_COD " + CEOL
-            cQuery += "AND "+ cZB3 +"."+ cZB3 +"_DATA   = '"+ DtoS( dDtCalc ) +"' " + CEOL
+            cQuery += "LEFT JOIN "+ cZB3 +" "+ cZB3 +" " + CEOL
+            cQuery += " ON "+ cZB3 +".FILIAL = '"+ cFilAnt +"' " + CEOL
+            cQuery += "AND "+ cZB3 +".PROD   = B1.B1_COD " + CEOL
+            cQuery += "AND "+ cZB3 +".DTREF   = '"+ DtoS( dDtCalc ) +"' " + CEOL
             cQuery += "AND "+ cZB3 +".D_E_L_E_T_ = ' ' " + CEOL
         endif
 
@@ -1258,13 +1279,31 @@ Indica se a filial informada deve considerar as movimentações de transferência p
 @param cFilTRF, character, ID da filial a ser consultada (default cFilAnt)
 @return logical, lConsidera
 /*/
-user function JSTRFFIL( cFilTRF )
+user function JSTRFFIL( cFilTRF, lLimpaCache )
 
     local lConsidera := .F. as logical
     local cAlias     := "" as character
     local cTable     := "PNC_CONFIG_"+ cEmpAnt
+    local nPos       := 0 as numeric
 
-    default cFilTRF := cFilAnt
+    // Cache por filial, válido durante toda a vida da thread: esta função é chamada repetidas
+    // vezes por produto dentro de rotinas em loop (JSQRYSAI/getMedia/getMesAnt, acionadas por
+    // U_GMINDPRO), e reabrir PNC_CONFIG_ a cada chamada nesse volume esgota os recursos da sessão,
+    // causando falha silenciosa de DBUseArea ("Alias does not exist") mais adiante no lote.
+    // Zerado via U_JSTRFFIL(, .T.) sempre que a configuração é regravada (ver saveCfg em JSMANPAR.prw)
+    Static aCacheTRF := {}
+
+    default cFilTRF     := cFilAnt
+    default lLimpaCache := .F.
+
+    if lLimpaCache
+        aCacheTRF := {}
+    endif
+
+    nPos := aScan( aCacheTRF, {|x| x[1] == cFilTRF } )
+    if nPos > 0
+        return aCacheTRF[nPos][2]
+    endif
 
     if TCCanOpen( cTable )
         cAlias := GetNextAlias()
@@ -1275,6 +1314,8 @@ user function JSTRFFIL( cFilTRF )
         endif
         ( cAlias )->( DBCloseArea() )
     endif
+
+    aAdd( aCacheTRF, { cFilTRF, lConsidera } )
 
 return lConsidera
 
@@ -1621,6 +1662,17 @@ user function JSGETCFG( lAuto )
 				aAdd( aConfig, 'N' )		// S=Sim ou N=Não
 			endif
 
+			if ( cAlias )->( FieldPos( 'ULTORI' ) ) > 0 .and. ! Empty( &( cPref + 'ULTORI' ) )
+				aAdd( aConfig, &( cPref + 'ULTORI' ) )		// [32] - Origem do último preço: 1=Última Nota de Entrada ou 2=Último Pedido de Compra
+			else
+				aAdd( aConfig, '1' )		// 1=Última Nota de Entrada (default) ou 2=Último Pedido de Compra
+			endif
+			if ( cAlias )->( FieldPos( 'MODNEC' ) ) > 0 .and. ! Empty( &( cPref + 'MODNEC' ) )
+				aAdd( aConfig, &( cPref + 'MODNEC' ) )		// [33] - Modo de cálculo multi-filial: 1=Individual por Filial ou 2=Pool/Consolidado
+			else
+				aAdd( aConfig, '1' )		// 1=Individual por Filial (default) ou 2=Pool/Consolidado
+			endif
+
 			// Encerra o handle da PNC_CONFIG antes de retornar, evitando vazamento de área de trabalho
 			( cAlias )->( DBCloseArea() )
 
@@ -1637,11 +1689,16 @@ user function JSGETCFG( lAuto )
 				aEval( aStruct, {|x| aAdd( aAcho, x[1] ) } )
 				
 				cCadastro := "Painel de Compras - Parâmetros"
+
+				// Encerra o handle exclusivo desta área ANTES de abrir o JSMANPAR: o saveCfg (JSMANPAR.prw)
+				// também precisa abrir esta mesma tabela em modo exclusivo para gravar, e mantê-la aberta
+				// aqui bloqueia esse DBUseArea sem gerar erro de SQL (TcSQLError fica vazio) - só se
+				// manifesta quando ainda não existe registro para a filial (cliente novo)
+				( cAlias )->( DBCloseArea() )
+
 				if U_JSMANPAR(/* nOpc - 3-Incluir, 4-Alterar */)
-					( cAlias )->( DBCloseArea() )
-					aConfig := U_JSGETCFG( lAuto )
 					RestArea( aArea )
-					return aConfig
+					return U_JSGETCFG( lAuto )
 				EndIf
 			EndIf
 		endif
@@ -1649,7 +1706,10 @@ user function JSGETCFG( lAuto )
 
 	// Ambiente migrado (PNC_CONFIG disponível) sem configuração criada e sem interação do usuário
 	// (chamada automática ou assistente cancelado): não consulta o dicionário legado
-	( cAlias )->( DBCloseArea() )
+	// (Select > 0 evita fechar duas vezes quando o fluxo acima já encerrou a área antes do JSMANPAR)
+	if Select( cAlias ) > 0
+		( cAlias )->( DBCloseArea() )
+	endif
 	RestArea( aArea )
 	return {}
 	else
@@ -1771,6 +1831,17 @@ user function JSGETCFG( lAuto )
             aAdd( aConfig, 'N' )		// S=Sim ou N=Não
         endif
 
+        if ( cAliCfg )->( FieldPos( cAliCfg + '_ULTORI' ) ) > 0 .and. ! Empty( &( cPref + 'ULTORI' ) )
+            aAdd( aConfig, &( cPref + 'ULTORI' ) )		// [32] - Origem do último preço: 1=Última Nota de Entrada ou 2=Último Pedido de Compra
+        else
+            aAdd( aConfig, '1' )		// 1=Última Nota de Entrada (default) ou 2=Último Pedido de Compra
+        endif
+        if ( cAliCfg )->( FieldPos( cAliCfg + '_MODNEC' ) ) > 0 .and. ! Empty( &( cPref + 'MODNEC' ) )
+            aAdd( aConfig, &( cPref + 'MODNEC' ) )		// [33] - Modo de cálculo multi-filial: 1=Individual por Filial ou 2=Pool/Consolidado
+        else
+            aAdd( aConfig, '1' )		// 1=Individual por Filial (default) ou 2=Pool/Consolidado
+        endif
+
 		// Ajusta quantidade de dias de análise de giro conforme quantidade de tempo em que a unidade iniciou suas operações
 		// Exemplo: de nada adianta informar 180 dias de análise de giro, se a unidade tem apenas 30 dias de operação
 		aConfig[14] := checkIniOper( aConfig[14], aConfig[15] )
@@ -1886,14 +1957,15 @@ user function JSMAINFD()
     local aAlter := {"NECCOMP",;
                     "QTDBLOQ",;
                     "PRCNEGOC",;
-                    "B1_LM",; 
-                    "B1_QE",; 
-                    "B1_LE",; 
-                    "A5_FORNECE",; 
-                    "B1_UM",; 
-                    "LEADTIME",; 
-                    "B1_DESC",; 
-                    "B1_EMIN"; 
+                    "B1_LM",;
+                    "B1_QE",;
+                    "B1_LE",;
+                    "A5_FORNECE",;
+                    "B1_UM",;
+                    "LEADTIME",;
+                    "B1_DESC",;
+                    "B1_EMIN",;
+                    "PRCVEN";
                     }
 
 return { aFields, aAlter }
@@ -2023,7 +2095,7 @@ user function JSPATHSV( nOption )
 	
 	local cFullPath := "" as character
 	
-	default nOption := 1	// 1-Carrinho ou 2-Preferências do usuário
+	default nOption := 1	// 1-Carrinho ou 2-Preferências do usuário ou 3-Layout do relatório do pedido de compra
 
 	if !ExistDir( '/gmpaicom/' )
 		MakeDir( '/gmpaicom' )
@@ -2038,6 +2110,8 @@ user function JSPATHSV( nOption )
 		cFullPath := '/gmpaicom/'+ cEmpAnt +'_'+ cFilAnt +'_'+ RetCodUsr() +'.json'
 	elseif nOption == 2		// Preferências do usuário
 		cFullPath := '/gmpaicom/'+ RetCodUsr() +'_pref.json'
+	elseif nOption == 3		// Layout configurável do relatório de pedido de compra (único por ambiente)
+		cFullPath := '/gmpaicom/jsrlpdco.conf'
 	endif
 return cFullPath
 
@@ -2070,8 +2144,14 @@ user function JSPREFSV( aAtual, oPrefs )
                 // Verifica posição do campo por meio do ID e guarda a posição do campo no vetor
                 nPos := aScan( aAtual, {|x| AllTrim(x[17]) == AllTrim(oCol:GetID()) } )
                 if nPos > 0 .and. ! aAtual[nPos][len(aAtual[nPos])] == U_JSDEFSIZ( oCol:GetId(), oPrefs )[1]
-                    oPrefs[oCol:GetID()] := aAtual[nPos][len(aAtual[nPos])]                                   
+                    oPrefs[oCol:GetID()] := aAtual[nPos][len(aAtual[nPos])]
                     oCol:SetSize( aAtual[nPos][len(aAtual[nPos])] * SIZE_FIELD )
+                    lSuccess := .T.
+                endif
+                // Verifica se o título da coluna foi alterado em relação ao original (backup gravado em len(x)-1)
+                if nPos > 0 .and. ! AllTrim( aAtual[nPos][01] ) == AllTrim( aAtual[nPos][ len(aAtual[nPos])-1 ] )
+                    oPrefs[oCol:GetID()+"_TIT"] := aAtual[nPos][01]
+                    oCol:SetTitle( aAtual[nPos][01] )
                     lSuccess := .T.
                 endif
             else

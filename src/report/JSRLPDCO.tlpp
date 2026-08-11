@@ -88,6 +88,8 @@ static function printPDF()
 	Private nLine       := 0 as numeric
 	Private nValTotSC7  := 0
 	Private cNumPed     := SC7->C7_NUM
+	Private oCfgRel     := Nil
+	Private lHasCfgRel  := .F. as logical
 
 	default lEnd := .F.
 
@@ -142,62 +144,79 @@ static function printPDF()
 	oPDF:cPathPDF := cPathEst
 	oPDF:SetParm( "-RFS" )
 
+	// Layout configurável do relatório (item 6 da análise do Painel de Compras): se existir o arquivo de
+	// configuração, o cabeçalho e os itens são montados dinamicamente; caso contrário, mantém o
+	// comportamento hardcoded original abaixo, sem nenhuma alteração de risco para quem não configurou nada.
+	if File( U_JSPATHSV(3) )
+		oCfgRel := loadCfgRel()
+	endif
+	lHasCfgRel := ValType( oCfgRel ) == 'J'
+
 	// Gera cabeçalho do relatório
 	printData( /* xData */, 'cabecalho' /* cType */, oPDF, Nil /* lEndPage */ )
-	printData( { {{ "DADOS DO FORNECEDOR", 100 }}, {} }, 'quadro_itens' /* cType */, oPDF, Nil /* lEndPage */, .T. /* lBold */ )
 
-	aCab := {}
-	aCab := { { 'Label 1', 10 },;
-		{ 'Data 1', 12 },;
-		{ 'Label 2', 12 },;
-		{ 'Data 2', 40 },;
-		{ 'Label 3', 6 },;
-		{ 'Data 3', 20 } }
+	if lHasCfgRel
 
-	aLine := {}
-	aData := {}
-	DBSelectArea( 'SA2' )
-	SA2->( DBSetOrder( 1 ) )    // FILIAL + COD + LOJA
-	SA2->( DBSeek( FWxFilial( 'SA2' ) + SC7->C7_FORNECE + SC7->C7_LOJA ) )
-	aLine := { 'Fornecedor', AllTrim( SC7->C7_FORNECE ) +'/'+ AllTrim( SC7->C7_LOJA ),;
-		'Razão Social', AllTrim( SA2->A2_NOME ) +'/'+ Alltrim( SA2->A2_NREDUZ ),;
-		'CGC/CPF', AllTrim( Transform( SA2->A2_CGC, iif( SA2->A2_TIPO=='F', "@R 999.999.999-99", "@R 99.999.999/9999-99" ) ) ) }
-	aAdd( aData, aClone( aLine ) )
-	printData( { aCab, aData }, 'quadro_cab', oPDF, Nil )
+		prnCabCfg( oCfgRel, oPDF )
 
-	printData( { {{ "PEDIDO", 100 }}, {} }, 'quadro_itens' /* cType */, oPDF, Nil /* lEndPage */, .T. /* lBold */ )
-	aCab := {}
-	aCab := { { 'Label 1', 10 },;
-				{ 'Data 1', 34 },;
-				{ 'Label 2', 12 },;
-				{ 'Data 2', 20 },;
-				{ 'Label 3', 8 },;
-				{ 'Data 3', 16 } }
+	else
 
-	aLine := {}
-	aData := {}
-	aLine := { 'Cond.Pagto', AllTrim( SC7->C7_COND ) +'-'+ AllTrim( RetField( 'SE4', 1, FWxFilial( 'SE4' ) + SC7->C7_COND, "E4_DESCRI" ) ),;
-				'Emissão', DtoC( SC7->C7_EMISSAO ),;
-				'Tp. Frete', iif( SC7->C7_TPFRETE == 'C', 'CIF', iif( SC7->C7_TPFRETE == 'F', 'FOB', iif( SC7->C7_TPFRETE $ ' |S' , 'SEM FRETE', ' ' ) ) ) }
-	aAdd( aData, aClone( aLine ) )
-	printData( { aCab, aData }, 'quadro_cab', oPDF, Nil )
-	nLine -= 1
+		printData( { {{ "DADOS DO FORNECEDOR", 100 }}, {} }, 'quadro_itens' /* cType */, oPDF, Nil /* lEndPage */, .T. /* lBold */ )
 
-	aCab := {}
-	aCab := { { 'Label 1', 12 },;
-			{ 'Data 1', 33 },;
+		aCab := {}
+		aCab := { { 'Label 1', 10 },;
+			{ 'Data 1', 12 },;
 			{ 'Label 2', 12 },;
-			{ 'Data 2', 15 },;
-			{ 'Label 3', 13 },;
-			{ 'Data 3', 15 } }
+			{ 'Data 2', 40 },;
+			{ 'Label 3', 6 },;
+			{ 'Data 3', 20 } }
 
-	aLine := {}
-	aData := {}
-	aLine := { 'Transportadora', getTransp(),;
-				'Valor Frete', getValFrete( cFilPed, cNumPed ),;
-				'Prev.Entr.', maxPrevEnt( cFilPed, cNumPed ) }
-	aAdd( aData, aClone( aLine ) )
-	printData( { aCab, aData }, 'quadro_cab', oPDF, Nil )
+		aLine := {}
+		aData := {}
+		DBSelectArea( 'SA2' )
+		SA2->( DBSetOrder( 1 ) )    // FILIAL + COD + LOJA
+		SA2->( DBSeek( FWxFilial( 'SA2' ) + SC7->C7_FORNECE + SC7->C7_LOJA ) )
+		aLine := { 'Fornecedor', AllTrim( SC7->C7_FORNECE ) +'/'+ AllTrim( SC7->C7_LOJA ),;
+			'Razão Social', AllTrim( SA2->A2_NOME ) +'/'+ Alltrim( SA2->A2_NREDUZ ),;
+			'CGC/CPF', AllTrim( Transform( SA2->A2_CGC, iif( SA2->A2_TIPO=='F', "@R 999.999.999-99", "@R 99.999.999/9999-99" ) ) ) }
+		aAdd( aData, aClone( aLine ) )
+		printData( { aCab, aData }, 'quadro_cab', oPDF, Nil )
+
+		printData( { {{ "PEDIDO", 100 }}, {} }, 'quadro_itens' /* cType */, oPDF, Nil /* lEndPage */, .T. /* lBold */ )
+		aCab := {}
+		aCab := { { 'Label 1', 10 },;
+					{ 'Data 1', 34 },;
+					{ 'Label 2', 12 },;
+					{ 'Data 2', 20 },;
+					{ 'Label 3', 8 },;
+					{ 'Data 3', 16 } }
+
+		aLine := {}
+		aData := {}
+		aLine := { 'Cond.Pagto', AllTrim( SC7->C7_COND ) +'-'+ AllTrim( RetField( 'SE4', 1, FWxFilial( 'SE4' ) + SC7->C7_COND, "E4_DESCRI" ) ),;
+					'Emissão', DtoC( SC7->C7_EMISSAO ),;
+					'Tp. Frete', iif( SC7->C7_TPFRETE == 'C', 'CIF', iif( SC7->C7_TPFRETE == 'F', 'FOB', iif( SC7->C7_TPFRETE $ ' |S' , 'SEM FRETE', ' ' ) ) ) }
+		aAdd( aData, aClone( aLine ) )
+		printData( { aCab, aData }, 'quadro_cab', oPDF, Nil )
+		nLine -= 1
+
+		aCab := {}
+		aCab := { { 'Label 1', 12 },;
+				{ 'Data 1', 33 },;
+				{ 'Label 2', 12 },;
+				{ 'Data 2', 15 },;
+				{ 'Label 3', 13 },;
+				{ 'Data 3', 15 } }
+
+		aLine := {}
+		aData := {}
+		aLine := { 'Transportadora', getTransp(),;
+					'Valor Frete', getValFrete( cFilPed, cNumPed ),;
+					'Prev.Entr.', maxPrevEnt( cFilPed, cNumPed ) }
+		aAdd( aData, aClone( aLine ) )
+		printData( { aCab, aData }, 'quadro_cab', oPDF, Nil )
+
+	endif
 
 	aLine := {}
 	aData := {}
@@ -207,53 +226,61 @@ static function printPDF()
 	cFilSC7 := cFilPed
 	R110FIniPC( cNumPed )
 
-	DBSelectArea( 'SC7' )
-	SC7->( DBSetOrder( 1 ) )
-	if SC7->( DBSeek( cFilPed + cNumPed ) )
+	if lHasCfgRel
 
-		printData( { {{ "ITENS DO PEDIDO", 100 }}, {} }, 'quadro_itens' /* cType */, oPDF, Nil /* lEndPage */, .T. /* lBold */ )
-		aAdd( aCab, { 'Item', 4, ALIGN_H_CENTER} )
-		aAdd( aCab, { 'Cod.Prd.For.', 14 } )
-		aAdd( aCab, { 'Código', 09 } )
-		// Utiliza impressão dos dados do campo apenas quando contiver o campo na tabela
-		if SB1->( FieldPos( 'B1_XGPTP' ) ) > 0
-			aAdd( aCab, { 'GrTb', 4, ALIGN_H_CENTER } )
-		endif
-		aAdd( aCab, { 'Descrição', iif( SB1->( FieldPos( 'B1_XGPTP' ) ) > 0, 33, 37 ) } )
-		aAdd( aCab, { 'Qtde', 9, ALIGN_RIGHT } )
-		aAdd( aCab, { 'UM', 4, ALIGN_H_CENTER } )
-		aAdd( aCab, { 'Vlr Unit.', 7, ALIGN_RIGHT } )
-		aAdd( aCab, { 'Vlr Total', 10 } )
-		aAdd( aCab, { 'IPI', 6 } )
-		
-		DBSelectArea( 'SB1' )
-		SB1->( DBSetOrder( 1 ) )
-		while ! SC7->( EOF() ) .and. SC7->C7_FILIAL + SC7->C7_NUM == cFilPed + cNumPed
+		prnIteCfg( oCfgRel, oPDF )
 
-			// Posiciona no cadastro de produtos
-			SB1->( DBSeek( FWxFilial( 'SB1' ) + SC7->C7_PRODUTO ) )
+	else
 
-			aAdd( aLine, SC7->C7_ITEM )                                                                             // 01. Item
-			aAdd( aLine, getPrdFor(SC7->C7_PRODUTO, SC7->C7_FORNECE, SC7->C7_LOJA ) )                               // 02. Código do Produto no Fornecedor
-			aAdd( aLine, AllTrim(SC7->C7_PRODUTO) )                                                                 // 03. Produto
+		DBSelectArea( 'SC7' )
+		SC7->( DBSetOrder( 1 ) )
+		if SC7->( DBSeek( cFilPed + cNumPed ) )
+
+			printData( { {{ "ITENS DO PEDIDO", 100 }}, {} }, 'quadro_itens' /* cType */, oPDF, Nil /* lEndPage */, .T. /* lBold */ )
+			aAdd( aCab, { 'Item', 4, ALIGN_H_CENTER} )
+			aAdd( aCab, { 'Cod.Prd.For.', 14 } )
+			aAdd( aCab, { 'Código', 09 } )
+			// Utiliza impressão dos dados do campo apenas quando contiver o campo na tabela
 			if SB1->( FieldPos( 'B1_XGPTP' ) ) > 0
-				aAdd( aLine, SubStr( SB1->B1_XGPTP, 01, 02 ) )														// 04. Grupo Tabela Preço
+				aAdd( aCab, { 'GrTb', 4, ALIGN_H_CENTER } )
 			endif
-			aAdd( aLine, AllTrim( SB1->B1_DESC ) )          														// 05. Descrição
-			aAdd( aLine, ALlTrim(Transform(SC7->C7_QUANT, GetSX3Cache( 'C7_QUANT', 'X3_PICTURE' ) )) )				// 06. Quantidade
-			aAdd( aLine, SC7->C7_UM )                                                                               // 07. Unidade de Medida
-			aAdd( aLine, ALlTrim(Transform(SC7->C7_PRECO, GetSX3Cache( 'C7_PRECO', 'X3_PICTURE' ) )) )				// 08. Valor unitário
-			aAdd( aLine, SC7->C7_TOTAL )                                                                            // 09. Valor total do item
-			aAdd( aLine, SC7->C7_IPI )                                                                              // 10. IPI
+			aAdd( aCab, { 'Descrição', iif( SB1->( FieldPos( 'B1_XGPTP' ) ) > 0, 33, 37 ) } )
+			aAdd( aCab, { 'Qtde', 9, ALIGN_RIGHT } )
+			aAdd( aCab, { 'UM', 4, ALIGN_H_CENTER } )
+			aAdd( aCab, { 'Vlr Unit.', 7, ALIGN_RIGHT } )
+			aAdd( aCab, { 'Vlr Total', 10 } )
+			aAdd( aCab, { 'IPI', 6 } )
 
-			aAdd( aData, aClone( aLine ) )
-			aLine := {}
+			DBSelectArea( 'SB1' )
+			SB1->( DBSetOrder( 1 ) )
+			while ! SC7->( EOF() ) .and. SC7->C7_FILIAL + SC7->C7_NUM == cFilPed + cNumPed
 
-			SC7->( DBSkip() )
-		enddo
-	endif
-	printData( { aCab, aData }, 'quadro_itens', oPDF, Nil /* lEndPage */ )
+				// Posiciona no cadastro de produtos
+				SB1->( DBSeek( FWxFilial( 'SB1' ) + SC7->C7_PRODUTO ) )
 
+				aAdd( aLine, SC7->C7_ITEM )                                                                             // 01. Item
+				aAdd( aLine, getPrdFor(SC7->C7_PRODUTO, SC7->C7_FORNECE, SC7->C7_LOJA ) )                               // 02. Código do Produto no Fornecedor
+				aAdd( aLine, AllTrim(SC7->C7_PRODUTO) )                                                                 // 03. Produto
+				if SB1->( FieldPos( 'B1_XGPTP' ) ) > 0
+					aAdd( aLine, SubStr( SB1->B1_XGPTP, 01, 02 ) )														// 04. Grupo Tabela Preço
+				endif
+				aAdd( aLine, AllTrim( SB1->B1_DESC ) )          														// 05. Descrição
+				aAdd( aLine, ALlTrim(Transform(SC7->C7_QUANT, GetSX3Cache( 'C7_QUANT', 'X3_PICTURE' ) )) )				// 06. Quantidade
+				aAdd( aLine, SC7->C7_UM )                                                                               // 07. Unidade de Medida
+				aAdd( aLine, ALlTrim(Transform(SC7->C7_PRECO, GetSX3Cache( 'C7_PRECO', 'X3_PICTURE' ) )) )				// 08. Valor unitário
+				aAdd( aLine, SC7->C7_TOTAL )                                                                            // 09. Valor total do item
+				aAdd( aLine, SC7->C7_IPI )                                                                              // 10. IPI
+
+				aAdd( aData, aClone( aLine ) )
+				aLine := {}
+
+				SC7->( DBSkip() )
+			enddo
+		endif
+		printData( { aCab, aData }, 'quadro_itens', oPDF, Nil /* lEndPage */ )
+
+	Endif
+	
 	nLine -= 1
 	aLine := {}
 	aData := {}
@@ -339,6 +366,19 @@ static function maxPrevEnt( cFilPed, cNumPed )
 
 return dDtPrev
 
+/*/{Protheus.doc} PNCPRVEN
+Retorna previsão de entrega com base na maior data do pedido
+@type function
+@version 12.1.2510
+@author Visualize - Software e Inovação
+@since 04/08/2026
+@param cFilPed, character, Filial do pedido
+@param cNumPed, character, Número do Pedido
+@return date, dDtPrev
+/*/
+User Function PNCPRVEN( cFilPed, cNumPed )
+return maxPrevEnt( cFilPed, cNumPed )
+
 /*/{Protheus.doc} getValFrete
 Função para obter o valor do frete contratado (FOB) + frete previsto em NF
 @type function
@@ -363,6 +403,19 @@ static function getValFrete( cFilPed, cNumPed )
 	endif
 	restArea( aArea )
 return nValFrete
+
+/*/{Protheus.doc} PNCVLFRE
+Função para retornar valor de frete do pedido
+@type function
+@version 12.1.2510
+@author Visualize - Software e Inovação
+@since 03/08/2026
+@param cFilPed, character, filial do pedido
+@param cNumPed, character, numero do pedido
+@return numeric, nValFrete
+/*/
+user function PNCVLFRE( cFilPed, cNumPed )
+return getValFrete( cFilPed, cNumPed )
 
 /*/{Protheus.doc} getObs
 Função para obter as observações do pedido de compras
@@ -416,6 +469,17 @@ static function getTransp()
 					AllTrim( SubStr(RetField( 'SA2', 1, FWxFilial( 'SA2' ) + SC7->C7_TRANSP + AllTrim( SC7->C7_TRANSLJ ), 'A2_NOME' ), 1, 25) )
 	endif
 return cTransp
+
+/*/{Protheus.doc} PNCTRANSP
+Função para compatibilizar retorno da transportadora utilizando layout com fórmulas
+@type function
+@version 12.1.2510
+@author Visualize - Software e Inovação
+@since 03/08/2026
+@return character, cTransp
+/*/
+user function PNCTRANSP()
+return getTransp()
 
 /*/{Protheus.doc} R110FIniPC
 Função de inicialização do MATXFIS para o pedido
@@ -883,3 +947,254 @@ static function getLogo()
 	EndIF
 	ConOut( 'Logo em uso: '+ cLogo )
 return cLogo
+
+/*/{Protheus.doc} loadCfgRel
+Carrega o arquivo de configuração do layout do relatório (item 6 da análise do Painel de Compras),
+gravado em /gmpaicom/jsrlpdco.conf (JSON), lendo-o via FWFileReader + JsonObject, no mesmo padrão já
+usado pelo painel para preferências do usuário (U_JSLDPREF, JSPAIGEN.prw).
+@type function
+@version 1.0
+@author Visualize - Software e Inovação
+@since 30/07/2026
+@return object, oJson - objeto da configuração (Nil se não existir ou falhar a leitura)
+/*/
+static function loadCfgRel()
+
+	local oJson   := JsonObject():New()
+	local oFile   as object
+	local cResult := Nil
+	local oRet    := Nil
+
+	oFile := FWFileReader():New( U_JSPATHSV(3) )
+	if oFile:Open()
+		cResult := oJson:FromJson( oFile:FullRead() )
+		if ValType( cResult ) == 'U'
+			oRet := oJson
+		endif
+		oFile:Close()
+	endif
+
+return oRet
+
+/*/{Protheus.doc} prnCabCfg
+Monta e imprime as linhas do cabeçalho do pedido a partir da configuração dinâmica (item 6),
+substituindo os 3 blocos hardcoded de cabeçalho quando existir /gmpaicom/jsrlpdco.conf.
+@type function
+@version 1.0
+@author Visualize - Software e Inovação
+@since 30/07/2026
+@param oCfg, object, configuração carregada (loadCfgRel)
+@param oPDF, object, objeto do PDF
+/*/
+static function prnCabCfg( oCfg, oPDF )
+
+	local nX      := 0 as numeric
+	local nY      := 0 as numeric
+	local aCab    := {} as array
+	local aLine   := {} as array
+	local aData   := {} as array
+	local aLinhas := oCfg['cabecalho']['linhas']
+	local oLinha  as object
+	local oCampo  as object
+
+	DBSelectArea( 'SA2' )
+	SA2->( DBSetOrder( 1 ) )    // FILIAL + COD + LOJA
+	SA2->( DBSeek( FWxFilial( 'SA2' ) + SC7->C7_FORNECE + SC7->C7_LOJA ) )
+
+	for nX := 1 to len( aLinhas )
+
+		oLinha := aLinhas[nX]
+		aCab   := {}
+		aLine  := {}
+
+		for nY := 1 to len( oLinha['campos'] )
+			oCampo := oLinha['campos'][nY]
+			aAdd( aCab, { oCampo['label'], oCampo['tamanho_rotulo'] } )
+			aAdd( aLine, oCampo['label'] )
+			aAdd( aCab, { '', oCampo['tamanho_dado'] } )
+			aAdd( aLine, resolvFld( oCampo['origem'], oCampo['dado'], oCampo['formula'] ) )
+		next nY
+
+		aData := {}
+		aAdd( aData, aClone( aLine ) )
+		printData( { aCab, aData }, 'quadro_cab', oPDF, Nil )
+
+	next nX
+
+return Nil
+
+/*/{Protheus.doc} prnIteCfg
+Monta e imprime a grade de itens do pedido a partir da configuração dinâmica (item 6), substituindo
+o loop hardcoded de itens quando existir /gmpaicom/jsrlpdco.conf. Campos marcados como "opcional" e
+cujo campo não exista no dicionário da origem informada são removidos, redistribuindo a largura
+liberada proporcionalmente entre os campos remanescentes (generalização do tratamento hoje feito só
+para B1_XGPTP).
+@type function
+@version 1.0
+@author Visualize - Software e Inovação
+@since 30/07/2026
+@param oCfg, object, configuração carregada (loadCfgRel)
+@param oPDF, object, objeto do PDF
+/*/
+static function prnIteCfg( oCfg, oPDF )
+
+	local nX            := 0 as numeric
+	local nY             := 0 as numeric
+	local aCab           := {} as array
+	local aLine          := {} as array
+	local aData          := {} as array
+	local aCampos        := oCfg['itens']['campos']
+	local oCampo         as object
+	local nSomaOpc       := 0 as numeric
+	local nRedistr       := 0 as numeric
+	local aCamposAtivos  := {} as array
+
+	for nX := 1 to len( aCampos )
+		oCampo := aCampos[nX]
+		if ValType( oCampo['opcional'] ) == 'L' .and. oCampo['opcional'] .and.;
+		   oCampo['origem'] != 'FOR' .and. ! cpoExiste( oCampo['origem'], oCampo['dado'] )
+			nSomaOpc += oCampo['tamanho']
+		else
+			aAdd( aCamposAtivos, oCampo )
+		endif
+	next nX
+
+	if nSomaOpc > 0 .and. len( aCamposAtivos ) > 0
+		nRedistr := nSomaOpc / len( aCamposAtivos )
+		aEval( aCamposAtivos, {|x| x['tamanho'] += nRedistr } )
+	endif
+
+	for nX := 1 to len( aCamposAtivos )
+		oCampo := aCamposAtivos[nX]
+		aAdd( aCab, { oCampo['label'], oCampo['tamanho'], getAlinCf( oCampo['alinhamento'] ) } )
+	next nX
+
+	DBSelectArea( 'SC7' )
+	SC7->( DBSetOrder( 1 ) )
+	if SC7->( DBSeek( cFilSC7 + cNumPed ) )
+
+		printData( { {{ "ITENS DO PEDIDO", 100 }}, {} }, 'quadro_itens' /* cType */, oPDF, Nil /* lEndPage */, .T. /* lBold */ )
+
+		DBSelectArea( 'SB1' )
+		SB1->( DBSetOrder( 1 ) )
+		while ! SC7->( EOF() ) .and. SC7->C7_FILIAL + SC7->C7_NUM == cFilSC7 + cNumPed
+
+			SB1->( DBSeek( FWxFilial( 'SB1' ) + SC7->C7_PRODUTO ) )
+
+			aLine := {}
+			for nY := 1 to len( aCamposAtivos )
+				oCampo := aCamposAtivos[nY]
+				aAdd( aLine, resolvFld( oCampo['origem'], oCampo['dado'], oCampo['formula'] ) )
+			next nY
+			aAdd( aData, aClone( aLine ) )
+
+			SC7->( DBSkip() )
+		enddo
+	endif
+
+	printData( { aCab, aData }, 'quadro_itens', oPDF, Nil /* lEndPage */ )
+
+return Nil
+
+/*/{Protheus.doc} resolvFld
+Resolve o valor de um campo configurável do relatório (item 6) conforme sua origem: leitura direta
+de um alias de tabela (SA2/SC7/SB1/SB5, já posicionado pelo chamador) ou execução de fórmula do
+Configurador (Origem=FOR), através de avalForm().
+@type function
+@version 1.0
+@author Visualize - Software e Inovação
+@since 30/07/2026
+@param cOrigem, character, origem do campo (SA2/SC7/SB1/SB5/FOR)
+@param cDado, character, nome do campo na tabela de origem (vazio quando Origem=FOR)
+@param cFormula, character, código da fórmula no Configurador (usado apenas quando Origem=FOR)
+@return variant, xValor
+/*/
+static function resolvFld( cOrigem, cDado, cFormula )
+
+	local xValor as variant
+
+	if cOrigem == 'FOR'
+		if ! Empty( cFormula )
+			xValor := avalForm( cFormula )
+		endif
+	elseif cOrigem == 'SC7'
+		if SC7->( FieldPos( cDado ) ) > 0
+			xValor := SC7->( FieldGet( FieldPos( cDado ) ) )
+		endif
+	elseif cOrigem == 'SA2'
+		if SA2->( FieldPos( cDado ) ) > 0
+			xValor := SA2->( FieldGet( FieldPos( cDado ) ) )
+		endif
+	elseif cOrigem == 'SB1'
+		if SB1->( FieldPos( cDado ) ) > 0
+			xValor := SB1->( FieldGet( FieldPos( cDado ) ) )
+		endif
+	elseif cOrigem == 'SB5'
+		if SB5->( FieldPos( cDado ) ) > 0
+			xValor := SB5->( FieldGet( FieldPos( cDado ) ) )
+		endif
+	endif
+
+return xValor
+
+/*/{Protheus.doc} cpoExiste
+Indica se o campo informado existe no dicionário do alias de origem correspondente - usado para
+decidir se um campo "opcional" da configuração (item 6) deve ser removido do relatório.
+@type function
+@version 1.0
+@author Visualize - Software e Inovação
+@since 30/07/2026
+@param cOrigem, character, origem do campo (SA2/SC7/SB1/SB5)
+@param cDado, character, nome do campo na tabela de origem
+@return logical, lExiste
+/*/
+static function cpoExiste( cOrigem, cDado )
+
+	local lExiste := .F. as logical
+
+	if cOrigem == 'SC7'
+		lExiste := SC7->( FieldPos( cDado ) ) > 0
+	elseif cOrigem == 'SA2'
+		lExiste := SA2->( FieldPos( cDado ) ) > 0
+	elseif cOrigem == 'SB1'
+		lExiste := SB1->( FieldPos( cDado ) ) > 0
+	elseif cOrigem == 'SB5'
+		lExiste := SB5->( FieldPos( cDado ) ) > 0
+	endif
+
+return lExiste
+
+/*/{Protheus.doc} getAlinCf
+Converte o alinhamento configurável (item 6, texto LEFT/RIGHT/CENTER gravado no JSON) para a
+constante de alinhamento já usada por printData().
+@type function
+@version 1.0
+@author Visualize - Software e Inovação
+@since 30/07/2026
+@param cAlinhamento, character, "LEFT", "RIGHT" ou "CENTER"
+@return numeric, nAlign
+/*/
+static function getAlinCf( cAlinhamento )
+
+	local nAlign := ALIGN_H_CENTER
+
+	if cAlinhamento == 'LEFT'
+		nAlign := ALIGN_LEFT
+	elseif cAlinhamento == 'RIGHT'
+		nAlign := ALIGN_RIGHT
+	endif
+
+return nAlign
+
+/*/{Protheus.doc} avalForm
+Executa, pelo código de 3 posições, uma fórmula cadastrada no Configurador (SM4/CFGX019) e devolve
+o resultado - usado quando um campo do layout do relatório (item 6) tem Origem=FOR.
+@type function
+@version 1.0
+@author Visualize - Software e Inovação
+@since 30/07/2026
+@param cCodForm, character, código da fórmula (3 posições)
+@return variant, resultado da fórmula
+/*/
+static function avalForm( cCodForm )
+return Formula( cCodForm )

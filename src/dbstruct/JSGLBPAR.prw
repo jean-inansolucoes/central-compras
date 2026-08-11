@@ -40,6 +40,7 @@ User Function JSGLBPAR( lCheck )
     aAdd( aTab, { "01", "PNC_CONFIG_"+ cEmpAnt, "" } )
     aAdd( aTab, { "02", "PNC_RVCALC_"+ cEmpAnt, "" } )
     aAdd( aTab, { "03", "PNC_RVTRC_"+ cEmpAnt, "" } )
+    aAdd( aTab, { "04", "PNC_PROD_"+ cEmpAnt, "" } )
 
     // Checagem das estruturas definidas no fonte (parâmetros internos, tabelas próprias e índices)
     lStruct := chkStruct()

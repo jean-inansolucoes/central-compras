@@ -1,0 +1,1278 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Ficha Técnica de Atualização de Dicionário — SMART SUPPLY - 12.1.2510</title>
+<style>
+  :root{
+    --branco:#ffffff;
+    --roxo-escuro:#2e105d;
+    --roxo:#441c7d;
+    --roxo-medio:#6b31b0;
+    --roxo-claro:#a57dd0;
+    --roxo-claro2:#8256b9;
+    --pink:#f41dab;
+    --pink-esc:#cd1f92;
+    --lilas-muted:#b6acc7;
+    --texto:#241a33;
+    --fundo-tabela-par:#faf8fd;
+    --borda:#e4dcf0;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; padding:0;
+    font-family:"Segoe UI",Arial,sans-serif;
+    color:var(--texto);
+    background:var(--branco);
+    font-size:13px;
+    line-height:1.5;
+  }
+  .capa{
+    background:linear-gradient(135deg,var(--roxo-escuro) 0%,var(--roxo) 55%,var(--roxo-medio) 100%);
+    color:var(--branco);
+    padding:56px 48px 40px 48px;
+    position:relative;
+    overflow:hidden;
+  }
+  .capa:before{
+    content:"";
+    position:absolute; top:0; left:0; right:0; height:5px;
+    background:linear-gradient(90deg,var(--roxo-medio),var(--pink),var(--pink-esc));
+  }
+  .capa .selo{
+    display:inline-block;
+    background:linear-gradient(90deg,var(--pink),var(--pink-esc));
+    color:var(--branco);
+    font-size:10.5px;
+    font-weight:700;
+    letter-spacing:1.5px;
+    text-transform:uppercase;
+    padding:5px 14px;
+    border-radius:999px;
+    margin-bottom:18px;
+  }
+  .capa h1{ font-size:27px; margin:0 0 8px 0; font-weight:700; letter-spacing:.2px; }
+  .capa .subtitulo{ font-size:15px; color:#e7defc; margin:0 0 28px 0; font-weight:400; }
+  .capa .meta-grid{
+    display:grid; grid-template-columns:repeat(3,1fr); gap:14px 28px;
+    background:rgba(255,255,255,0.07); border:1px solid rgba(255,255,255,0.18);
+    border-radius:10px; padding:18px 22px;
+  }
+  .capa .meta-grid div .k{ font-size:9.5px; text-transform:uppercase; letter-spacing:1px; color:var(--lilas-muted); margin-bottom:3px; }
+  .capa .meta-grid div .v{ font-size:13px; font-weight:600; color:var(--branco); }
+  .conteudo{ padding:36px 48px 60px 48px; }
+  h2.secao{
+    color:var(--roxo); font-size:18px; margin:38px 0 6px 0; padding-bottom:8px;
+    border-bottom:2.5px solid var(--pink-esc); display:flex; align-items:baseline; gap:10px;
+  }
+  h2.secao .num{ color:var(--pink-esc); font-weight:800; }
+  h3.subsecao{ color:var(--roxo-medio); font-size:14.5px; margin:22px 0 8px 0; }
+  p{ margin:8px 0; }
+  .lead{ color:#4a3d63; font-size:13.5px; }
+  .muted{ color:#6b6178; }
+  .small{ font-size:11.5px; }
+  .mono{ font-family:"SF Mono",Consolas,monospace; font-size:11.5px; color:var(--roxo); font-weight:600;}
+  strong{ color:var(--roxo); }
+  .stat-row{ display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin:18px 0 6px 0; }
+  .stat-card{
+    background:linear-gradient(160deg,var(--roxo) 0%, var(--roxo-medio) 100%); color:var(--branco);
+    border-radius:10px; padding:14px 16px; position:relative; overflow:hidden;
+  }
+  .stat-card:after{
+    content:""; position:absolute; right:-18px; top:-18px; width:60px; height:60px;
+    background:radial-gradient(circle, var(--pink) 0%, transparent 70%); opacity:.55;
+  }
+  .stat-card .num{ font-size:24px; font-weight:800; line-height:1; }
+  .stat-card .lbl{ font-size:10px; text-transform:uppercase; letter-spacing:.6px; color:#e7defc; margin-top:5px;}
+  table.data-table{ width:100%; border-collapse:collapse; margin:10px 0 18px 0; font-size:11.5px; }
+  table.data-table thead th{
+    background:var(--roxo); color:var(--branco); text-align:left; padding:8px 9px;
+    font-size:10.5px; text-transform:uppercase; letter-spacing:.4px; font-weight:700;
+  }
+  table.data-table tbody td{ padding:6.5px 9px; border-bottom:1px solid var(--borda); vertical-align:top; }
+  table.data-table tbody tr:nth-child(even){ background:var(--fundo-tabela-par); }
+  table.data-table td.center{ text-align:center; }
+  table.data-table td.mono{ font-family:"SF Mono",Consolas,monospace; font-size:11px; color:var(--roxo); font-weight:600; white-space:nowrap;}
+  .badge{ display:inline-block; padding:2.5px 9px; border-radius:999px; font-size:9.5px; font-weight:700; letter-spacing:.3px; white-space:nowrap; }
+  .badge-incl{ background:#efe7fa; color:var(--roxo-medio); border:1px solid var(--roxo-claro); }
+  .badge-excl{ background:#fde5f3; color:var(--pink-esc); border:1px solid var(--pink); }
+  .tag{ display:inline-block; padding:2px 8px; border-radius:6px; font-size:9px; font-weight:700; white-space:nowrap; }
+  .tag-padrao{ background:#eef1f4; color:#54607a; }
+  .tag-custom{ background:#fdf1e0; color:#a06a00; }
+  .tag-nova{ background:#e6f4ea; color:#22823a; }
+  .tag-existente{ background:#e5eefc; color:#25599c; }
+  .count-pill{
+    display:inline-block; background:var(--roxo-claro); color:var(--branco); font-size:9.5px;
+    font-weight:700; padding:2px 9px; border-radius:999px; margin-left:8px; vertical-align:middle;
+  }
+  .subtable-head{ margin-top:20px; }
+  .subtable-head h4{ margin:0 0 3px 0; font-size:13px; color:var(--roxo-escuro); }
+  .callout{ border-left:4px solid var(--pink-esc); background:#fdf6fb; border-radius:0 8px 8px 0; padding:12px 16px; margin:14px 0; }
+  .callout.roxo{ border-left-color:var(--roxo-medio); background:#f6f2fb; }
+  .callout h4{ margin:0 0 6px 0; color:var(--pink-esc); font-size:12.5px; }
+  .callout.roxo h4{ color:var(--roxo-medio); }
+  .callout ol, .callout ul{ margin:4px 0 0 0; padding-left:18px; }
+  .callout li{ margin-bottom:6px; }
+  .consolidado td, .consolidado th{ text-align:center; }
+  .consolidado td:first-child, .consolidado th:first-child{ text-align:left; }
+  .consolidado td:nth-child(2), .consolidado th:nth-child(2){ text-align:left; }
+  .footer-note{ margin-top:46px; padding-top:16px; border-top:1px solid var(--borda); font-size:10.5px; color:var(--lilas-muted); display:flex; justify-content:space-between; }
+  .quebra{ page-break-before:always; }
+  @media print{
+    body{ font-size:12px; }
+    .capa{ padding:40px 40px 30px 40px; }
+    table.data-table{ font-size:10.5px; }
+    h2.secao{ margin-top:26px; }
+    tr, .stat-card, .callout, .subtable-head{ break-inside:avoid; }
+  }
+</style>
+</head>
+<body>
+
+<div class="capa">
+  <span class="selo">Manifesto de Atualização &middot; UPDDISTR</span>
+  <h1>Ficha Técnica de Atualização do Dicionário de Dados</h1>
+  <p class="subtitulo">Pacote diferencial gerado pelo Configurador &mdash; análise consolidada de todas as
+  operações que serão aplicadas ao dicionário de dados (SX2, SX3, SIX, SX6, SXA, SXB) do ambiente de destino.</p>
+  <div class="meta-grid">
+    <div><div class="k">Projeto</div><div class="v">000028</div></div>
+    <div><div class="k">Descrição</div><div class="v">SMART SUPPLY - 12.1.2510</div></div>
+    <div><div class="k">Versão do pacote</div><div class="v">0002</div></div>
+    <div><div class="k">Release de referência</div><div class="v">12.1.2510</div></div>
+    <div><div class="k">Data / hora de geração</div><div class="v">01/08/2026 &middot; 10:04:05</div></div>
+    <div><div class="k">Responsável</div><div class="v">000000 - Administrador</div></div>
+  </div>
+</div>
+
+<div class="conteudo">
+
+  <h2 class="secao"><span class="num">1.</span> Sumário executivo</h2>
+  <p class="lead">
+    Este relatório foi gerado automaticamente a partir dos arquivos do pacote de atualização diferencial de
+    dicionário de dados do Protheus (rotina <span class="mono">UPDDISTR</span> / Configurador), cruzando o
+    manifesto oficial (<span class="mono">manifest_update.txt</span>) com o(s) payload(s) físico(s) de estrutura
+    (<span class="mono">sdfbra.txt</span>) e os textos de ajuda de campo
+    (<span class="mono">Inglês, Português, Espanhol</span>).
+    Os arquivos foram descompactados automaticamente do pacote <span class="mono">upddistr_2510.rar</span> antes da análise.
+  </p>
+
+  <div class="stat-row">
+    <div class="stat-card"><div class="num">154</div><div class="lbl">Operações no total</div></div>
+    <div class="stat-card"><div class="num">154</div><div class="lbl">Inclusão / Alteração</div></div>
+    <div class="stat-card"><div class="num">0</div><div class="lbl">Exclusões</div></div>
+    <div class="stat-card"><div class="num">6</div><div class="lbl">Tabelas novas (SX2)</div></div>
+  </div>
+
+  <h2 class="secao"><span class="num">2.</span> Escopo consolidado por dicionário</h2>
+  <table class="data-table consolidado">
+    <thead><tr><th>Dicionário</th><th>O que controla</th><th>Total</th><th>Inclusão / Alteração</th><th>Exclusão</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">SX2</td><td>Cadastro de tabelas</td><td>6</td><td>6</td><td>0</td></tr>
+      <tr><td class="mono">SIX</td><td>Índices das tabelas</td><td>10</td><td>10</td><td>0</td></tr>
+      <tr><td class="mono">SX3</td><td>Estrutura de campos</td><td>72</td><td>72</td><td>0</td></tr>
+      <tr><td class="mono">SX6</td><td>Parâmetros de configuração</td><td>17</td><td>17</td><td>0</td></tr>
+      <tr><td class="mono">SXA</td><td>Pastas de campos</td><td>3</td><td>3</td><td>0</td></tr>
+      <tr><td class="mono">SXB</td><td>Consultas padrão (F3)</td><td>46</td><td>46</td><td>0</td></tr>
+      <tr><td class="mono">Menu</td><td>Itens de menu (mnupack.txt)</td><td colspan="3" class="small muted">vazio / sem alteração</td></tr>
+      <tr><td class="mono">Help F1</td><td>Textos de ajuda contextual</td><td colspan="3" class="small muted">56 chave(s) &times; 3 idioma(s) &mdash; ver seção 8</td></tr>
+      <tr style="font-weight:700;"><td>Total geral</td><td></td><td>154</td><td>154</td><td>0</td></tr>
+    </tbody>
+  </table>
+
+  <h2 class="secao"><span class="num">3.</span> Tabelas (SX2)</h2>
+  <table class="data-table">
+    <thead><tr><th>Tabela</th><th>Observação</th><th>Operação</th><th>Campos no pacote</th></tr></thead>
+    <tbody>
+    <tr>
+      <td class="mono">ZBG</td>
+      <td class="small">Referenciada pelo parâmetro MV_X_PNC02.</td>
+      <td class="center"><span class="badge badge-incl">Inclusão/Alteração</span></td>
+      <td class="center">18</td>
+    </tr>
+    <tr>
+      <td class="mono">ZBH</td>
+      <td class="small">Referenciada pelo parâmetro MV_X_PNC04.</td>
+      <td class="center"><span class="badge badge-incl">Inclusão/Alteração</span></td>
+      <td class="center">7</td>
+    </tr>
+    <tr>
+      <td class="mono">ZBJ</td>
+      <td class="small">Referenciada pelo parâmetro MV_X_PNC14.</td>
+      <td class="center"><span class="badge badge-incl">Inclusão/Alteração</span></td>
+      <td class="center">5</td>
+    </tr>
+    <tr>
+      <td class="mono">ZBK</td>
+      <td class="small">&mdash;</td>
+      <td class="center"><span class="badge badge-incl">Inclusão/Alteração</span></td>
+      <td class="center">7</td>
+    </tr>
+    <tr>
+      <td class="mono">ZBL</td>
+      <td class="small">&mdash;</td>
+      <td class="center"><span class="badge badge-incl">Inclusão/Alteração</span></td>
+      <td class="center">7</td>
+    </tr>
+    <tr>
+      <td class="mono">ZBM</td>
+      <td class="small">Referenciada pelo parâmetro MV_X_PNC16.</td>
+      <td class="center"><span class="badge badge-incl">Inclusão/Alteração</span></td>
+      <td class="center">5</td>
+    </tr></tbody>
+  </table>
+
+  <h2 class="secao"><span class="num">4.</span> Índices (SIX)</h2>
+  <table class="data-table">
+    <thead><tr><th>Tabela</th><th>Ordem</th><th>Expressão de chave</th><th>Descrição</th><th>Operação</th></tr></thead>
+    <tbody>
+    <tr>
+      <td class="mono">ZBG</td>
+      <td class="center">1</td>
+      <td class="mono small">ZBG_FILIAL+ZBG_PROD+DTOS(ZBG_DATA)</td>
+      <td>Produto+Data Analise</td>
+      <td class="center"><span class="badge badge-incl">Inclusão/Alteração</span></td>
+    </tr>
+    <tr>
+      <td class="mono">ZBH</td>
+      <td class="center">1</td>
+      <td class="mono small">ZBH_FILIAL+ZBH_PROD</td>
+      <td>Produto</td>
+      <td class="center"><span class="badge badge-incl">Inclusão/Alteração</span></td>
+    </tr>
+    <tr>
+      <td class="mono">ZBJ</td>
+      <td class="center">1</td>
+      <td class="mono small">ZBJ_FILIAL+ZBJ_ID</td>
+      <td>ID</td>
+      <td class="center"><span class="badge badge-incl">Inclusão/Alteração</span></td>
+    </tr>
+    <tr>
+      <td class="mono">ZBJ</td>
+      <td class="center">2</td>
+      <td class="mono small">ZBJ_FILIAL+ZBJ_DESC</td>
+      <td>Descricao</td>
+      <td class="center"><span class="badge badge-incl">Inclusão/Alteração</span></td>
+    </tr>
+    <tr>
+      <td class="mono">ZBK</td>
+      <td class="center">1</td>
+      <td class="mono small">ZBK_FILIAL+ZBK_ID</td>
+      <td>ID</td>
+      <td class="center"><span class="badge badge-incl">Inclusão/Alteração</span></td>
+    </tr>
+    <tr>
+      <td class="mono">ZBK</td>
+      <td class="center">2</td>
+      <td class="mono small">ZBK_DESC</td>
+      <td>Descricao</td>
+      <td class="center"><span class="badge badge-incl">Inclusão/Alteração</span></td>
+    </tr>
+    <tr>
+      <td class="mono">ZBK</td>
+      <td class="center">3</td>
+      <td class="mono small">ZBK_TAG+ZBK_ID</td>
+      <td>Tag+ID</td>
+      <td class="center"><span class="badge badge-incl">Inclusão/Alteração</span></td>
+    </tr>
+    <tr>
+      <td class="mono">ZBL</td>
+      <td class="center">1</td>
+      <td class="mono small">ZBL_FILIAL+ZBL_ID</td>
+      <td>ID</td>
+      <td class="center"><span class="badge badge-incl">Inclusão/Alteração</span></td>
+    </tr>
+    <tr>
+      <td class="mono">ZBL</td>
+      <td class="center">2</td>
+      <td class="mono small">ZBL_FILIAL+ZBL_DATA+ZBL_EMAIL+ZBL_ALERT+ZBL_TAG</td>
+      <td>Data+E-Mail+Alerta+Tag</td>
+      <td class="center"><span class="badge badge-incl">Inclusão/Alteração</span></td>
+    </tr>
+    <tr>
+      <td class="mono">ZBM</td>
+      <td class="center">1</td>
+      <td class="mono small">ZBM_FILIAL+ZBM_ID</td>
+      <td>ID do Perfil</td>
+      <td class="center"><span class="badge badge-incl">Inclusão/Alteração</span></td>
+    </tr></tbody>
+  </table>
+
+  <div class="quebra"></div>
+  <h2 class="secao"><span class="num">5.</span> Campos (SX3) &mdash; detalhamento por tabela</h2>
+  <p class="lead">A coluna <strong>Natureza</strong> classifica cada campo com base na convenção de nomenclatura
+  TOTVS/AdvPL: <span class="tag tag-nova">Tabela custom. (neste pacote)</span> pertence a uma tabela criada/alterada
+  neste mesmo pacote; <span class="tag tag-existente">Tabela custom. (pré-existente)</span> pertence a uma tabela
+  <span class="mono">Z*</span> já existente no ambiente; <span class="tag tag-custom">Campo custom.</span> é uma
+  extensão <span class="mono">_X_</span> em tabela padrão; <span class="tag tag-padrao">Padrão TOTVS</span> é um
+  campo nativo do produto que está apenas recebendo ajuste de propriedades.</p>
+  
+  <div class="subtable-head">
+    <h4><span class="mono">SA2</span> <span class="count-pill">2 campo(s)</span></h4>
+    <p class="muted small"></p>
+  </div>
+  <table class="data-table">
+    <thead><tr><th>Campo</th><th>Operação</th><th>Natureza</th><th>Tipo</th><th>Tam.</th><th>Título</th><th>Descrição funcional</th></tr></thead>
+    <tbody>
+    <tr>
+      <td class="mono">A2_EMAIL</td>
+      <td class="center"><span class="badge badge-incl">Inclusão/Alteração</span></td>
+      <td class="center"><span class="tag tag-padrao">Padrão TOTVS</span></td>
+      <td class="center">Caractere</td>
+      <td class="center">60</td>
+      <td>E-Mail</td>
+      <td class="small">E-Mail do fornecedor.</td>
+    </tr>
+    <tr>
+      <td class="mono">A2_X_LTIME</td>
+      <td class="center"><span class="badge badge-incl">Inclusão/Alteração</span></td>
+      <td class="center"><span class="tag tag-custom">Campo custom.</span></td>
+      <td class="center">Numérico</td>
+      <td class="center">3</td>
+      <td>Dias Entrega</td>
+      <td class="small">Quantidade media de dias para a entrega (central de compras)</td>
+    </tr></tbody>
+  </table>
+
+  <div class="subtable-head">
+    <h4><span class="mono">SB1</span> <span class="count-pill">14 campo(s)</span></h4>
+    <p class="muted small"></p>
+  </div>
+  <table class="data-table">
+    <thead><tr><th>Campo</th><th>Operação</th><th>Natureza</th><th>Tipo</th><th>Tam.</th><th>Título</th><th>Descrição funcional</th></tr></thead>
+    <tbody>
+    <tr>
+      <td class="mono">B1_QE</td>
+      <td class="center"><span class="badge badge-incl">Inclusão/Alteração</span></td>
+      <td class="center"><span class="tag tag-padrao">Padrão TOTVS</span></td>
+      <td class="center">Numérico</td>
+      <td class="center">9</td>
+      <td>Qtd.Embalag.</td>
+      <td class="small"></td>
+    </tr>
+    <tr>
+      <td class="mono">B1_EMIN</td>
+      <td class="center"><span class="badge badge-incl">Inclusão/Alteração</span></td>
+      <td class="center"><span class="tag tag-padrao">Padrão TOTVS</span></td>
+      <td class="center">Numérico</td>
+      <td class="center">12,2</td>
+      <td>Ponto Pedido</td>
+      <td class="small"></td>
+    </tr>
+    <tr>
+      <td class="mono">B1_PE</td>
+      <td class="center"><span class="badge badge-incl">Inclusão/Alteração</span></td>
+      <td class="center"><span class="tag tag-padrao">Padrão TOTVS</span></td>
+      <td class="center">Numérico</td>
+      <td class="center">5</td>
+      <td>Entrega</td>
+      <td class="small"></td>
+    </tr>
+    <tr>
+      <td class="mono">B1_TIPE</td>
+      <td class="center"><span class="badge badge-incl">Inclusão/Alteração</span></td>
+      <td class="center"><span class="tag tag-padrao">Padrão TOTVS</span></td>
+      <td class="center">Caractere</td>
+      <td class="center">1</td>
+      <td>Tipo Prazo</td>
+      <td class="small"></td>
+    </tr>
+    <tr>
+      <td class="mono">B1_LE</td>
+      <td class="center"><span class="badge badge-incl">Inclusão/Alteração</span></td>
+      <td class="center"><span class="tag tag-padrao">Padrão TOTVS</span></td>
+      <td class="center">Numérico</td>
+      <td class="center">12,2</td>
+      <td>Lote Econom.</td>
+      <td class="small"></td>
+    </tr>
+    <tr>
+      <td class="mono">B1_LM</td>
+      <td class="center"><span class="badge badge-incl">Inclusão/Alteração</span></td>
+      <td class="center"><span class="tag tag-padrao">Padrão TOTVS</span></td>
+      <td class="center">Numérico</td>
+      <td class="center">12,2</td>
+      <td>Lote Minimo</td>
+      <td class="small"></td>
+    </tr>
+    <tr>
+      <td class="mono">B1_PROC</td>
+      <td class="center"><span class="badge badge-incl">Inclusão/Alteração</span></td>
+      <td class="center"><span class="tag tag-padrao">Padrão TOTVS</span></td>
+      <td class="center">Caractere</td>
+      <td class="center">6</td>
+      <td>Forn. Padrao</td>
+      <td class="small"></td>
+    </tr>
+    <tr>
+      <td class="mono">B1_LOJPROC</td>
+      <td class="center"><span class="badge badge-incl">Inclusão/Alteração</span></td>
+      <td class="center"><span class="tag tag-padrao">Padrão TOTVS</span></td>
+      <td class="center">Caractere</td>
+      <td class="center">2</td>
+      <td>Loja Padrao</td>
+      <td class="small"></td>
+    </tr>
+    <tr>
+      <td class="mono">B1_MRP</td>
+      <td class="center"><span class="badge badge-incl">Inclusão/Alteração</span></td>
+      <td class="center"><span class="tag tag-padrao">Padrão TOTVS</span></td>
+      <td class="center">Caractere</td>
+      <td class="center">1</td>
+      <td>Entra MRP</td>
+      <td class="small"></td>
+    </tr>
+    <tr>
+      <td class="mono">B1_CODANT</td>
+      <td class="center"><span class="badge badge-incl">Inclusão/Alteração</span></td>
+      <td class="center"><span class="tag tag-padrao">Padrão TOTVS</span></td>
+      <td class="center">Caractere</td>
+      <td class="center">15</td>
+      <td>Cód. ant.</td>
+      <td class="small"></td>
+    </tr>
+    <tr>
+      <td class="mono">B1_X_DTINC</td>
+      <td class="center"><span class="badge badge-incl">Inclusão/Alteração</span></td>
+      <td class="center"><span class="tag tag-custom">Campo custom.</span></td>
+      <td class="center">Data</td>
+      <td class="center">8</td>
+      <td>Dt.Inc.</td>
+      <td class="small">Data da inclusão do produto</td>
+    </tr>
+    <tr>
+      <td class="mono">B1_X_PERCA</td>
+      <td class="center"><span class="badge badge-incl">Inclusão/Alteração</span></td>
+      <td class="center"><span class="tag tag-custom">Campo custom.</span></td>
+      <td class="center">Caractere</td>
+      <td class="center">2</td>
+      <td>Perfil Calc.</td>
+      <td class="small">Perfil de cálculo utilizado pelo produto para realização de compras utilizando Painel de Compras.</td>
+    </tr>
+    <tr>
+      <td class="mono">B1_X_PA</td>
+      <td class="center"><span class="badge badge-incl">Inclusão/Alteração</span></td>
+      <td class="center"><span class="tag tag-custom">Campo custom.</span></td>
+      <td class="center">Caractere</td>
+      <td class="center">15</td>
+      <td>ID Produto</td>
+      <td class="small">Produto do tipo PA que sera diretamente relacionado a uma MP para formação de preços.</td>
+    </tr>
+    <tr>
+      <td class="mono">B1_X_LUCRO</td>
+      <td class="center"><span class="badge badge-incl">Inclusão/Alteração</span></td>
+      <td class="center"><span class="tag tag-custom">Campo custom.</span></td>
+      <td class="center">Numérico</td>
+      <td class="center">6,2</td>
+      <td>Margem Lucro</td>
+      <td class="small">Margem de lucro desejada, utilizada no processo de formação de preço de venda do Painel de Compra</td>
+    </tr></tbody>
+  </table>
+
+  <div class="subtable-head">
+    <h4><span class="mono">SBZ</span> <span class="count-pill">1 campo(s)</span></h4>
+    <p class="muted small"></p>
+  </div>
+  <table class="data-table">
+    <thead><tr><th>Campo</th><th>Operação</th><th>Natureza</th><th>Tipo</th><th>Tam.</th><th>Título</th><th>Descrição funcional</th></tr></thead>
+    <tbody>
+    <tr>
+      <td class="mono">BZ_X_LUCRO</td>
+      <td class="center"><span class="badge badge-incl">Inclusão/Alteração</span></td>
+      <td class="center"><span class="tag tag-custom">Campo custom.</span></td>
+      <td class="center">Numérico</td>
+      <td class="center">6,2</td>
+      <td>Margem Lucro</td>
+      <td class="small">Margem de lucro desejada, utilizada para formação de preços de venda através do Painel de Compra</td>
+    </tr></tbody>
+  </table>
+
+  <div class="subtable-head">
+    <h4><span class="mono">SC7</span> <span class="count-pill">5 campo(s)</span></h4>
+    <p class="muted small"></p>
+  </div>
+  <table class="data-table">
+    <thead><tr><th>Campo</th><th>Operação</th><th>Natureza</th><th>Tipo</th><th>Tam.</th><th>Título</th><th>Descrição funcional</th></tr></thead>
+    <tbody>
+    <tr>
+      <td class="mono">C7_VALFRE</td>
+      <td class="center"><span class="badge badge-incl">Inclusão/Alteração</span></td>
+      <td class="center"><span class="tag tag-padrao">Padrão TOTVS</span></td>
+      <td class="center">Numérico</td>
+      <td class="center">14,2</td>
+      <td>Vlr.Frete</td>
+      <td class="small">Valor do Frete</td>
+    </tr>
+    <tr>
+      <td class="mono">C7_TRANSP</td>
+      <td class="center"><span class="badge badge-incl">Inclusão/Alteração</span></td>
+      <td class="center"><span class="tag tag-padrao">Padrão TOTVS</span></td>
+      <td class="center">Caractere</td>
+      <td class="center">6</td>
+      <td>Cód. Transp.</td>
+      <td class="small">Código da Transportadora do Frete tipo FOB. Este campo é meramente informativo no pedido de compras.</td>
+    </tr>
+    <tr>
+      <td class="mono">C7_TRANSLJ</td>
+      <td class="center"><span class="badge badge-incl">Inclusão/Alteração</span></td>
+      <td class="center"><span class="tag tag-padrao">Padrão TOTVS</span></td>
+      <td class="center">Caractere</td>
+      <td class="center">2</td>
+      <td>Loja Transp.</td>
+      <td class="small">Loja da Transportadora do Frete tipo FOB. Este campo é meramente informativo no pedido de compras.</td>
+    </tr>
+    <tr>
+      <td class="mono">C7_FRETCON</td>
+      <td class="center"><span class="badge badge-incl">Inclusão/Alteração</span></td>
+      <td class="center"><span class="tag tag-padrao">Padrão TOTVS</span></td>
+      <td class="center">Numérico</td>
+      <td class="center">14,2</td>
+      <td>Vl.Fret.Con.</td>
+      <td class="small">Valor do Frete FOB contratado junto à Transportadora. Este campo é meramente informativo no pedido de compras e não será somado no total da Nota Fiscal.</td>
+    </tr>
+    <tr>
+      <td class="mono">C7_X_TRANS</td>
+      <td class="center"><span class="badge badge-incl">Inclusão/Alteração</span></td>
+      <td class="center"><span class="tag tag-custom">Campo custom.</span></td>
+      <td class="center">Caractere</td>
+      <td class="center">6</td>
+      <td>Cod. Transp.</td>
+      <td class="small">Codigo da transportadora (meramente informativo)</td>
+    </tr></tbody>
+  </table>
+
+  <div class="subtable-head">
+    <h4><span class="mono">SF1</span> <span class="count-pill">1 campo(s)</span></h4>
+    <p class="muted small"></p>
+  </div>
+  <table class="data-table">
+    <thead><tr><th>Campo</th><th>Operação</th><th>Natureza</th><th>Tipo</th><th>Tam.</th><th>Título</th><th>Descrição funcional</th></tr></thead>
+    <tbody>
+    <tr>
+      <td class="mono">F1_X_FPRC</td>
+      <td class="center"><span class="badge badge-incl">Inclusão/Alteração</span></td>
+      <td class="center"><span class="tag tag-custom">Campo custom.</span></td>
+      <td class="center">Caractere</td>
+      <td class="center">1</td>
+      <td>F. Preco</td>
+      <td class="small">Indica se o documento passou pelo processo de formação de preço</td>
+    </tr></tbody>
+  </table>
+
+  <div class="subtable-head">
+    <h4><span class="mono">ZBG</span> <span class="count-pill">18 campo(s)</span></h4>
+    <p class="muted small">Referenciada pelo(s) parâmetro(s) MV_X_PNC02.</p>
+  </div>
+  <table class="data-table">
+    <thead><tr><th>Campo</th><th>Operação</th><th>Natureza</th><th>Tipo</th><th>Tam.</th><th>Título</th><th>Descrição funcional</th></tr></thead>
+    <tbody>
+    <tr>
+      <td class="mono">ZBG_FILIAL</td>
+      <td class="center"><span class="badge badge-incl">Inclusão/Alteração</span></td>
+      <td class="center"><span class="tag tag-nova">Tabela custom. (neste pacote)</span></td>
+      <td class="center">Caractere</td>
+      <td class="center">2</td>
+      <td>Filial</td>
+      <td class="small"></td>
+    </tr>
+    <tr>
+      <td class="mono">ZBG_PROD</td>
+      <td class="center"><span class="badge badge-incl">Inclusão/Alteração</span></td>
+      <td class="center"><span class="tag tag-nova">Tabela custom. (neste pacote)</span></td>
+      <td class="center">Caractere</td>
+      <td class="center">15</td>
+      <td>Produto</td>
+      <td class="small">Codigo do produto</td>
+    </tr>
+    <tr>
+      <td class="mono">ZBG_DATA</td>
+      <td class="center"><span class="badge badge-incl">Inclusão/Alteração</span></td>
+      <td class="center"><span class="tag tag-nova">Tabela custom. (neste pacote)</span></td>
+      <td class="center">Data</td>
+      <td class="center">8</td>
+      <td>Data Analise</td>
+      <td class="small">Data em que os calculos para o produto foram realizados.</td>
+    </tr>
+    <tr>
+      <td class="mono">ZBG_INDINC</td>
+      <td class="center"><span class="badge badge-incl">Inclusão/Alteração</span></td>
+      <td class="center"><span class="tag tag-nova">Tabela custom. (neste pacote)</span></td>
+      <td class="center">Numérico</td>
+      <td class="center">10,6</td>
+      <td>Indice Giro</td>
+      <td class="small">Indica de incidência do produto (quantidade de vezes que o produto apareceu a cada 100 vendas realizadas)</td>
+    </tr>
+    <tr>
+      <td class="mono">ZBG_CONMED</td>
+      <td class="center"><span class="badge badge-incl">Inclusão/Alteração</span></td>
+      <td class="center"><span class="tag tag-nova">Tabela custom. (neste pacote)</span></td>
+      <td class="center">Numérico</td>
+      <td class="center">14,4</td>
+      <td>Cons. Medio</td>
+      <td class="small">Consumo Medio do Produto</td>
+    </tr>
+    <tr>
+      <td class="mono">ZBG_TMPGIR</td>
+      <td class="center"><span class="badge badge-incl">Inclusão/Alteração</span></td>
+      <td class="center"><span class="tag tag-nova">Tabela custom. (neste pacote)</span></td>
+      <td class="center">Numérico</td>
+      <td class="center">3</td>
+      <td>Temp.An.Giro</td>
+      <td class="small">Tempo de movimentação (em dias) utilizado para análise de giro do produto.</td>
+    </tr>
+    <tr>
+      <td class="mono">ZBG_PRJEST</td>
+      <td class="center"><span class="badge badge-incl">Inclusão/Alteração</span></td>
+      <td class="center"><span class="tag tag-nova">Tabela custom. (neste pacote)</span></td>
+      <td class="center">Numérico</td>
+      <td class="center">3</td>
+      <td>Proj.Estoque</td>
+      <td class="small">Projeção de duração do estoque de acordo com a media diaria de consumo.</td>
+    </tr>
+    <tr>
+      <td class="mono">ZBG_NECCOM</td>
+      <td class="center"><span class="badge badge-incl">Inclusão/Alteração</span></td>
+      <td class="center"><span class="tag tag-nova">Tabela custom. (neste pacote)</span></td>
+      <td class="center">Numérico</td>
+      <td class="center">12,2</td>
+      <td>Nec. Compra</td>
+      <td class="small">Necessidade de compra calculada com base no consumo medio, lead time, estoque atual e dias de autonomia desejada</td>
+    </tr>
+    <tr>
+      <td class="mono">ZBG_SALDO</td>
+      <td class="center"><span class="badge badge-incl">Inclusão/Alteração</span></td>
+      <td class="center"><span class="tag tag-nova">Tabela custom. (neste pacote)</span></td>
+      <td class="center">Numérico</td>
+      <td class="center">12,2</td>
+      <td>Saldo Estoq.</td>
+      <td class="small">Saldo em estoque do produto no dia da análise</td>
+    </tr>
+    <tr>
+      <td class="mono">ZBG_QTDEMP</td>
+      <td class="center"><span class="badge badge-incl">Inclusão/Alteração</span></td>
+      <td class="center"><span class="tag tag-nova">Tabela custom. (neste pacote)</span></td>
+      <td class="center">Numérico</td>
+      <td class="center">12,2</td>
+      <td>Qtde Emp.</td>
+      <td class="small">Quantidade já empenhada (vendida e reservada) do produto. Para necessidade de compra, o sistema entende que essa quantidade de estoque já foi vendida.</td>
+    </tr>
+    <tr>
+      <td class="mono">ZBG_QTDCOM</td>
+      <td class="center"><span class="badge badge-incl">Inclusão/Alteração</span></td>
+      <td class="center"><span class="tag tag-nova">Tabela custom. (neste pacote)</span></td>
+      <td class="center">Numérico</td>
+      <td class="center">12,2</td>
+      <td>Qtde Compra</td>
+      <td class="small">Quantidade já comprada do produto que ainda está em tramite. Para o cálculo de compras, essa quantidade já é considerada estoque em casa.</td>
+    </tr>
+    <tr>
+      <td class="mono">ZBG_LDTIME</td>
+      <td class="center"><span class="badge badge-incl">Inclusão/Alteração</span></td>
+      <td class="center"><span class="tag tag-nova">Tabela custom. (neste pacote)</span></td>
+      <td class="center">Numérico</td>
+      <td class="center">3</td>
+      <td>Ld.Time</td>
+      <td class="small">Tempo de entrega considerado para o cálculo</td>
+    </tr>
+    <tr>
+      <td class="mono">ZBG_PRVENT</td>
+      <td class="center"><span class="badge badge-incl">Inclusão/Alteração</span></td>
+      <td class="center"><span class="tag tag-nova">Tabela custom. (neste pacote)</span></td>
+      <td class="center">Data</td>
+      <td class="center">8</td>
+      <td>Prev.Entr.</td>
+      <td class="small">Previsão de entrada da compra realizada com o fornecedor</td>
+    </tr>
+    <tr>
+      <td class="mono">ZBG_AVISO</td>
+      <td class="center"><span class="badge badge-incl">Inclusão/Alteração</span></td>
+      <td class="center"><span class="tag tag-nova">Tabela custom. (neste pacote)</span></td>
+      <td class="center">Caractere</td>
+      <td class="center">1</td>
+      <td>Emite Aviso?</td>
+      <td class="small">Indica se o sistema deve ou não, avisar o comprador sobre o risco de falta sobre o produto com base nos cálculos realizados</td>
+    </tr>
+    <tr>
+      <td class="mono">ZBG_MSG</td>
+      <td class="center"><span class="badge badge-incl">Inclusão/Alteração</span></td>
+      <td class="center"><span class="tag tag-nova">Tabela custom. (neste pacote)</span></td>
+      <td class="center">Caractere</td>
+      <td class="center">250</td>
+      <td>Msg Aviso</td>
+      <td class="small">Mensagem de Aviso que deverá ser exibida ao comprador</td>
+    </tr>
+    <tr>
+      <td class="mono">ZBG_TPDIAS</td>
+      <td class="center"><span class="badge badge-incl">Inclusão/Alteração</span></td>
+      <td class="center"><span class="tag tag-nova">Tabela custom. (neste pacote)</span></td>
+      <td class="center">Caractere</td>
+      <td class="center">1</td>
+      <td>Tipo Dia</td>
+      <td class="small">Tipo do dia utilizado para análise de projeção de estoque (uteis ou corridos)</td>
+    </tr>
+    <tr>
+      <td class="mono">ZBG_JUSTIF</td>
+      <td class="center"><span class="badge badge-incl">Inclusão/Alteração</span></td>
+      <td class="center"><span class="tag tag-nova">Tabela custom. (neste pacote)</span></td>
+      <td class="center">Caractere</td>
+      <td class="center">3</td>
+      <td>Cod. Justif.</td>
+      <td class="small">Codigo da Justificativa/Acao tomada em relação a mensagem de notificacao de risco de ruptura para o produto</td>
+    </tr>
+    <tr>
+      <td class="mono">ZBG_COMPL</td>
+      <td class="center"><span class="badge badge-incl">Inclusão/Alteração</span></td>
+      <td class="center"><span class="tag tag-nova">Tabela custom. (neste pacote)</span></td>
+      <td class="center">Memo</td>
+      <td class="center">10</td>
+      <td>Msg Compl.</td>
+      <td class="small">Mensagem/tratativa complementar quanto a notifiação de risco de ruptura.</td>
+    </tr></tbody>
+  </table>
+
+  <div class="subtable-head">
+    <h4><span class="mono">ZBH</span> <span class="count-pill">7 campo(s)</span></h4>
+    <p class="muted small">Referenciada pelo(s) parâmetro(s) MV_X_PNC04.</p>
+  </div>
+  <table class="data-table">
+    <thead><tr><th>Campo</th><th>Operação</th><th>Natureza</th><th>Tipo</th><th>Tam.</th><th>Título</th><th>Descrição funcional</th></tr></thead>
+    <tbody>
+    <tr>
+      <td class="mono">ZBH_FILIAL</td>
+      <td class="center"><span class="badge badge-incl">Inclusão/Alteração</span></td>
+      <td class="center"><span class="tag tag-nova">Tabela custom. (neste pacote)</span></td>
+      <td class="center">Caractere</td>
+      <td class="center">2</td>
+      <td>Filial</td>
+      <td class="small"></td>
+    </tr>
+    <tr>
+      <td class="mono">ZBH_PROD</td>
+      <td class="center"><span class="badge badge-incl">Inclusão/Alteração</span></td>
+      <td class="center"><span class="tag tag-nova">Tabela custom. (neste pacote)</span></td>
+      <td class="center">Caractere</td>
+      <td class="center">15</td>
+      <td>Produto</td>
+      <td class="small">Codigo do produto que está sendo descontinuado ou ignorado.</td>
+    </tr>
+    <tr>
+      <td class="mono">ZBH_DTLIM</td>
+      <td class="center"><span class="badge badge-incl">Inclusão/Alteração</span></td>
+      <td class="center"><span class="tag tag-nova">Tabela custom. (neste pacote)</span></td>
+      <td class="center">Data</td>
+      <td class="center">8</td>
+      <td>Dt.Limite</td>
+      <td class="small">Data limite para o produto ser ignorado pela análise automática do MRP</td>
+    </tr>
+    <tr>
+      <td class="mono">ZBH_COMPL</td>
+      <td class="center"><span class="badge badge-incl">Inclusão/Alteração</span></td>
+      <td class="center"><span class="tag tag-nova">Tabela custom. (neste pacote)</span></td>
+      <td class="center">Memo</td>
+      <td class="center">10</td>
+      <td>Justificat.</td>
+      <td class="small">Texto de justificativa para a ação tomada.</td>
+    </tr>
+    <tr>
+      <td class="mono">ZBH_DESCO</td>
+      <td class="center"><span class="badge badge-incl">Inclusão/Alteração</span></td>
+      <td class="center"><span class="tag tag-nova">Tabela custom. (neste pacote)</span></td>
+      <td class="center">Lógico</td>
+      <td class="center">1</td>
+      <td>Descontinua?</td>
+      <td class="small">Indica se o produto está listado para ser descontinuado</td>
+    </tr>
+    <tr>
+      <td class="mono">ZBH_DATA</td>
+      <td class="center"><span class="badge badge-incl">Inclusão/Alteração</span></td>
+      <td class="center"><span class="tag tag-nova">Tabela custom. (neste pacote)</span></td>
+      <td class="center">Data</td>
+      <td class="center">8</td>
+      <td>Dt.Inclusao</td>
+      <td class="small">Data em que esta informação foi inserida</td>
+    </tr>
+    <tr>
+      <td class="mono">ZBH_ULTTEN</td>
+      <td class="center"><span class="badge badge-incl">Inclusão/Alteração</span></td>
+      <td class="center"><span class="tag tag-nova">Tabela custom. (neste pacote)</span></td>
+      <td class="center">Data</td>
+      <td class="center">8</td>
+      <td>U.Tentativa</td>
+      <td class="small">Data da ultima tentativa de inativacao do produto</td>
+    </tr></tbody>
+  </table>
+
+  <div class="subtable-head">
+    <h4><span class="mono">ZBJ</span> <span class="count-pill">5 campo(s)</span></h4>
+    <p class="muted small">Referenciada pelo(s) parâmetro(s) MV_X_PNC14.</p>
+  </div>
+  <table class="data-table">
+    <thead><tr><th>Campo</th><th>Operação</th><th>Natureza</th><th>Tipo</th><th>Tam.</th><th>Título</th><th>Descrição funcional</th></tr></thead>
+    <tbody>
+    <tr>
+      <td class="mono">ZBJ_FILIAL</td>
+      <td class="center"><span class="badge badge-incl">Inclusão/Alteração</span></td>
+      <td class="center"><span class="tag tag-nova">Tabela custom. (neste pacote)</span></td>
+      <td class="center">Caractere</td>
+      <td class="center">2</td>
+      <td>Filial</td>
+      <td class="small"></td>
+    </tr>
+    <tr>
+      <td class="mono">ZBJ_ID</td>
+      <td class="center"><span class="badge badge-incl">Inclusão/Alteração</span></td>
+      <td class="center"><span class="tag tag-nova">Tabela custom. (neste pacote)</span></td>
+      <td class="center">Caractere</td>
+      <td class="center">4</td>
+      <td>ID</td>
+      <td class="small">ID da Tag ligada ao produto</td>
+    </tr>
+    <tr>
+      <td class="mono">ZBJ_DESC</td>
+      <td class="center"><span class="badge badge-incl">Inclusão/Alteração</span></td>
+      <td class="center"><span class="tag tag-nova">Tabela custom. (neste pacote)</span></td>
+      <td class="center">Caractere</td>
+      <td class="center">15</td>
+      <td>Descricao</td>
+      <td class="small">Nome atribuido a tag</td>
+    </tr>
+    <tr>
+      <td class="mono">ZBJ_ICO</td>
+      <td class="center"><span class="badge badge-incl">Inclusão/Alteração</span></td>
+      <td class="center"><span class="tag tag-nova">Tabela custom. (neste pacote)</span></td>
+      <td class="center">Caractere</td>
+      <td class="center">100</td>
+      <td>Icone</td>
+      <td class="small">Icone ligado a tag</td>
+    </tr>
+    <tr>
+      <td class="mono">ZBJ_MSBLQL</td>
+      <td class="center"><span class="badge badge-incl">Inclusão/Alteração</span></td>
+      <td class="center"><span class="tag tag-nova">Tabela custom. (neste pacote)</span></td>
+      <td class="center">Caractere</td>
+      <td class="center">1</td>
+      <td>Bloqueado?</td>
+      <td class="small"></td>
+    </tr></tbody>
+  </table>
+
+  <div class="subtable-head">
+    <h4><span class="mono">ZBK</span> <span class="count-pill">7 campo(s)</span></h4>
+    <p class="muted small">Tabela incluída neste pacote (SX2). Ex.: campo &ldquo;ID&rdquo;.</p>
+  </div>
+  <table class="data-table">
+    <thead><tr><th>Campo</th><th>Operação</th><th>Natureza</th><th>Tipo</th><th>Tam.</th><th>Título</th><th>Descrição funcional</th></tr></thead>
+    <tbody>
+    <tr>
+      <td class="mono">ZBK_FILIAL</td>
+      <td class="center"><span class="badge badge-incl">Inclusão/Alteração</span></td>
+      <td class="center"><span class="tag tag-nova">Tabela custom. (neste pacote)</span></td>
+      <td class="center">Caractere</td>
+      <td class="center">2</td>
+      <td>Filial</td>
+      <td class="small"></td>
+    </tr>
+    <tr>
+      <td class="mono">ZBK_ID</td>
+      <td class="center"><span class="badge badge-incl">Inclusão/Alteração</span></td>
+      <td class="center"><span class="tag tag-nova">Tabela custom. (neste pacote)</span></td>
+      <td class="center">Caractere</td>
+      <td class="center">4</td>
+      <td>ID</td>
+      <td class="small">Identificador do Alerta</td>
+    </tr>
+    <tr>
+      <td class="mono">ZBK_DESC</td>
+      <td class="center"><span class="badge badge-incl">Inclusão/Alteração</span></td>
+      <td class="center"><span class="tag tag-nova">Tabela custom. (neste pacote)</span></td>
+      <td class="center">Caractere</td>
+      <td class="center">60</td>
+      <td>Descricao</td>
+      <td class="small">Descricao do Alerta</td>
+    </tr>
+    <tr>
+      <td class="mono">ZBK_TAG</td>
+      <td class="center"><span class="badge badge-incl">Inclusão/Alteração</span></td>
+      <td class="center"><span class="tag tag-nova">Tabela custom. (neste pacote)</span></td>
+      <td class="center">Caractere</td>
+      <td class="center">4</td>
+      <td>Tag</td>
+      <td class="small">ID da Tag</td>
+    </tr>
+    <tr>
+      <td class="mono">ZBK_EMAIL</td>
+      <td class="center"><span class="badge badge-incl">Inclusão/Alteração</span></td>
+      <td class="center"><span class="tag tag-nova">Tabela custom. (neste pacote)</span></td>
+      <td class="center">Caractere</td>
+      <td class="center">100</td>
+      <td>Emails</td>
+      <td class="small">E-mail dos colaboradores que devem receber alerta</td>
+    </tr>
+    <tr>
+      <td class="mono">ZBK_MSBLQL</td>
+      <td class="center"><span class="badge badge-incl">Inclusão/Alteração</span></td>
+      <td class="center"><span class="tag tag-nova">Tabela custom. (neste pacote)</span></td>
+      <td class="center">Caractere</td>
+      <td class="center">1</td>
+      <td>Bloqueado?</td>
+      <td class="small"></td>
+    </tr>
+    <tr>
+      <td class="mono">ZBK_FORMUL</td>
+      <td class="center"><span class="badge badge-incl">Inclusão/Alteração</span></td>
+      <td class="center"><span class="tag tag-nova">Tabela custom. (neste pacote)</span></td>
+      <td class="center">Caractere</td>
+      <td class="center">200</td>
+      <td>Formula</td>
+      <td class="small">Formula para acionamento do alerta</td>
+    </tr></tbody>
+  </table>
+
+  <div class="subtable-head">
+    <h4><span class="mono">ZBL</span> <span class="count-pill">7 campo(s)</span></h4>
+    <p class="muted small">Tabela incluída neste pacote (SX2). Ex.: campo &ldquo;ID&rdquo;.</p>
+  </div>
+  <table class="data-table">
+    <thead><tr><th>Campo</th><th>Operação</th><th>Natureza</th><th>Tipo</th><th>Tam.</th><th>Título</th><th>Descrição funcional</th></tr></thead>
+    <tbody>
+    <tr>
+      <td class="mono">ZBL_FILIAL</td>
+      <td class="center"><span class="badge badge-incl">Inclusão/Alteração</span></td>
+      <td class="center"><span class="tag tag-nova">Tabela custom. (neste pacote)</span></td>
+      <td class="center">Caractere</td>
+      <td class="center">2</td>
+      <td>Filial</td>
+      <td class="small"></td>
+    </tr>
+    <tr>
+      <td class="mono">ZBL_ID</td>
+      <td class="center"><span class="badge badge-incl">Inclusão/Alteração</span></td>
+      <td class="center"><span class="tag tag-nova">Tabela custom. (neste pacote)</span></td>
+      <td class="center">Caractere</td>
+      <td class="center">6</td>
+      <td>ID</td>
+      <td class="small">ID Evento Gerado</td>
+    </tr>
+    <tr>
+      <td class="mono">ZBL_DATA</td>
+      <td class="center"><span class="badge badge-incl">Inclusão/Alteração</span></td>
+      <td class="center"><span class="tag tag-nova">Tabela custom. (neste pacote)</span></td>
+      <td class="center">Data</td>
+      <td class="center">8</td>
+      <td>Data</td>
+      <td class="small">Data do Evento</td>
+    </tr>
+    <tr>
+      <td class="mono">ZBL_TAG</td>
+      <td class="center"><span class="badge badge-incl">Inclusão/Alteração</span></td>
+      <td class="center"><span class="tag tag-nova">Tabela custom. (neste pacote)</span></td>
+      <td class="center">Caractere</td>
+      <td class="center">4</td>
+      <td>Tag</td>
+      <td class="small">ID da tag relacionada ao evento</td>
+    </tr>
+    <tr>
+      <td class="mono">ZBL_ALERT</td>
+      <td class="center"><span class="badge badge-incl">Inclusão/Alteração</span></td>
+      <td class="center"><span class="tag tag-nova">Tabela custom. (neste pacote)</span></td>
+      <td class="center">Caractere</td>
+      <td class="center">4</td>
+      <td>Alerta</td>
+      <td class="small">Codigo do cadastro de alerta</td>
+    </tr>
+    <tr>
+      <td class="mono">ZBL_EMAIL</td>
+      <td class="center"><span class="badge badge-incl">Inclusão/Alteração</span></td>
+      <td class="center"><span class="tag tag-nova">Tabela custom. (neste pacote)</span></td>
+      <td class="center">Caractere</td>
+      <td class="center">100</td>
+      <td>E-Mail</td>
+      <td class="small">Email para onde o alerta foi enviado</td>
+    </tr>
+    <tr>
+      <td class="mono">ZBL_HORA</td>
+      <td class="center"><span class="badge badge-incl">Inclusão/Alteração</span></td>
+      <td class="center"><span class="tag tag-nova">Tabela custom. (neste pacote)</span></td>
+      <td class="center">Caractere</td>
+      <td class="center">8</td>
+      <td>Hora</td>
+      <td class="small">Horario em que o evento foi enviado</td>
+    </tr></tbody>
+  </table>
+
+  <div class="subtable-head">
+    <h4><span class="mono">ZBM</span> <span class="count-pill">5 campo(s)</span></h4>
+    <p class="muted small">Referenciada pelo(s) parâmetro(s) MV_X_PNC16.</p>
+  </div>
+  <table class="data-table">
+    <thead><tr><th>Campo</th><th>Operação</th><th>Natureza</th><th>Tipo</th><th>Tam.</th><th>Título</th><th>Descrição funcional</th></tr></thead>
+    <tbody>
+    <tr>
+      <td class="mono">ZBM_FILIAL</td>
+      <td class="center"><span class="badge badge-incl">Inclusão/Alteração</span></td>
+      <td class="center"><span class="tag tag-nova">Tabela custom. (neste pacote)</span></td>
+      <td class="center">Caractere</td>
+      <td class="center">2</td>
+      <td>Filial</td>
+      <td class="small"></td>
+    </tr>
+    <tr>
+      <td class="mono">ZBM_ID</td>
+      <td class="center"><span class="badge badge-incl">Inclusão/Alteração</span></td>
+      <td class="center"><span class="tag tag-nova">Tabela custom. (neste pacote)</span></td>
+      <td class="center">Caractere</td>
+      <td class="center">2</td>
+      <td>ID do Perfil</td>
+      <td class="small">ID do Perfil de Cálculo</td>
+    </tr>
+    <tr>
+      <td class="mono">ZBM_DESC</td>
+      <td class="center"><span class="badge badge-incl">Inclusão/Alteração</span></td>
+      <td class="center"><span class="tag tag-nova">Tabela custom. (neste pacote)</span></td>
+      <td class="center">Caractere</td>
+      <td class="center">30</td>
+      <td>Descrição</td>
+      <td class="small">Descrição do perfil de cálculo</td>
+    </tr>
+    <tr>
+      <td class="mono">ZBM_FORMUL</td>
+      <td class="center"><span class="badge badge-incl">Inclusão/Alteração</span></td>
+      <td class="center"><span class="tag tag-nova">Tabela custom. (neste pacote)</span></td>
+      <td class="center">Caractere</td>
+      <td class="center">200</td>
+      <td>Formula</td>
+      <td class="small">Fórmula utilizada para realização do perfil de cálculo</td>
+    </tr>
+    <tr>
+      <td class="mono">ZBM_MSBLQL</td>
+      <td class="center"><span class="badge badge-incl">Inclusão/Alteração</span></td>
+      <td class="center"><span class="tag tag-nova">Tabela custom. (neste pacote)</span></td>
+      <td class="center">Caractere</td>
+      <td class="center">1</td>
+      <td>Bloqueado?</td>
+      <td class="small"></td>
+    </tr></tbody>
+  </table>
+
+
+  <div class="quebra"></div>
+  <h2 class="secao"><span class="num">6.</span> Parâmetros de configuração (SX6)</h2>
+  <table class="data-table">
+    <thead><tr><th>Parâmetro</th><th>Tipo</th><th>Descrição</th><th>Valor padrão</th><th>Operação</th></tr></thead>
+    <tbody>
+    <tr>
+      <td class="mono">MV_X_PNC01</td>
+      <td class="center">Caractere</td>
+      <td>Formula de calculo da necessidade de compra através do Painel de Compra</td>
+      <td class="mono small">(|(|nDias|+|nLdTime|)|-|nPrjEst|)|*|nConMed</td>
+      <td class="center"><span class="badge badge-incl">Inclusão/Alteração</span></td>
+    </tr>
+    <tr>
+      <td class="mono">MV_X_PNC02</td>
+      <td class="center">Caractere</td>
+      <td>Alias da tabela de indices por produto</td>
+      <td class="mono small">ZBG</td>
+      <td class="center"><span class="badge badge-incl">Inclusão/Alteração</span></td>
+    </tr>
+    <tr>
+      <td class="mono">MV_X_PNC04</td>
+      <td class="center">Caractere</td>
+      <td>Alias da tabela de controle de produtos descontinuados</td>
+      <td class="mono small">ZBH</td>
+      <td class="center"><span class="badge badge-incl">Inclusão/Alteração</span></td>
+    </tr>
+    <tr>
+      <td class="mono">MV_X_PNC05</td>
+      <td class="center">Numérico</td>
+      <td>Lucro líquido que a empresa pretende obter com a venda do produto</td>
+      <td class="mono small">5</td>
+      <td class="center"><span class="badge badge-incl">Inclusão/Alteração</span></td>
+    </tr>
+    <tr>
+      <td class="mono">MV_X_PNC06</td>
+      <td class="center">Numérico</td>
+      <td>Índice de despesas operacionais utilizado para formacao de precos</td>
+      <td class="mono small">30</td>
+      <td class="center"><span class="badge badge-incl">Inclusão/Alteração</span></td>
+    </tr>
+    <tr>
+      <td class="mono">MV_X_PNC07</td>
+      <td class="center">Numérico</td>
+      <td>Índice CSLL usado na formação de precos</td>
+      <td class="mono small">0</td>
+      <td class="center"><span class="badge badge-incl">Inclusão/Alteração</span></td>
+    </tr>
+    <tr>
+      <td class="mono">MV_X_PNC08</td>
+      <td class="center">Numérico</td>
+      <td>Índice IRPJ usado no processo de formação de preço</td>
+      <td class="mono small">0</td>
+      <td class="center"><span class="badge badge-incl">Inclusão/Alteração</span></td>
+    </tr>
+    <tr>
+      <td class="mono">MV_X_PNC09</td>
+      <td class="center">Numérico</td>
+      <td>Indice inadimplencia usado para formacao de precos</td>
+      <td class="mono small">2</td>
+      <td class="center"><span class="badge badge-incl">Inclusão/Alteração</span></td>
+    </tr>
+    <tr>
+      <td class="mono">MV_X_PNC10</td>
+      <td class="center">Numérico</td>
+      <td>Indice de custo financeiro para formacao de precos</td>
+      <td class="mono small">2</td>
+      <td class="center"><span class="badge badge-incl">Inclusão/Alteração</span></td>
+    </tr>
+    <tr>
+      <td class="mono">MV_X_PNC11</td>
+      <td class="center">Numérico</td>
+      <td>Metodo de analise 1-Fornecedor Padrão ou 2-Melhor Fornecedor</td>
+      <td class="mono small">1</td>
+      <td class="center"><span class="badge badge-incl">Inclusão/Alteração</span></td>
+    </tr>
+    <tr>
+      <td class="mono">MV_X_PNC12</td>
+      <td class="center">Caractere</td>
+      <td>TimeStamp da ultima execucao do job de cálculo dos indices dos produtos para Painel de Compras</td>
+      <td class="mono small"></td>
+      <td class="center"><span class="badge badge-incl">Inclusão/Alteração</span></td>
+    </tr>
+    <tr>
+      <td class="mono">MV_X_PNC13</td>
+      <td class="center">Caractere</td>
+      <td>Campo do produto usado para filtro de grupo</td>
+      <td class="mono small">B1_GRUPO</td>
+      <td class="center"><span class="badge badge-incl">Inclusão/Alteração</span></td>
+    </tr>
+    <tr>
+      <td class="mono">MV_X_PNC14</td>
+      <td class="center">Caractere</td>
+      <td>Alias da tabela de cadastro de tags</td>
+      <td class="mono small">ZBJ</td>
+      <td class="center"><span class="badge badge-incl">Inclusão/Alteração</span></td>
+    </tr>
+    <tr>
+      <td class="mono">MV_X_PNC15</td>
+      <td class="center">Caractere</td>
+      <td>Usuários com permissão para gravar preço de tabela</td>
+      <td class="mono small">000000|</td>
+      <td class="center"><span class="badge badge-incl">Inclusão/Alteração</span></td>
+    </tr>
+    <tr>
+      <td class="mono">MV_X_PNC16</td>
+      <td class="center">Caractere</td>
+      <td>Alias da tabela de perfis de calculo</td>
+      <td class="mono small">ZBM</td>
+      <td class="center"><span class="badge badge-incl">Inclusão/Alteração</span></td>
+    </tr>
+    <tr>
+      <td class="mono">MV_X_PNC17</td>
+      <td class="center">Caractere</td>
+      <td>Serie utilizada pelo painel de compras, no processo de formacao de precos para indicar acrescimo de custo financeiro ao produto</td>
+      <td class="mono small"></td>
+      <td class="center"><span class="badge badge-incl">Inclusão/Alteração</span></td>
+    </tr>
+    <tr>
+      <td class="mono">MV_X_PNC18</td>
+      <td class="center">Numérico</td>
+      <td>Alíquota ICMS utilizado no processo de formação de preço do peinel de Compras</td>
+      <td class="mono small">0</td>
+      <td class="center"><span class="badge badge-incl">Inclusão/Alteração</span></td>
+    </tr></tbody>
+  </table>
+
+  <h2 class="secao"><span class="num">7.</span> Consultas padrão (SXB) e pastas de campos (SXA)</h2>
+  <h3 class="subsecao">7.1 Consultas padrão (F3)</h3>
+  <table class="data-table">
+    <thead><tr><th>Consulta</th><th>Título (quando localizado)</th><th>Operações no pacote</th><th></th></tr></thead>
+    <tbody>
+    <tr>
+      <td class="mono">SA2</td>
+      <td class="small"></td>
+      <td class="center">24</td>
+      <td class="center">24 <span class="badge badge-incl">Inclusão/Alteração</span> </td>
+    </tr>
+    <tr>
+      <td class="mono">SA2PAN</td>
+      <td class="small"></td>
+      <td class="center">22</td>
+      <td class="center">22 <span class="badge badge-incl">Inclusão/Alteração</span> </td>
+    </tr></tbody>
+  </table>
+  <h3 class="subsecao">7.2 Pastas de campos (SXA)</h3>
+  <p class="lead small">Abas adicionais na tela de manutenção do cadastro, usadas para agrupar visualmente os
+  campos customizados criados por este pacote na tabela correspondente.</p>
+  <table class="data-table">
+    <thead><tr><th>Tabela</th><th>Aba/Ordem</th><th>Operação</th></tr></thead>
+    <tbody>
+    <tr>
+      <td class="mono">SA2</td>
+      <td class="center">9</td>
+      <td class="center"><span class="badge badge-incl">Inclusão/Alteração</span></td>
+    </tr>
+    <tr>
+      <td class="mono">SB1</td>
+      <td class="center">A</td>
+      <td class="center"><span class="badge badge-incl">Inclusão/Alteração</span></td>
+    </tr>
+    <tr>
+      <td class="mono">SBZ</td>
+      <td class="center">4</td>
+      <td class="center"><span class="badge badge-incl">Inclusão/Alteração</span></td>
+    </tr></tbody>
+  </table>
+
+  <h2 class="secao"><span class="num">8.</span> Ajuda de campo multi-idioma (F1)</h2>
+  <table class="data-table">
+    <thead><tr><th>Idioma</th><th>Chaves preenchidas</th><th>Chaves vazias</th><th>Observação</th></tr></thead>
+    <tbody>
+    <tr>
+      <td>Inglês</td>
+      <td class="center">46</td>
+      <td class="center">10</td>
+      <td class="small">45 de 46 textos idênticos ao de referência (possível ausência de tradução real)</td>
+    </tr>
+    <tr>
+      <td>Português</td>
+      <td class="center">53</td>
+      <td class="center">3</td>
+      <td class="small">idioma de referência</td>
+    </tr>
+    <tr>
+      <td>Espanhol</td>
+      <td class="center">46</td>
+      <td class="center">10</td>
+      <td class="small">45 de 46 textos idênticos ao de referência (possível ausência de tradução real)</td>
+    </tr></tbody>
+  </table>
+
+  <div class="quebra"></div>
+  <h2 class="secao"><span class="num">9.</span> Pontos de atenção e riscos de aplicação</h2>
+  
+  <div class="callout roxo">
+    <h4>Reaplicação de propriedades em 15 campo(s) padrão TOTVS (não customizados)</h4>
+    <p class="small">Estes campos já existem no dicionário padrão do produto e não têm o sinal de customização
+    (<span class="mono">_X_</span>): <span class="mono small">A2_EMAIL, B1_CODANT, B1_EMIN, B1_LE, B1_LM, B1_LOJPROC, B1_MRP, B1_PE, B1_PROC, B1_QE, B1_TIPE, C7_FRETCON, C7_TRANSLJ, C7_TRANSP, C7_VALFRE</span>.
+    O manifesto declara reaplicar as seguintes preferências de template sobre eles:</p>
+    <ul><li>Tamanho e decimais do campo</li><li>Consulta padrão</li><li>Inicializador padrão</li><li>Pasta de campos</li><li>Usado no browse</li><li>Nível</li><li>Obrigatório (modalidade usuário)</li><li>When</li><li>Validação do usuário</li><li>Propriedades das tabelas (dicionário SX2)</li></ul>
+    <p class="small">Em ambientes com customizações locais prévias nesses atributos, elas podem ser sobrescritas.
+    Recomenda-se conferência pontual antes de aplicar em produção.</p>
+  </div>
+  <div class="callout roxo"><h4>Sem alterações de menu</h4>
+  <p class="small"><span class="mono">mnupack.txt</span> está vazio &mdash; nenhum item de menu é criado,
+  alterado ou removido por este pacote.</p></div>
+
+  <h2 class="secao"><span class="num">10.</span> Conclusão</h2>
+  <p class="lead">
+    Foram identificadas <strong>154 operações</strong> no manifesto (154 em Inclusão/Alteração
+    e 0 em Exclusão), distribuídas entre 6
+    dicionário(s) de dados. Revisar os itens listados na seção 9 antes de aplicar este pacote em ambiente de produção.
+  </p>
+
+  <div class="footer-note">
+    <span>Ficha técnica gerada automaticamente pela skill <span class="mono">upddistr-ficha-tecnica</span>.</span>
+    <span>000028 &middot; SMART SUPPLY - 12.1.2510 &middot; versão 0002</span>
+  </div>
+
+</div>
+</body>
+</html>
