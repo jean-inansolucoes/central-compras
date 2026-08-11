@@ -3385,7 +3385,7 @@ Static Function fLoadAna( lNoInt )
 
 		if oBrwPro != Nil .and. Len( aColPro ) > 0
 
-			oDash:SetPicture( "@E 999,999,999" )
+			oDash:SetPicture( "@E 999,999,999.9" )	// 1 casa decimal - exclusivo do tipo "Misto", para o rotulo da barra bater com a proporcao exibida
 			dDtCalc := CtoD( SubStr( GetMv( 'MV_X_PNC12',,DtoC(date()) ), 01, 10 ) )
 
 			// Resolve a(s) filial(is) a consolidar conforme a seleção do combo oCboFil (mesma

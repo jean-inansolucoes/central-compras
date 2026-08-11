@@ -19,6 +19,7 @@ Class JSWebChart
 	Data oChannel
 	Data aSeries
 	Data cPicture
+	Data nChartH
 
 	Method New() Constructor
 	Method SetChtDef( nType )
@@ -46,6 +47,7 @@ Construtor: inicializa o vetor de séries e a máscara padrão de exibição dos valo
 method New() class JSWebChart
 	::aSeries  := {}
 	::cPicture := "@E 9,999,999"
+	::nChartH  := 130	// Altura padrão (em pixels) da área de barras do gráfico
 return self
 
 /*/{Protheus.doc} SetChtDef
@@ -161,7 +163,7 @@ Renderiza o HTML/CSS do gráfico com as séries acumuladas desde o último DeActiva
 /*/
 method Activate() class JSWebChart
 	if ValType( ::oWeb ) == 'O'
-		::oWeb:SetHtml( MakeChtHtm( ::aSeries, ::cPicture ) )
+		::oWeb:SetHtml( MakeChtHtm( ::aSeries, ::cPicture, ::nChartH ) )
 	endif
 return nil
 
@@ -200,17 +202,19 @@ e legenda embaixo), 100% autocontido (sem script externo, sem chamada de rede).
 @since 29/07/2026
 @param aSeries, array, vetor de séries { {cLabel, nValue}, ... }
 @param cPicture, character, picture Protheus usada para formatar o valor de cada barra
+@param nChartH, numeric, altura disponível (em pixels) para a coluna do gráfico
 @return character, cHtml
 /*/
-static function MakeChtHtm( aSeries, cPicture )
+static function MakeChtHtm( aSeries, cPicture, nChartH )
 
 	local cHtml    := "" as character
 	local nX       := 0  as numeric
 	local nMax     := 0  as numeric
 	local nBarPx   := 0  as numeric
 	local cValor   := "" as character
-	local nChartH  := 130 as numeric
 	local nCorIdx  := 0  as numeric
+	local nLabelH  := 40 as numeric
+	local nBarH    := 0  as numeric
 	local aPaleta  := { { "#a7c7fb", "#3b82f6" },;
 						 { "#93e0c6", "#10b981" },;
 						 { "#b9c0cb", "#64748b" },;
@@ -221,6 +225,13 @@ static function MakeChtHtm( aSeries, cPicture )
 						 { "#e7ca8e", "#ca8a04" },;
 						 { "#afc493", "#4d7c0f" },;
 						 { "#92cfc9", "#0d9488" } } as array
+
+	default nChartH := 130
+
+	nBarH := nChartH - nLabelH
+	if nBarH < 0
+		nBarH := 0
+	endif
 
 	aEval( aSeries, {|x| nMax := iif( x[2] > nMax, x[2], nMax ) } )
 	if nMax == 0
@@ -236,7 +247,13 @@ static function MakeChtHtm( aSeries, cPicture )
 	cHtml += '.chart{display:flex;align-items:flex-end;justify-content:space-around;gap:6px;}'+ EOL
 	// Altura da coluna em pixel fixo (não percentual) - motores de renderização embutidos mais antigos
 	// (caso do TWebEngine) têm suporte inconsistente para resolver "height:%" encadeado através de
-	// várias camadas de flexbox; pixel fixo elimina essa dependência e funciona em qualquer motor
+	// várias camadas de flexbox; pixel fixo elimina essa dependência e funciona em qualquer motor.
+	// nChartH é o espaço TOTAL já disponível no painel (não pode ser ampliado) - por isso ele é
+	// dividido em duas fatias: nBarH para a barra em si e nLabelH reservado para rótulo de valor +
+	// rótulo do período. Sem essa reserva, a barra do maior valor (que sozinha ocuparia nChartH
+	// inteiro) sobra sem espaço para os rótulos dentro da coluna e o flexbox a encolhe (a <div> da
+	// barra não tem conteúdo próprio, logo não tem altura mínima que impeça esse encolhimento) -
+	// isso fazia a barra do maior valor renderizar quase do mesmo tamanho das menores
 	cHtml += '.bar-col{display:flex;flex-direction:column;align-items:center;justify-content:flex-end;flex:1;height:'+ cValToChar( nChartH ) +'px;}'+ EOL
 	cHtml += '.bar-val{font-size:12px;font-weight:600;color:#0a5ab4;margin-bottom:4px;white-space:nowrap;}'+ EOL
 	// Altura de cada barra também vai em pixel fixo (calculada aqui, no AdvPL), no mesmo estilo inline -
@@ -248,7 +265,7 @@ static function MakeChtHtm( aSeries, cPicture )
 	cHtml += '<div class="chart">'+ EOL
 
 	for nX := 1 to len( aSeries )
-		nBarPx := Round( ( aSeries[nX][2] / nMax ) * nChartH, 0 )
+		nBarPx := Round( ( aSeries[nX][2] / nMax ) * nBarH, 0 )
 		cValor := AllTrim( Transform( aSeries[nX][2], cPicture ) )
 		nCorIdx := Randomize( 1, Len( aPaleta ) + 1 )
 		cHtml += '<div class="bar-col">'+ EOL
