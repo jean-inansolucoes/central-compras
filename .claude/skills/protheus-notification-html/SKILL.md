@@ -1,6 +1,6 @@
 ---
 name: protheus-notification-html
-description: Gera conteúdo HTML para notificações internas exibidas na Central de Notificações do Protheus (wrapper AdvPL da INAN Soluções, usado no SmartSupply e outras ferramentas), seguindo o padrão visual roxo/pink da marca e todas as restrições técnicas do wrapper (fragmento cBody, sem aspas simples, acentos em entidades HTML, classes com prefixo ss-). Use esta skill SEMPRE que o usuário pedir um HTML de notificação, comunicado, aviso de nova release/versão, novidade de ferramenta, ou mencionar "notificação do Protheus", "Central de Notificações", "cBody", "notificação do SmartSupply" — mesmo que ele não cite a skill pelo nome. Também use quando ele pedir para "gerar um HTML nesse formato" referindo-se ao padrão de notificações.
+description: Gera conteúdo HTML para notificações internas exibidas na Central de Notificações do Protheus (wrapper AdvPL da INAN Soluções, usado no SmartSupply e outras ferramentas), seguindo o padrão visual roxo/pink da marca e todas as restrições técnicas do wrapper (fragmento cBody, sem aspas simples, acentos em entidades HTML, classes com prefixo ss-). Use esta skill SEMPRE que o usuário pedir um HTML de notificação, comunicado, aviso de nova release/versão, novidade de ferramenta, ou mencionar "notificação do Protheus", "Central de Notificações", "cBody", "notificação do SmartSupply" — mesmo que ele não cite a skill pelo nome. Também use quando ele pedir para "gerar um HTML nesse formato" referindo-se ao padrão de notificações. Quando a notificação comunicar uma novidade real do SmartSupply (funcionalidade, melhoria ou correção), esta skill encadeia automaticamente a skill smartsupply-doc-generator ao final para manter a documentação funcional sincronizada.
 ---
 
 # Notificações HTML para o Protheus (padrão INAN / SmartSupply)
@@ -65,6 +65,7 @@ O script:
 
 4. Corrigir qualquer erro apontado pelo script e rodar de novo até passar.
 5. Publicar o `<nome>-preview.html` como Artifact para o usuário conferir visualmente, e apontar o caminho dos 3 arquivos já salvos em `generated_notify/<versao>/`, destacando que o `.advpl.txt` está pronto para colar no fonte.
+6. **Encadeamento com a documentação funcional**: se o conteúdo desta notificação comunica uma novidade real do SmartSupply — nova funcionalidade, melhoria de motor de cálculo, nova tela/relatório, correção de comportamento — invoque em seguida a skill `smartsupply-doc-generator`, passando o mesmo contexto da novidade (do que se trata, quais arquivos/telas foram afetados) como escopo, para que ela atualize `documentos/smartsupply-painel-de-compras.html`/`.pdf` de forma incremental. Pule este passo apenas quando a notificação for um aviso puramente institucional sem relação com o comportamento da ferramenta (ex.: campanha, aviso de manutenção programada, comunicado genérico).
 
 ## Dicas de conteúdo
 
