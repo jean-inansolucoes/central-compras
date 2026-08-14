@@ -1,0 +1,1084 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SmartSupply — Painel de Compras | Como Funciona</title>
+<style>
+  :root{
+    --branco:#ffffff;
+    --roxo-escuro:#2e105d;
+    --roxo:#441c7d;
+    --roxo-medio:#6b31b0;
+    --roxo-claro:#a57dd0;
+    --roxo-suave:#8256b9;
+    --pink:#f41dab;
+    --pink-escuro:#cd1f92;
+    --cinza-lilas:#b6acc7;
+    --texto:#2b2536;
+    --texto-suave:#5b5468;
+    --fundo-pagina:#faf9fc;
+    --fundo-card:#ffffff;
+    --borda:#e6e0f0;
+    --sucesso:#1f9d63;
+    --alerta:#e0a300;
+    --perigo:#d63b5c;
+  }
+
+  *{ box-sizing:border-box; }
+
+  html,body{
+    margin:0; padding:0;
+    background:var(--fundo-pagina);
+    color:var(--texto);
+    font-family:"Segoe UI", Arial, Helvetica, sans-serif;
+    font-size:14px;
+    line-height:1.5;
+    -webkit-print-color-adjust:exact;
+    print-color-adjust:exact;
+  }
+
+  @page{ size:A4; margin:0; }
+
+  .pagina{
+    width:210mm;
+    min-height:297mm;
+    margin:0 auto;
+    background:var(--fundo-pagina);
+    position:relative;
+    overflow:hidden;
+    page-break-after:always;
+  }
+  .pagina:last-child{ page-break-after:auto; }
+  .pagina.conteudo{ padding:13mm 18mm 13mm 18mm; }
+
+  /* ============ CAPA ============ */
+  .capa{
+    background:
+      radial-gradient(circle at 15% 12%, rgba(244,29,171,0.35), transparent 45%),
+      radial-gradient(circle at 85% 88%, rgba(107,49,176,0.55), transparent 50%),
+      linear-gradient(160deg, var(--roxo-escuro) 0%, var(--roxo) 55%, var(--roxo-medio) 100%);
+    color:var(--branco);
+    display:flex;
+    flex-direction:column;
+    justify-content:space-between;
+    padding:22mm 18mm;
+  }
+  .capa .faixa-topo{
+    height:6px;
+    width:100%;
+    border-radius:6px;
+    background:linear-gradient(90deg, var(--roxo-medio), var(--pink), var(--pink-escuro));
+    margin-bottom:14mm;
+  }
+  .capa .selo{
+    display:inline-flex;
+    align-items:center;
+    gap:8px;
+    background:linear-gradient(90deg, var(--pink), var(--pink-escuro));
+    color:var(--branco);
+    font-size:11px;
+    font-weight:700;
+    letter-spacing:1.5px;
+    text-transform:uppercase;
+    padding:6px 16px;
+    border-radius:999px;
+    width:fit-content;
+    margin-bottom:22px;
+  }
+  .capa .ponto{
+    width:7px; height:7px; border-radius:50%;
+    background:var(--branco);
+    box-shadow:0 0 8px 2px rgba(255,255,255,0.7);
+  }
+  .capa h1{
+    font-size:46px;
+    line-height:1.15;
+    margin:0 0 10px 0;
+    font-weight:800;
+    letter-spacing:-0.5px;
+  }
+  .capa h1 .destaque{
+    background:linear-gradient(90deg, #ffffff, var(--roxo-claro) 60%, var(--pink) 120%);
+    -webkit-background-clip:text;
+    background-clip:text;
+    -webkit-text-fill-color:transparent;
+  }
+  .capa .subtitulo{
+    font-size:19px;
+    color:#e7ddf5;
+    font-weight:400;
+    max-width:120mm;
+    margin-bottom:6px;
+  }
+  .capa .linha-fina{
+    width:70px; height:4px; border-radius:4px;
+    background:var(--pink);
+    margin:20px 0;
+  }
+  .capa .cartao-desc{
+    background:rgba(255,255,255,0.08);
+    border:1px solid rgba(255,255,255,0.18);
+    border-radius:14px;
+    padding:18px 20px;
+    max-width:135mm;
+    font-size:13.5px;
+    color:#efe9f9;
+    backdrop-filter:blur(2px);
+  }
+  .capa .rodape-capa{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-end;
+    border-top:1px solid rgba(255,255,255,0.22);
+    padding-top:14px;
+  }
+  .capa .rodape-capa .marca{
+    font-size:13px; font-weight:700; letter-spacing:2px; text-transform:uppercase; color:var(--roxo-claro);
+  }
+  .capa .rodape-capa .info{
+    font-size:12px; color:#d9cdec; text-align:right; line-height:1.5;
+  }
+
+  /* ============ CABEÇALHOS DE SEÇÃO ============ */
+  .cab-secao{
+    display:flex; align-items:center; gap:14px;
+    margin:0 0 4mm 0;
+  }
+  .cab-secao .numero{
+    flex:0 0 auto;
+    width:46px; height:46px;
+    border-radius:12px;
+    background:linear-gradient(135deg, var(--roxo), var(--roxo-medio));
+    color:var(--branco);
+    display:flex; align-items:center; justify-content:center;
+    font-size:19px; font-weight:800;
+    box-shadow:0 4px 10px rgba(68,28,125,0.25);
+  }
+  .cab-secao h2{
+    margin:0; font-size:23px; color:var(--roxo-escuro); font-weight:800; letter-spacing:-0.3px;
+  }
+  .cab-secao .linha{
+    flex:1 1 auto; height:2px;
+    background:linear-gradient(90deg, var(--borda), transparent);
+  }
+
+  h3{ color:var(--roxo); font-size:16px; margin:14px 0 6px 0; font-weight:700; }
+  h4{ color:var(--roxo-medio); font-size:13.5px; margin:10px 0 5px 0; font-weight:700; }
+  p{ margin:0 0 8px 0; color:var(--texto); }
+  strong{ color:var(--roxo-escuro); }
+  ul, ol{ margin:5px 0 10px 0; padding-left:20px; }
+  li{ margin-bottom:4px; }
+
+  /* ============ CAIXAS / CALLOUTS ============ */
+  .caixa{
+    border-radius:12px;
+    padding:11px 15px;
+    margin:10px 0;
+    font-size:13.2px;
+    border:1px solid var(--borda);
+  }
+  .caixa-conceito{
+    background:linear-gradient(135deg, #f6f1fb, #ffffff);
+    border-left:4px solid var(--roxo-medio);
+  }
+  .caixa-conceito .titulo-caixa{
+    color:var(--roxo); font-weight:800; font-size:13px; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:6px;
+    display:flex; align-items:center; gap:6px;
+  }
+  .caixa-exemplo{
+    background:linear-gradient(135deg, #fdf1fa, #ffffff);
+    border-left:4px solid var(--pink-escuro);
+  }
+  .caixa-exemplo .titulo-caixa{
+    color:var(--pink-escuro); font-weight:800; font-size:13px; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:6px;
+    display:flex; align-items:center; gap:6px;
+  }
+  .caixa-atencao{
+    background:#fff8ec;
+    border-left:4px solid var(--alerta);
+  }
+  .caixa-atencao .titulo-caixa{
+    color:#8a6100; font-weight:800; font-size:13px; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:6px;
+  }
+  .badge-icone{
+    width:20px; height:20px; border-radius:6px;
+    display:inline-flex; align-items:center; justify-content:center;
+    background:var(--roxo-medio); color:#fff; font-size:12px; flex:0 0 auto;
+  }
+  .caixa-exemplo .badge-icone{ background:var(--pink-escuro); }
+
+  /* ============ TABELAS ============ */
+  table{ width:100%; border-collapse:collapse; margin:9px 0; font-size:12.5px; }
+  thead th{
+    background:linear-gradient(90deg, var(--roxo), var(--roxo-medio));
+    color:#fff; text-align:left; padding:6px 10px; font-weight:700;
+  }
+  thead th:first-child{ border-top-left-radius:8px; }
+  thead th:last-child{ border-top-right-radius:8px; }
+  tbody td{ padding:5px 10px; border-bottom:1px solid var(--borda); color:var(--texto); }
+  tbody tr:nth-child(even){ background:#faf7fd; }
+  tbody tr:last-child td{ border-bottom:none; }
+  td.num, th.num{ text-align:right; }
+  td.centro, th.centro{ text-align:center; }
+
+  .formula{
+    background:var(--roxo-escuro);
+    color:#fff;
+    border-radius:10px;
+    padding:11px 18px;
+    font-size:14.5px;
+    text-align:center;
+    margin:10px 0;
+    font-weight:600;
+    letter-spacing:0.2px;
+  }
+  .formula .op{ color:var(--roxo-claro); font-weight:800; margin:0 6px; }
+  .formula .var{ color:#fbe4f6; }
+
+  .passo{
+    display:flex; gap:12px; margin:7px 0; align-items:flex-start;
+  }
+  .passo .bola{
+    flex:0 0 auto; width:26px; height:26px; border-radius:50%;
+    background:var(--pink-escuro); color:#fff; font-size:12.5px; font-weight:800;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .passo .texto{ padding-top:2px; }
+
+  /* legendas de giro */
+  .legenda-giro{ display:flex; flex-wrap:wrap; gap:10px; margin:12px 0; }
+  .chip{
+    display:inline-flex; align-items:center; gap:6px;
+    padding:5px 12px; border-radius:999px; font-size:12px; font-weight:700; color:#fff;
+  }
+  .chip .ponto{ width:8px; height:8px; border-radius:50%; background:#fff; opacity:0.85; }
+  .chip.critico{ background:#c0304e; }
+  .chip.alto{ background:#d97a1f; }
+  .chip.medio{ background:#c9a227; }
+  .chip.baixo{ background:#3f8f5e; }
+  .chip.semgiro{ background:#8a8595; }
+
+  /* gráfico de barras simples (CSS puro) */
+  .grafico-barras{
+    display:flex; align-items:flex-end; gap:14px;
+    height:150px; margin:18px 0 6px 0;
+    border-bottom:2px solid var(--borda);
+    padding:0 6px;
+  }
+  .barra-grupo{ display:flex; flex-direction:column; align-items:center; flex:1; }
+  .barra{
+    width:100%; max-width:48px;
+    border-radius:6px 6px 0 0;
+    background:linear-gradient(180deg, var(--roxo-claro), var(--roxo-medio));
+    position:relative;
+  }
+  .barra.destaque{ background:linear-gradient(180deg, var(--pink), var(--pink-escuro)); }
+  .barra .valor{
+    position:absolute; top:-20px; left:0; right:0; text-align:center;
+    font-size:11px; font-weight:800; color:var(--roxo-escuro);
+  }
+  .barra-legenda{ margin-top:8px; font-size:11px; color:var(--texto-suave); text-align:center; }
+
+  .fluxo-etapas{
+    display:flex; flex-wrap:wrap; gap:8px; margin:9px 0;
+  }
+  .fluxo-etapas .etapa{
+    background:#f4eefa; border:1px solid var(--borda); border-radius:10px;
+    padding:7px 12px; font-size:12px; color:var(--roxo-escuro); font-weight:700;
+    display:flex; align-items:center; gap:6px;
+  }
+  .fluxo-etapas .seta{ color:var(--roxo-claro); font-weight:800; }
+
+  .arvore{
+    background:#faf8fd; border:1px solid var(--borda); border-radius:12px; padding:16px; margin:14px 0; font-size:13px;
+  }
+  .arvore .no{
+    padding:8px 12px; border-radius:8px; margin:4px 0; display:inline-block;
+  }
+  .arvore .no.final{ background:linear-gradient(90deg, var(--roxo), var(--roxo-medio)); color:#fff; font-weight:700; }
+  .arvore .no.componente{ background:linear-gradient(90deg, var(--pink), var(--pink-escuro)); color:#fff; font-weight:700; }
+  .arvore .seta-baixo{ text-align:center; color:var(--roxo-claro); font-size:18px; margin:2px 0; }
+
+  .rodape-pagina{
+    position:absolute; bottom:10mm; left:18mm; right:18mm;
+    display:flex; justify-content:space-between;
+    font-size:9.5px; color:var(--cinza-lilas);
+    border-top:1px solid var(--borda); padding-top:6px;
+  }
+
+  /* ============ SUMÁRIO ============ */
+  .sumario-titulo{
+    font-size:30px; font-weight:800; color:var(--roxo-escuro); margin-bottom:4px;
+  }
+  .sumario-sub{ color:var(--texto-suave); margin-bottom:22px; font-size:13.5px; }
+  .sumario-lista{ list-style:none; padding:0; margin:0; }
+  .sumario-lista > li{
+    display:flex; flex-wrap:wrap; align-items:baseline; gap:10px;
+    padding:9px 0; border-bottom:1px dashed var(--borda);
+  }
+  .sumario-lista .idx{
+    flex:0 0 auto; width:30px; height:30px; border-radius:9px;
+    background:linear-gradient(135deg, var(--roxo), var(--roxo-medio));
+    color:#fff; font-weight:800; font-size:13px;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .sumario-lista .nome{ font-weight:700; color:var(--roxo-escuro); font-size:14px; flex:1 1 160px; white-space:nowrap; }
+  .sumario-lista .desc{ font-size:11.5px; color:var(--texto-suave); flex-basis:100%; margin-left:40px; margin-top:-4px; }
+  .sumario-lista .pag{ font-size:12px; color:var(--pink-escuro); font-weight:800; flex:0 0 auto; }
+
+  /* Glossário */
+  .glossario dt{ font-weight:800; color:var(--roxo); margin-top:12px; font-size:13.5px; }
+  .glossario dd{ margin:3px 0 0 0; color:var(--texto); font-size:13px; }
+
+  .capa-final{
+    background:linear-gradient(160deg, var(--roxo-escuro) 0%, var(--roxo) 60%, var(--roxo-medio) 100%);
+    color:#fff; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    text-align:center; padding:22mm;
+  }
+  .capa-final h2{ color:#fff; font-size:26px; margin-bottom:10px; }
+  .capa-final p{ color:#e7ddf5; max-width:110mm; }
+  .capa-final .selo{
+    display:inline-flex; align-items:center; gap:8px;
+    background:linear-gradient(90deg, var(--pink), var(--pink-escuro));
+    padding:6px 16px; border-radius:999px; font-size:11px; font-weight:700;
+    letter-spacing:1.5px; text-transform:uppercase; margin-bottom:20px;
+  }
+
+  @media print{
+    .pagina{ box-shadow:none; }
+  }
+  @media screen{
+    body{ background:#ddd7e6; padding:20px 0; }
+    .pagina{ box-shadow:0 10px 40px rgba(46,16,93,0.25); margin-bottom:20px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ======================= CAPA ======================= -->
+<section class="pagina capa">
+  <div>
+    <div class="faixa-topo"></div>
+    <div class="selo"><span class="ponto"></span> Documentação Funcional</div>
+    <h1>Smart<span class="destaque">Supply</span><br>Painel de Compras</h1>
+    <p class="subtitulo">Como o sistema decide, todos os dias, o que sua empresa precisa comprar — explicado em linguagem simples.</p>
+    <div class="linha-fina"></div>
+    <div class="cartao-desc">
+      Este documento explica, sem jargão técnico de programação, a lógica por trás do SmartSupply: como ele lê o histórico de vendas e consumo, calcula a necessidade de compra de cada produto, lida com múltiplas filiais e com produtos fabricados a partir de outros, e como tudo isso aparece na tela do comprador no dia a dia.
+    </div>
+  </div>
+  <div class="rodape-capa">
+    <div class="marca">INAN Soluções · SmartSupply</div>
+    <div class="info">Documentação de referência para usuários de negócio<br>Versão 1.0 — Agosto de 2026</div>
+  </div>
+</section>
+
+<!-- ======================= SUMÁRIO ======================= -->
+<section class="pagina conteudo">
+  <div class="sumario-titulo">Sumário</div>
+  <div class="sumario-sub">Um guia de ponta a ponta: dos conceitos básicos ao que aparece na tela do comprador.</div>
+  <ul class="sumario-lista">
+    <li>
+      <div class="idx">1</div>
+      <div class="nome">O problema que o SmartSupply resolve</div>
+      <div class="pag">03</div>
+      <div class="desc">Por que comprar "no olho" custa caro — para os dois lados.</div>
+    </li>
+    <li>
+      <div class="idx">2</div>
+      <div class="nome">Os ingredientes do cálculo</div>
+      <div class="pag">04</div>
+      <div class="desc">Consumo médio, lead time, cobertura de estoque e demais conceitos-base.</div>
+    </li>
+    <li>
+      <div class="idx">3</div>
+      <div class="nome">A fórmula da sugestão de compra</div>
+      <div class="pag">06</div>
+      <div class="desc">Como os ingredientes se combinam — com um exemplo numérico completo.</div>
+    </li>
+    <li>
+      <div class="idx">4</div>
+      <div class="nome">Arredondamentos inteligentes</div>
+      <div class="pag">08</div>
+      <div class="desc">Lote mínimo, lote econômico e embalagem do fornecedor.</div>
+    </li>
+    <li>
+      <div class="idx">5</div>
+      <div class="nome">Compras em rede: o cálculo multi-filial</div>
+      <div class="pag">09</div>
+      <div class="desc">Somar loja por loja ou consolidar tudo — os dois modos, com exemplo.</div>
+    </li>
+    <li>
+      <div class="idx">6</div>
+      <div class="nome">Quando o insumo vira outro produto</div>
+      <div class="pag">11</div>
+      <div class="desc">A análise reversa de estruturas: da demanda do produto final à matéria-prima.</div>
+    </li>
+    <li>
+      <div class="idx">7</div>
+      <div class="nome">A régua de importância: classificação por giro</div>
+      <div class="pag">13</div>
+      <div class="desc">Como o sistema separa o crítico do que pode esperar.</div>
+    </li>
+    <li>
+      <div class="idx">8</div>
+      <div class="nome">O painel no dia a dia</div>
+      <div class="pag">14</div>
+      <div class="desc">O que o comprador vê e faz na tela, do filtro ao pedido fechado.</div>
+    </li>
+    <li>
+      <div class="idx">9</div>
+      <div class="nome">Radar de sazonalidade</div>
+      <div class="pag">16</div>
+      <div class="desc">Enxergando picos e vales de consumo antes que eles surpreendam.</div>
+    </li>
+    <li>
+      <div class="idx">10</div>
+      <div class="nome">Alertas automáticos de ruptura</div>
+      <div class="pag">17</div>
+      <div class="desc">Como a equipe é avisada antes de faltar produto na prateleira.</div>
+    </li>
+    <li>
+      <div class="idx">11</div>
+      <div class="nome">Pedido de compra sob medida</div>
+      <div class="pag">18</div>
+      <div class="desc">Um relatório de pedido com o layout que a empresa quiser.</div>
+    </li>
+    <li>
+      <div class="idx">12</div>
+      <div class="nome">Glossário</div>
+      <div class="pag">19</div>
+      <div class="desc">Os termos deste documento, em uma frase cada.</div>
+    </li>
+  </ul>
+</section>
+
+<!-- ======================= 1. O PROBLEMA ======================= -->
+<section class="pagina conteudo">
+  <div class="cab-secao">
+    <div class="numero">1</div>
+    <h2>O problema que o SmartSupply resolve</h2>
+    <div class="linha"></div>
+  </div>
+
+  <p>Toda empresa que compra para revender ou para produzir enfrenta o mesmo dilema, todos os dias, para cada um dos seus milhares de produtos: <strong>quanto comprar, e quando?</strong></p>
+
+  <p>Errar para um lado ou para o outro sai caro:</p>
+
+  <ul>
+    <li><strong>Comprar de menos (ou tarde demais):</strong> o produto falta na prateleira, a venda se perde para o concorrente, e a produção pode parar por falta de matéria-prima.</li>
+    <li><strong>Comprar de mais (ou cedo demais):</strong> o dinheiro da empresa fica parado em estoque, ocupando espaço no depósito e correndo risco de ficar obsoleto ou vencer.</li>
+  </ul>
+
+  <p>Fazer essa conta manualmente — produto por produto, considerando quanto se vendeu, quanto ainda está a caminho, quanto tempo o fornecedor demora para entregar, e repetir isso para cada filial — é humanamente inviável quando o catálogo tem centenas ou milhares de itens.</p>
+
+  <div class="caixa caixa-conceito">
+    <div class="titulo-caixa"><span class="badge-icone">i</span> O que é o SmartSupply</div>
+    <p style="margin:0">O SmartSupply é um <strong>Painel de Compras</strong> que roda dentro do Protheus (o ERP da empresa). Todos os dias, ele lê automaticamente o histórico de vendas, de consumo em produção e a posição atual de estoque de cada produto, e calcula, sozinho, <strong>quanto cada produto precisa ser comprado</strong> — considerando o tempo de entrega do fornecedor, a política de estoque da empresa e até a existência de várias lojas ou fábricas. O resultado aparece pronto em uma tela única, onde o comprador revisa, ajusta se quiser, e fecha o pedido.</p>
+  </div>
+
+  <p>Nas próximas seções deste documento, vamos abrir o "motor" desse cálculo peça por peça — sempre com exemplos numéricos fictícios — e depois mostrar como tudo isso aparece organizado na tela do comprador.</p>
+
+  <div class="rodape-pagina"><span>SmartSupply — Painel de Compras</span><span>03</span></div>
+</section>
+
+<!-- ======================= 2. INGREDIENTES ======================= -->
+<section class="pagina conteudo">
+  <div class="cab-secao">
+    <div class="numero">2</div>
+    <h2>Os ingredientes do cálculo</h2>
+    <div class="linha"></div>
+  </div>
+
+  <p>Antes de ver a fórmula completa, é preciso conhecer as peças que ela usa. São seis ideias simples, e o SmartSupply calcula a maioria delas automaticamente a partir do histórico do próprio Protheus.</p>
+
+  <h3>Consumo médio diário</h3>
+  <p>É a velocidade com que o produto "sai" — seja por venda, seja por consumo em uma ordem de produção. O sistema soma tudo o que saiu num período recente (por exemplo, os últimos 30 dias) e divide pelo número de dias, obtendo uma média por dia. Esse período de observação é configurável pela empresa, assim como a opção de contar apenas dias úteis ou todos os dias corridos.</p>
+
+  <h3>Lead time (tempo de entrega do fornecedor)</h3>
+  <p>É quantos dias, em média, o fornecedor leva entre o pedido ser feito e a mercadoria chegar. O SmartSupply busca esse número, em ordem de prioridade: o prazo cadastrado no próprio produto; senão, uma média calculada a partir do histórico real de compras anteriores; senão, o prazo cadastrado no fornecedor preferencial.</p>
+
+  <h3>Estoque disponível</h3>
+  <p>O saldo físico em estoque, podendo ou não descontar o que já está <strong>reservado</strong> (empenhado) para pedidos de venda já confirmados — isso é uma opção configurável, porque em algumas empresas o estoque reservado ainda "conta" como disponível até o pedido sair de fato.</p>
+
+  <h3>Cobertura de estoque desejada</h3>
+  <p>É a política da empresa: "eu quero sempre ter estoque suficiente para aguentar X dias de venda, sem depender de nada além do que já está no depósito ou a caminho". Esse número de dias é definido pela empresa e pode ser ajustado produto a produto na hora da consulta.</p>
+
+  <h3>Duração projetada do estoque</h3>
+  <p>É a resposta para "se eu não comprar mais nada, para quantos dias meu estoque atual + o que já está a caminho ainda aguenta, no ritmo de consumo atual?". É justamente esse número que, quando fica pequeno demais, dispara os alertas de risco de ruptura (seção 10).</p>
+
+  <h3>Lote mínimo, lote econômico e embalagem</h3>
+  <p>Restrições comerciais do fornecedor: a quantidade mínima que ele aceita vender, o múltiplo mais vantajoso de se comprar, e o tamanho da caixa/pacote em que o produto é embalado. O SmartSupply arredonda a sugestão final para respeitar essas regras (seção 4).</p>
+
+  <div class="caixa caixa-atencao">
+    <div class="titulo-caixa">Por que isso importa</div>
+    <p style="margin:0">Cada um desses seis ingredientes pode ser configurado pela empresa — por exemplo, quantos dias de histórico olhar para calcular o consumo médio, ou se o estoque reservado entra ou não na conta. Ou seja: o SmartSupply não impõe uma única forma de calcular; ele oferece um motor configurável que se adapta à política de estoque de cada operação.</p>
+  </div>
+
+  <div class="rodape-pagina"><span>SmartSupply — Painel de Compras</span><span>04</span></div>
+</section>
+
+<section class="pagina conteudo">
+  <div class="cab-secao">
+    <div class="numero">2</div>
+    <h2>Os ingredientes do cálculo <span style="font-size:14px;color:var(--texto-suave);font-weight:400">(continuação)</span></h2>
+    <div class="linha"></div>
+  </div>
+
+  <h3>De onde vêm os números — resumo visual</h3>
+  <div class="fluxo-etapas">
+    <div class="etapa">📦 Vendas e consumo em produção (histórico)</div>
+    <div class="seta">→</div>
+    <div class="etapa">📈 Consumo médio diário</div>
+  </div>
+  <div class="fluxo-etapas">
+    <div class="etapa">🚚 Histórico de compras / cadastro do fornecedor</div>
+    <div class="seta">→</div>
+    <div class="etapa">⏱️ Lead time</div>
+  </div>
+  <div class="fluxo-etapas">
+    <div class="etapa">🏬 Saldo em estoque, empenho, pedidos e produção em aberto</div>
+    <div class="seta">→</div>
+    <div class="etapa">📊 Posição disponível</div>
+  </div>
+  <div class="fluxo-etapas">
+    <div class="etapa">⚙️ Política de estoque da empresa (dias de cobertura)</div>
+    <div class="seta">→</div>
+    <div class="etapa">🎯 Meta de proteção</div>
+  </div>
+
+  <p style="margin-top:16px">Todos esses quatro resultados — consumo médio, lead time, posição disponível e meta de proteção — se encontram na <strong>fórmula da sugestão de compra</strong>, que vemos a seguir.</p>
+
+  <div class="rodape-pagina"><span>SmartSupply — Painel de Compras</span><span>05</span></div>
+</section>
+
+<!-- ======================= 3. A FÓRMULA ======================= -->
+<section class="pagina conteudo">
+  <div class="cab-secao">
+    <div class="numero">3</div>
+    <h2>A fórmula da sugestão de compra</h2>
+    <div class="linha"></div>
+  </div>
+
+  <p>No fundo, a pergunta que o SmartSupply responde para cada produto é uma só: <strong>"quantos dias de estoque eu ainda vou precisar cobrir, além do que já tenho, e quanto isso representa em quantidade?"</strong></p>
+
+  <p>A lógica padrão — que pode ser ajustada pela empresa, como veremos adiante — é a seguinte:</p>
+
+  <div class="formula">
+    Necessidade&nbsp;de&nbsp;Compra&nbsp;=&nbsp;
+    <span class="op">(</span><span class="var">Dias de Cobertura Desejados</span> <span class="op">+</span> <span class="var">Lead Time</span> <span class="op">−</span> <span class="var">Dias de Estoque Restante</span><span class="op">)</span>
+    <span class="op">×</span> <span class="var">Consumo Médio Diário</span>
+  </div>
+
+  <p>Em palavras simples: o sistema descobre quantos dias, no total, ele ainda precisa "seguirar" — o tempo de cobertura desejado somado ao tempo que o fornecedor vai levar para entregar — e diminui os dias que o estoque atual já garante sozinho. O que sobrar é o "buraco" em dias, que é convertido em quantidade multiplicando pelo ritmo médio de consumo.</p>
+
+  <div class="caixa caixa-conceito">
+    <div class="titulo-caixa"><span class="badge-icone">i</span> Fórmula configurável, não fixa</div>
+    <p style="margin:0">Essa é a fórmula padrão de fábrica, mas o SmartSupply permite que a empresa monte sua <strong>própria fórmula</strong>, combinando livremente os ingredientes da seção 2 (mais o lote mínimo, a embalagem e o estoque de segurança) com os operadores matemáticos básicos. É possível, inclusive, ter fórmulas diferentes por grupo de produto — um "perfil de cálculo" mais conservador para itens críticos, e outro mais enxuto para itens de baixo giro.</p>
+  </div>
+
+  <h3>Exemplo fictício passo a passo</h3>
+  <div class="caixa caixa-exemplo">
+    <div class="titulo-caixa"><span class="badge-icone">$</span> Cenário: Tinta Acrílica Branca 18L — Loja Centro</div>
+    <table>
+      <tbody>
+        <tr><td>Estoque físico atual</td><td class="num">40 latas</td></tr>
+        <tr><td>Reservado para pedidos de venda já confirmados (empenho)</td><td class="num">10 latas</td></tr>
+        <tr><td>Vendas dos últimos 30 dias</td><td class="num">300 latas</td></tr>
+        <tr><td>Cobertura de estoque desejada pela empresa</td><td class="num">20 dias</td></tr>
+        <tr><td>Lead time do fornecedor</td><td class="num">12 dias</td></tr>
+      </tbody>
+    </table>
+
+    <div class="passo">
+      <div class="bola">1</div>
+      <div class="texto"><strong>Consumo médio diário</strong> = 300 latas ÷ 30 dias = <strong>10 latas/dia</strong></div>
+    </div>
+    <div class="passo">
+      <div class="bola">2</div>
+      <div class="texto"><strong>Estoque livre</strong> = 40 − 10 (reservado) = 30 latas</div>
+    </div>
+    <div class="passo">
+      <div class="bola">3</div>
+      <div class="texto"><strong>Dias de estoque restante</strong> = 30 latas ÷ 10 latas/dia = <strong>3 dias</strong></div>
+    </div>
+    <div class="passo">
+      <div class="bola">4</div>
+      <div class="texto"><strong>Necessidade de compra</strong> = (20 + 12 − 3) × 10 = 29 × 10 = <strong>290 latas</strong></div>
+    </div>
+
+    <p style="margin-top:10px;margin-bottom:0"><strong>Leitura de negócio:</strong> a loja só tem 3 dias de estoque livre, mas o fornecedor demora 12 dias para entregar — ou seja, mesmo pedindo agora, a loja ficará <strong>9 dias sem produto</strong> se comprar pouco. Por isso a fórmula "empurra" a compra para cobrir não só os 20 dias de política da empresa, mas também esse intervalo de espera do fornecedor.</p>
+  </div>
+
+  <div class="rodape-pagina"><span>SmartSupply — Painel de Compras</span><span>06</span></div>
+</section>
+
+<section class="pagina conteudo">
+  <div class="cab-secao">
+    <div class="numero">3</div>
+    <h2>A fórmula da sugestão de compra <span style="font-size:14px;color:var(--texto-suave);font-weight:400">(continuação)</span></h2>
+    <div class="linha"></div>
+  </div>
+
+  <h3>De onde vem a "duração projetada do estoque"</h3>
+  <p>Essa é a métrica que também alimenta os alertas de ruptura (seção 10) e as cores da tela principal (seção 7). Ela responde: "quanto tempo, em dias, o que eu já tenho (estoque livre + pedidos de compra já em carteira) ainda aguenta?"</p>
+
+  <div class="formula" style="font-size:14px">
+    Dias&nbsp;Restantes&nbsp;=&nbsp;
+    <span class="op">(</span><span class="var">Estoque Livre</span> <span class="op">+</span> <span class="var">Pedidos Já em Carteira</span><span class="op">)</span>
+    <span class="op">÷</span> <span class="var">Consumo Médio Diário</span>
+  </div>
+
+  <p>No exemplo da Tinta Acrílica, se a loja já tivesse 50 latas em um pedido de compra a caminho, os dias restantes subiriam para (30+50)/10 = 8 dias — e a necessidade de compra cairia proporcionalmente, porque parte da "folga" já está garantida.</p>
+
+  <div class="caixa caixa-atencao">
+    <div class="titulo-caixa">Nunca fica negativo</div>
+    <p style="margin:0">Se a conta resultar em um número negativo (ou seja, o estoque já é mais do que suficiente), o SmartSupply simplesmente não sugere compra nenhuma — a necessidade sugerida nunca é menor que zero.</p>
+  </div>
+
+  <div class="rodape-pagina"><span>SmartSupply — Painel de Compras</span><span>07</span></div>
+</section>
+
+<!-- ======================= 4. ARREDONDAMENTOS ======================= -->
+<section class="pagina conteudo">
+  <div class="cab-secao">
+    <div class="numero">4</div>
+    <h2>Arredondamentos inteligentes</h2>
+    <div class="linha"></div>
+  </div>
+
+  <p>Uma fórmula matemática dificilmente vai resultar num número redondo — e mesmo que resultasse, o fornecedor pode ter suas próprias regras comerciais de venda. Por isso, depois de calculada, a quantidade sugerida passa por três ajustes automáticos, sempre nesta ordem:</p>
+
+  <div class="passo">
+    <div class="bola">1</div>
+    <div class="texto"><strong>Lote mínimo</strong> — se a quantidade calculada for menor que o mínimo que o fornecedor aceita vender, o sistema eleva a sugestão até esse mínimo.</div>
+  </div>
+  <div class="passo">
+    <div class="bola">2</div>
+    <div class="texto"><strong>Lote econômico</strong> (quando a empresa optar por priorizá-lo) — arredonda para cima até o próximo múltiplo do lote mais vantajoso comercialmente.</div>
+  </div>
+  <div class="passo">
+    <div class="bola">3</div>
+    <div class="texto"><strong>Embalagem</strong> — arredonda para cima até o próximo múltiplo do tamanho da caixa/fardo em que o produto é fisicamente embalado, evitando comprar uma unidade "quebrada" de caixa.</div>
+  </div>
+
+  <h3>Continuando o exemplo da Tinta Acrílica</h3>
+  <div class="caixa caixa-exemplo">
+    <div class="titulo-caixa"><span class="badge-icone">$</span> Necessidade calculada: 290 latas</div>
+    <table>
+      <thead><tr><th>Regra do fornecedor</th><th class="num">Valor</th><th>Resultado do arredondamento</th></tr></thead>
+      <tbody>
+        <tr><td>Lote mínimo de venda</td><td class="num">200 latas</td><td>290 já é maior — sem alteração</td></tr>
+        <tr><td>Embalagem (caixa fechada)</td><td class="num">50 latas por caixa</td><td>290 ÷ 50 = 5,8 → arredonda para <strong>6 caixas = 300 latas</strong></td></tr>
+      </tbody>
+    </table>
+    <p style="margin:8px 0 0 0"><strong>Sugestão final de compra: 300 latas</strong> (6 caixas fechadas), em vez das 290 calculadas matematicamente.</p>
+  </div>
+
+  <div class="rodape-pagina"><span>SmartSupply — Painel de Compras</span><span>08</span></div>
+</section>
+
+<!-- ======================= 5. MULTI-FILIAL ======================= -->
+<section class="pagina conteudo">
+  <div class="cab-secao">
+    <div class="numero">5</div>
+    <h2>Compras em rede: o cálculo multi-filial</h2>
+    <div class="linha"></div>
+  </div>
+
+  <p>Quando a empresa tem mais de uma loja ou fábrica, o mesmo produto pode ter estoques, vendas e até fornecedores diferentes em cada unidade. O SmartSupply permite analisar várias filiais de uma vez só, e oferece <strong>dois jeitos de consolidar</strong> a necessidade entre elas — a escolha é um parâmetro da empresa.</p>
+
+  <h3>Modo "Individual por Filial"</h3>
+  <p>Cada filial roda sua própria fórmula, com seus próprios números de estoque, consumo e lead time — como se fossem empresas separadas — e o sistema apenas <strong>soma</strong> o resultado de cada uma no final.</p>
+
+  <h3>Modo "Pool" (consolidado)</h3>
+  <p>O sistema primeiro <strong>soma</strong> o estoque, o consumo e os pedidos de todas as filiais selecionadas, calcula a necessidade <strong>uma única vez</strong> sobre esse total, e depois distribui o resultado de volta entre as filiais, proporcionalmente ao quanto cada uma consome. É útil quando o comprador negocia um único pedido grande para o fornecedor, mas depois precisa dividir fisicamente a mercadoria entre os depósitos.</p>
+
+  <h3>Exemplo fictício: Tinta Acrílica Branca 18L em duas lojas</h3>
+  <div class="caixa caixa-exemplo">
+    <div class="titulo-caixa"><span class="badge-icone">$</span> Cenário: Loja Centro e Loja Norte</div>
+    <table>
+      <thead><tr><th>Filial</th><th class="num">Estoque livre</th><th class="num">Consumo médio/dia</th><th class="num">Dias restantes</th></tr></thead>
+      <tbody>
+        <tr><td>Loja Centro</td><td class="num">30 latas</td><td class="num">10</td><td class="num">3 dias</td></tr>
+        <tr><td>Loja Norte</td><td class="num">180 latas</td><td class="num">6</td><td class="num">30 dias</td></tr>
+      </tbody>
+    </table>
+    <p style="margin:8px 0 4px 0">Política da empresa: 20 dias de cobertura + 12 dias de lead time.</p>
+
+    <h4 style="margin-top:12px">Modo Individual (soma dos resultados de cada loja)</h4>
+    <table>
+      <tbody>
+        <tr><td>Loja Centro</td><td class="num">(20+12−3) × 10 = <strong>290 latas</strong></td></tr>
+        <tr><td>Loja Norte</td><td class="num">(20+12−30) × 6 = negativo → <strong>0 latas</strong></td></tr>
+        <tr><td><strong>Total do pedido consolidado</strong></td><td class="num"><strong>290 latas</strong></td></tr>
+      </tbody>
+    </table>
+
+    <h4 style="margin-top:12px">Modo Pool (soma antes de calcular)</h4>
+    <table>
+      <tbody>
+        <tr><td>Estoque livre total</td><td class="num">30 + 180 = 210 latas</td></tr>
+        <tr><td>Consumo médio total</td><td class="num">10 + 6 = 16 latas/dia</td></tr>
+        <tr><td>Dias restantes (consolidado)</td><td class="num">210 ÷ 16 = 13,1 dias</td></tr>
+        <tr><td>Necessidade total</td><td class="num">(20+12−13,1) × 16 ≈ <strong>302 latas</strong></td></tr>
+      </tbody>
+    </table>
+    <p style="margin:8px 0 0 0">No modo Pool, a folga de estoque da Loja Norte "socorre" parcialmente a Loja Centro dentro da própria conta — por isso o total consolidado (302) é próximo, mas calculado de forma diferente do modo Individual (290). O sistema então devolve essa quantidade para cada loja, proporcionalmente ao seu consumo.</p>
+  </div>
+
+  <div class="rodape-pagina"><span>SmartSupply — Painel de Compras</span><span>09</span></div>
+</section>
+
+<section class="pagina conteudo">
+  <div class="cab-secao">
+    <div class="numero">5</div>
+    <h2>Compras em rede: o cálculo multi-filial <span style="font-size:14px;color:var(--texto-suave);font-weight:400">(continuação)</span></h2>
+    <div class="linha"></div>
+  </div>
+
+  <div class="caixa caixa-conceito">
+    <div class="titulo-caixa"><span class="badge-icone">i</span> Quando usar cada modo</div>
+    <p style="margin:0"><strong>Individual</strong> é mais indicado quando cada loja compra de fornecedores diferentes ou tem operação totalmente independente. <strong>Pool</strong> é mais indicado quando a empresa negocia como rede (um pedido único, melhor preço por volume) e depois faz a distribuição física entre os pontos de estoque.</p>
+  </div>
+
+  <p>Independentemente do modo escolhido, a tela do comprador sempre mostra a quantidade final já dividida por filial — quem opera no dia a dia não precisa entender qual conta foi feita por trás, apenas confirmar ou ajustar o número final de cada loja antes de fechar o pedido.</p>
+
+  <div class="rodape-pagina"><span>SmartSupply — Painel de Compras</span><span>10</span></div>
+</section>
+
+<!-- ======================= 6. ANÁLISE REVERSA ======================= -->
+<section class="pagina conteudo">
+  <div class="cab-secao">
+    <div class="numero">6</div>
+    <h2>Quando o insumo vira outro produto</h2>
+    <div class="linha"></div>
+  </div>
+
+  <p>Até aqui, calculamos a necessidade de compra olhando diretamente para as vendas de <em>um</em> produto. Mas em empresas que fabricam o que vendem, muitos itens comprados não são vendidos diretamente — são <strong>matérias-primas</strong> usadas para fabricar outros produtos, que às vezes são usados em <em>mais de uma</em> receita ao mesmo tempo.</p>
+
+  <p>Para esses casos, o SmartSupply tem um segundo motor, chamado de <strong>análise reversa de estruturas</strong>: em vez de olhar o histórico de venda da matéria-prima (que pode nem ser vendida diretamente), ele "desce" a necessidade de compra dos produtos finais até os componentes que os formam — como uma árvore genealógica ao contrário.</p>
+
+  <h3>Exemplo fictício: Cimento a granel usado em duas receitas</h3>
+  <p>Uma fábrica de argamassas produz dois itens acabados a partir do mesmo insumo — <strong>Cimento CP-II a granel</strong> — em proporções diferentes:</p>
+
+  <div class="arvore">
+    <div style="display:flex; gap:40px; justify-content:center; flex-wrap:wrap">
+      <div>
+        <div class="no final">Argamassa Pronta 20kg</div>
+        <div class="seta-baixo">↓ usa 15 kg de cimento por saco</div>
+      </div>
+      <div>
+        <div class="no final">Contrapiso Autonivelante 20kg</div>
+        <div class="seta-baixo">↓ usa 12 kg de cimento por saco</div>
+      </div>
+    </div>
+    <div style="text-align:center; margin-top:6px">
+      <div class="no componente">Cimento CP-II a granel (componente comum)</div>
+    </div>
+  </div>
+
+  <div class="caixa caixa-exemplo">
+    <div class="titulo-caixa"><span class="badge-icone">$</span> Passo a passo do cálculo</div>
+
+    <table>
+      <thead><tr><th>Produto final</th><th class="num">Necessidade calculada (vendas)</th><th class="num">Cimento por unidade</th><th class="num">Demanda de cimento gerada</th></tr></thead>
+      <tbody>
+        <tr><td>Argamassa Pronta 20kg</td><td class="num">500 sacos</td><td class="num">15 kg</td><td class="num">7.500 kg</td></tr>
+        <tr><td>Contrapiso Autonivelante 20kg</td><td class="num">200 sacos</td><td class="num">12 kg</td><td class="num">2.400 kg</td></tr>
+        <tr><td><strong>Demanda estrutural total de cimento</strong></td><td></td><td></td><td class="num"><strong>9.900 kg</strong></td></tr>
+      </tbody>
+    </table>
+
+    <p style="margin:10px 0 4px 0"><strong>Ponto-chave:</strong> as duas receitas são somadas <em>antes</em> de qualquer desconto de estoque — isso evita o erro clássico de descontar o estoque de cimento duas vezes (uma para cada receita) e sugerir compra a menos.</p>
+
+    <table style="margin-top:10px">
+      <tbody>
+        <tr><td>Demanda estrutural total</td><td class="num">9.900 kg</td></tr>
+        <tr><td>(−) Estoque disponível de cimento</td><td class="num">1.400 kg</td></tr>
+        <tr><td>(−) Ordens de produção de cimento já em aberto</td><td class="num">0 kg</td></tr>
+        <tr><td><strong>Necessidade líquida de compra</strong></td><td class="num"><strong>8.500 kg</strong></td></tr>
+      </tbody>
+    </table>
+
+    <p style="margin:8px 0 0 0">Como o lote de venda do fornecedor de cimento é de 500 kg por carga, e 8.500 já é um múltiplo exato, a sugestão final permanece em <strong>8.500 kg</strong>.</p>
+  </div>
+
+  <div class="rodape-pagina"><span>SmartSupply — Painel de Compras</span><span>11</span></div>
+</section>
+
+<section class="pagina conteudo">
+  <div class="cab-secao">
+    <div class="numero">6</div>
+    <h2>Quando o insumo vira outro produto <span style="font-size:14px;color:var(--texto-suave);font-weight:400">(continuação)</span></h2>
+    <div class="linha"></div>
+  </div>
+
+  <h3>E se o próprio insumo também for vendido diretamente?</h3>
+  <p>É comum que um material comprado seja usado tanto na produção interna quanto vendido avulso a outros clientes (por exemplo, um distribuidor que revende sacos de cimento e também os usa para fabricar argamassa). Nesse caso, o SmartSupply soma à necessidade estrutural também a parcela de venda direta do próprio insumo, e — quando configurado — reforça a compra com uma proteção extra equivalente ao tempo de entrega do fornecedor daquele insumo. Isso funciona como um "colchão de segurança automático" pensado para a matéria-prima não faltar enquanto o pedido dela está a caminho.</p>
+
+  <div class="caixa caixa-conceito">
+    <div class="titulo-caixa"><span class="badge-icone">i</span> Por que a ordem de cálculo importa</div>
+    <p style="margin:0">O sistema sempre calcula primeiro a necessidade dos <strong>produtos finais</strong> (o que sai de fato pela porta, vendido a clientes) e só depois "desce" pela árvore de componentes, nível por nível, até chegar às matérias-primas mais básicas. Isso garante que, em receitas com vários níveis (um componente que por sua vez é feito de outros componentes), a necessidade se propague corretamente do topo até a base, sem depender de quem foi calculado primeiro.</p>
+  </div>
+
+  <div class="rodape-pagina"><span>SmartSupply — Painel de Compras</span><span>12</span></div>
+</section>
+
+<!-- ======================= 7. GIRO ======================= -->
+<section class="pagina conteudo">
+  <div class="cab-secao">
+    <div class="numero">7</div>
+    <h2>A régua de importância: classificação por giro</h2>
+    <div class="linha"></div>
+  </div>
+
+  <p>Com centenas ou milhares de produtos na tela, o comprador precisa saber, rapidamente, onde prestar atenção primeiro. O SmartSupply calcula, para cada produto, um <strong>índice de giro</strong> — uma medida de quão frequentemente aquele item aparece nas movimentações da empresa (vendas e ordens de produção) — e o classifica automaticamente em faixas, cada uma com sua cor na tela:</p>
+
+  <div class="legenda-giro">
+    <span class="chip critico"><span class="ponto"></span> Crítico</span>
+    <span class="chip alto"><span class="ponto"></span> Alto giro</span>
+    <span class="chip medio"><span class="ponto"></span> Médio giro</span>
+    <span class="chip baixo"><span class="ponto"></span> Baixo giro</span>
+    <span class="chip semgiro"><span class="ponto"></span> Sem giro</span>
+  </div>
+
+  <p>Os limites entre uma faixa e outra são parametrizáveis pela própria empresa — ou seja, o que é "crítico" para uma operação pode ser "alto giro" para outra, dependendo do perfil do negócio. Na prática, isso permite ao comprador filtrar a tela para ver, por exemplo, apenas os itens críticos primeiro, deixando os itens sem giro para uma revisão posterior com menos urgência.</p>
+
+  <div class="caixa caixa-conceito">
+    <div class="titulo-caixa"><span class="badge-icone">i</span> Giro não é a mesma coisa que "vender muito"</div>
+    <p style="margin:0">O índice de giro do SmartSupply mede a <strong>recorrência</strong> do produto — quantas vezes ele aparece em documentos de saída (notas de venda, requisições de produção) em relação ao total de documentos processados no período — e não apenas o volume vendido. Um produto de ticket baixo mas presente em quase toda venda (como um item de acabamento) pode ser classificado como crítico mesmo sem grande valor financeiro individual, justamente porque sua falta trava muitas vendas ao mesmo tempo.</p>
+  </div>
+
+  <div class="rodape-pagina"><span>SmartSupply — Painel de Compras</span><span>13</span></div>
+</section>
+
+<!-- ======================= 8. O PAINEL NO DIA A DIA ======================= -->
+<section class="pagina conteudo">
+  <div class="cab-secao">
+    <div class="numero">8</div>
+    <h2>O painel no dia a dia</h2>
+    <div class="linha"></div>
+  </div>
+
+  <p>Tudo o que foi explicado nas seções anteriores acontece "por baixo dos panos", automaticamente, todos os dias. O que o comprador vê é uma tela única, organizada em blocos:</p>
+
+  <h3>A tela principal, em quatro áreas</h3>
+  <table>
+    <thead><tr><th>Área</th><th>O que mostra</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Produção</strong></td><td>Quantos produtos acabados estão aguardando serem fabricados, com atalho direto para abrir as ordens de produção.</td></tr>
+      <tr><td><strong>Carrinhos por Fornecedor</strong></td><td>Um resumo de quantos itens já estão "no carrinho" de cada fornecedor, pronto para virar pedido — com o prazo de entrega calculado e o prazo informado manualmente lado a lado.</td></tr>
+      <tr><td><strong>Filtros e Parâmetros</strong></td><td>Ajuste dos dias de cobertura desejados, das faixas de giro a exibir, e um filtro rápido para ver só "sugestões de compra", só "risco de ruptura" ou só "o que já está no carrinho".</td></tr>
+      <tr><td><strong>Gráfico do Produto</strong></td><td>O radar de sazonalidade do item selecionado (seção 9).</td></tr>
+    </tbody>
+  </table>
+
+  <p>Abaixo desses quatro blocos fica a <strong>grade de produtos</strong> — a lista completa, colorida conforme a faixa de giro, mostrando lado a lado o estoque, o consumo médio, a necessidade sugerida, o fornecedor e o preço de cada item.</p>
+
+  <h3>Principais ações do comprador</h3>
+  <ul>
+    <li><strong>Ver a "Sequência de Cálculo"</strong> — para qualquer produto, o comprador pode abrir uma tela de auditoria que mostra, passo a passo, todos os números que entraram na conta (exatamente como nos exemplos deste documento), garantindo total transparência sobre de onde veio cada sugestão.</li>
+    <li><strong>Ajustar e fechar o carrinho</strong> — o comprador pode alterar manualmente a quantidade sugerida, escolher a condição de pagamento e a transportadora, e confirmar a geração do pedido de compra diretamente para o fornecedor.</li>
+    <li><strong>Alterar o preço de venda na própria tela</strong> — uma novidade recente: ao revisar o custo de compra de um item, o comprador (se autorizado) já pode ajustar o preço de venda daquele produto sem sair da tela principal, evitando o retrabalho de abrir outra rotina.</li>
+    <li><strong>Consultar pedidos em aberto</strong> — uma tela reformulada que permite buscar livremente por fornecedor ou por produto entre todos os pedidos pendentes da empresa, não apenas os do item selecionado no momento.</li>
+    <li><strong>Selecionar quais filiais entram na análise</strong> — controlando exatamente o cenário multi-filial descrito na seção 5.</li>
+  </ul>
+
+  <div class="rodape-pagina"><span>SmartSupply — Painel de Compras</span><span>14</span></div>
+</section>
+
+<section class="pagina conteudo">
+  <div class="cab-secao">
+    <div class="numero">8</div>
+    <h2>O painel no dia a dia <span style="font-size:14px;color:var(--texto-suave);font-weight:400">(continuação)</span></h2>
+    <div class="linha"></div>
+  </div>
+
+  <h3>Do cálculo ao pedido: o caminho completo</h3>
+  <div class="passo">
+    <div class="bola">1</div>
+    <div class="texto">Sistema calcula a necessidade de cada produto (todo dia, automaticamente)</div>
+  </div>
+  <div class="passo">
+    <div class="bola">2</div>
+    <div class="texto">Comprador abre o painel e revisa a lista, já priorizada por giro</div>
+  </div>
+  <div class="passo">
+    <div class="bola">3</div>
+    <div class="texto">Comprador marca os itens desejados, ajustando quantidade se necessário</div>
+  </div>
+  <div class="passo">
+    <div class="bola">4</div>
+    <div class="texto">Itens marcados se agrupam automaticamente em carrinhos por fornecedor</div>
+  </div>
+  <div class="passo">
+    <div class="bola">5</div>
+    <div class="texto">Comprador confirma condição de pagamento, frete e observações</div>
+  </div>
+  <div class="passo">
+    <div class="bola">6</div>
+    <div class="texto">Pedido de compra é gerado no Protheus, pronto para envio ao fornecedor</div>
+  </div>
+
+  <div class="caixa caixa-conceito">
+    <div class="titulo-caixa"><span class="badge-icone">i</span> O sistema sugere, a pessoa decide</div>
+    <p style="margin:0">Em nenhum momento o SmartSupply gera um pedido sozinho, sem revisão humana. Todo o cálculo automático serve para <strong>eliminar o trabalho repetitivo</strong> de fazer a conta produto a produto — mas a decisão final de quanto e quando comprar continua sempre nas mãos do comprador, que pode aceitar, ajustar ou ignorar qualquer sugestão.</p>
+  </div>
+
+  <div class="rodape-pagina"><span>SmartSupply — Painel de Compras</span><span>15</span></div>
+</section>
+
+<!-- ======================= 9. SAZONALIDADE ======================= -->
+<section class="pagina conteudo">
+  <div class="cab-secao">
+    <div class="numero">9</div>
+    <h2>Radar de sazonalidade</h2>
+    <div class="linha"></div>
+  </div>
+
+  <p>Consumo médio simples é uma boa régua na maioria dos casos — mas alguns produtos têm um comportamento bem diferente ao longo do ano, e uma média "achatada" pode esconder isso. Por isso, ao selecionar qualquer produto na grade, o comprador vê um gráfico com o histórico de saídas daquele item, podendo escolher olhar por dia, por semana, por mês, ou em um formato "misto" que já vem pronto assim que o produto é selecionado.</p>
+
+  <h3>Exemplo fictício: Tinta para Piscina — visão "Misto"</h3>
+  <p>O formato misto mostra, lado a lado, a média dos últimos 12 meses, dos últimos 6 meses, dos últimos 3 meses, do mês passado, e o quanto já foi vendido no mês corrente — permitindo perceber rapidamente se o produto está "esquentando" ou "esfriando":</p>
+
+  <div class="grafico-barras">
+    <div class="barra-grupo">
+      <div class="barra" style="height:47px"><span class="valor">42,0</span></div>
+      <div class="barra-legenda">12 Meses</div>
+    </div>
+    <div class="barra-grupo">
+      <div class="barra" style="height:69px"><span class="valor">60,5</span></div>
+      <div class="barra-legenda">6 Meses</div>
+    </div>
+    <div class="barra-grupo">
+      <div class="barra" style="height:103px"><span class="valor">90,0</span></div>
+      <div class="barra-legenda">3 Meses</div>
+    </div>
+    <div class="barra-grupo">
+      <div class="barra" style="height:110px"><span class="valor">97,0</span></div>
+      <div class="barra-legenda">Mês Ant.</div>
+    </div>
+    <div class="barra-grupo">
+      <div class="barra destaque" style="height:125px"><span class="valor">110,0</span></div>
+      <div class="barra-legenda">Mês Atual</div>
+    </div>
+  </div>
+  <p style="text-align:center; font-size:11.5px; color:var(--texto-suave)">Unidades vendidas em média por dia, em cada janela de tempo (exemplo fictício)</p>
+
+  <div class="caixa caixa-exemplo">
+    <div class="titulo-caixa"><span class="badge-icone">$</span> Leitura do gráfico</div>
+    <p style="margin:0">A média de 12 meses (42,0/dia) é muito mais baixa que a do mês atual (110,0/dia) — um sinal claro de que estamos entrando na temporada de alta do produto (verão, no caso de tinta para piscina). Se o comprador usasse apenas a média anual "achatada" para calcular a compra, sub-dimensionaria a necessidade justamente na época de maior consumo. O radar de sazonalidade existe para que essa decisão de ajustar o número de dias de cobertura (ou o perfil de cálculo) na época certa seja tomada conscientemente pelo comprador.</p>
+  </div>
+
+  <div class="rodape-pagina"><span>SmartSupply — Painel de Compras</span><span>16</span></div>
+</section>
+
+<!-- ======================= 10. ALERTAS DE RUPTURA ======================= -->
+<section class="pagina conteudo">
+  <div class="cab-secao">
+    <div class="numero">10</div>
+    <h2>Alertas automáticos de ruptura</h2>
+    <div class="linha"></div>
+  </div>
+
+  <p>Nem sempre alguém vai abrir o painel a tempo de perceber que um produto está prestes a faltar. Por isso, quando o cálculo diário identifica que a <strong>duração projetada do estoque</strong> (seção 3) de um item ficou menor do que o tempo necessário para repor (cobertura desejada + lead time), o SmartSupply dispara automaticamente um <strong>e-mail de alerta</strong> para o responsável, sem que ninguém precise pedir.</p>
+
+  <p>O e-mail traz uma tabela objetiva, produto por produto, com tudo o que é preciso para agir rapidamente:</p>
+
+  <table>
+    <thead><tr><th>Produto</th><th>Consumo médio (dia)</th><th>Duração estoque (dias)</th><th>Necessidade de compra</th><th>Tempo de entrega</th></tr></thead>
+    <tbody>
+      <tr><td>Tinta Acrílica Branca 18L</td><td>10</td><td>3</td><td>300 latas</td><td>12 dias</td></tr>
+      <tr><td>Argamassa Pronta 20kg</td><td>18</td><td>2</td><td>620 sacos</td><td>7 dias</td></tr>
+    </tbody>
+  </table>
+
+  <div class="caixa caixa-conceito">
+    <div class="titulo-caixa"><span class="badge-icone">i</span> Alerta ≠ pedido automático</div>
+    <p style="margin:0">O alerta é apenas um <strong>aviso</strong> — ele não gera pedido de compra sozinho. A ideia é reduzir o tempo entre "o produto entrou em risco" e "alguém ficou sabendo", já que esperar o comprador abrir o painel por conta própria pode significar dias de atraso perceber o problema.</p>
+  </div>
+
+  <p>Dentro do próprio painel, existe ainda uma tela de "eventos pendentes de análise", onde cada alerta pode receber uma tratativa registrada — por exemplo, marcar que a compra será feita sob demanda, reprogramar a data em que o sistema deve voltar a avisar, ou simplesmente ignorar aquele alerta específico — mantendo um histórico de decisões tomadas item a item.</p>
+
+  <div class="rodape-pagina"><span>SmartSupply — Painel de Compras</span><span>17</span></div>
+</section>
+
+<!-- ======================= 11. RELATÓRIO DE PEDIDO ======================= -->
+<section class="pagina conteudo">
+  <div class="cab-secao">
+    <div class="numero">11</div>
+    <h2>Pedido de compra sob medida</h2>
+    <div class="linha"></div>
+  </div>
+
+  <p>Depois de fechado, o pedido de compra pode ser impresso (ou salvo em PDF) para envio ao fornecedor. Em vez de um layout único e fixo para todas as empresas, o SmartSupply traz um <strong>editor visual de layout</strong>, onde a própria empresa define como o documento deve se parecer: quantas linhas de cabeçalho, quais informações aparecem em cada uma (dados do fornecedor, do pedido, da transportadora), a largura de cada campo, e quais colunas aparecem na tabela de itens.</p>
+
+  <p>Isso significa que duas empresas usando o SmartSupply podem ter pedidos de compra com aparência completamente diferente, sem que ninguém precise alterar uma linha de programação — a customização é feita inteiramente pela própria tela de configuração, com validações automáticas para impedir, por exemplo, que a soma das larguras dos campos do cabeçalho passe de 100% da página.</p>
+
+  <div class="caixa caixa-conceito">
+    <div class="titulo-caixa"><span class="badge-icone">i</span> Resiliente entre diferentes ambientes</div>
+    <p style="margin:0">Se um layout foi configurado usando um campo que existe no cadastro de uma empresa mas não em outra, o sistema simplesmente remove aquele campo automaticamente do relatório impresso e redistribui o espaço entre os campos restantes — evitando que a impressão "quebre" visualmente quando o mesmo modelo de layout é usado em diferentes bases de clientes.</p>
+  </div>
+
+  <div class="rodape-pagina"><span>SmartSupply — Painel de Compras</span><span>18</span></div>
+</section>
+
+<!-- ======================= 12. GLOSSÁRIO ======================= -->
+<section class="pagina conteudo">
+  <div class="cab-secao">
+    <div class="numero">12</div>
+    <h2>Glossário</h2>
+    <div class="linha"></div>
+  </div>
+
+  <dl class="glossario">
+    <dt>Consumo médio diário</dt>
+    <dd>Quantidade média que "sai" do estoque por dia, calculada a partir do histórico de vendas e de consumo em produção.</dd>
+
+    <dt>Lead time</dt>
+    <dd>Tempo médio, em dias, entre o pedido ser feito ao fornecedor e a mercadoria chegar.</dd>
+
+    <dt>Cobertura de estoque</dt>
+    <dd>Quantidade de dias de venda que a empresa deseja sempre ter garantida em estoque, como política de segurança.</dd>
+
+    <dt>Duração projetada do estoque</dt>
+    <dd>Quantos dias o estoque atual (mais o que já está a caminho) ainda aguenta, no ritmo de consumo atual, se nada mais for comprado.</dd>
+
+    <dt>Empenho (reserva)</dt>
+    <dd>Parte do estoque já comprometida com pedidos de venda confirmados, que pode ou não ser descontada do saldo disponível para a conta de compra, conforme a configuração da empresa.</dd>
+
+    <dt>Lote mínimo / lote econômico</dt>
+    <dd>Quantidade mínima ou mais vantajosa que o fornecedor aceita vender de uma vez.</dd>
+
+    <dt>Multi-filial</dt>
+    <dd>Recurso que permite analisar e consolidar a necessidade de compra de um mesmo produto entre várias lojas ou fábricas ao mesmo tempo.</dd>
+
+    <dt>Análise reversa de estruturas</dt>
+    <dd>Cálculo que deriva a necessidade de compra de uma matéria-prima a partir da demanda dos produtos finais que a utilizam, "descendo" pela receita de fabricação.</dd>
+
+    <dt>Índice de giro</dt>
+    <dd>Medida de quão recorrente um produto é nas movimentações da empresa, usada para classificar itens em faixas de importância (Crítico, Alto, Médio, Baixo, Sem giro).</dd>
+
+    <dt>Ruptura de estoque</dt>
+    <dd>Situação em que o produto fica indisponível para venda ou produção por falta de estoque.</dd>
+
+    <dt>Carrinho de compras</dt>
+    <dd>Agrupamento dos itens marcados para compra de um mesmo fornecedor, antes de virarem um pedido de compra formal.</dd>
+  </dl>
+
+  <div class="rodape-pagina"><span>SmartSupply — Painel de Compras</span><span>19</span></div>
+</section>
+
+<!-- ======================= ENCERRAMENTO ======================= -->
+<section class="pagina capa-final">
+  <div class="selo"><span class="ponto"></span> Fim do documento</div>
+  <h2>Da conta manual ao clique de confirmar.</h2>
+  <p>O SmartSupply não substitui o julgamento do comprador — ele elimina o trabalho repetitivo de refazer a mesma conta, produto a produto, filial a filial, todos os dias, para que esse julgamento seja aplicado onde realmente importa.</p>
+  <div class="linha-fina" style="margin:24px auto"></div>
+  <p style="font-size:12px; color:var(--roxo-claro)">INAN Soluções · Documentação Funcional do SmartSupply — Painel de Compras · Versão 1.0 · Agosto de 2026</p>
+</section>
+
+</body>
+</html>
