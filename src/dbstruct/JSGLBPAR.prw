@@ -364,53 +364,66 @@ Static Function nextPage( nAtual )
                     // Obtem um nome de alias temporário
                     cAlias := GetNextAlias()
                     DBUseArea( .T. /* lNewArea - nunca reaproveitar a área corrente */, 'TOPCONN', aTab[nX][2], (cAlias), .F., .F. )
-                    // Obtem a estrutura da tabela para eviar junto da função TCAlter
-                    aOldStr := ( cAlias )->( DBStruct() )
-                    ( cAlias )->( DBCloseArea() )
 
-                    // Obtem a nova estrutura
-                    aStruct := U_JSGETSTR( aTab[nX][2] /* cTable */ )
-
-                    if len( aStruct ) > 0
-
-                        // Chama função padrão do TopConnect para alterar a tabela intermediária
-                        lSuccess := TCAlter( aTab[nX][2], aOldStr, aStruct, @nTopErr )
-                        if ! lSuccess
-                            Hlp( 'Falha na Alteração',;
-                                    'Falha durante a tentativa de alterar estrutura da tabela '+ aTab[nX][2],;
-                                    TcSQLError() )
-                        else
-                            if len( aIndex ) > 0
-                                for nIndex := 1 to len( aIndex )
-                                    if ! TCCanOpen( aTab[nX][2], aIndex[nIndex][1] )
-                                        
-                                        cAlias := GetNextAlias()
-                                        DBUseArea( .T. /* lNewArea - nunca reaproveitar a área corrente */, 'TOPCONN', aTab[nX][2], (cAlias), .F., .F. )
-                                        ( cAlias )->( DBCreateIndex( aIndex[nIndex][1], aIndex[nIndex][2], aIndex[nIndex][3] ) )
-                                        ( cAlias )->( DBClearIndex() )
-                                        ( cAlias )->( DBSetIndex( aIndex[nIndex][1] ) )
-                                        ( cAlias )->( DBCloseArea() )
-                                        lSuccess := TCCanOpen( aTab[nX][2], aIndex[nIndex][1] )
-
-                                    endif
-                                    if ! lSuccess
-                                        Hlp( 'Falha na Criação do Índice',; 
-                                                'O índice '+ aIndex[nIndex][1] +' da tabela ' + aTab[nX][2] +' não pode ser criado!' )
-                                        Exit
-                                    endif
-                                next nIndex
-                            endif
-                            if lSuccess
-                                aTab[nX][3] := "O"
-                                oBrowse:GoTo( nX, .T. /* lRefresh */ )
-                                oBrowse:UpdateBrowse( .T. /* lResetSeed */)
-                            endif
-                        endif
-                    else
+                    // TCCanOpen (checado na tela anterior) pode ter indicado sucesso e o DBUseArea
+                    // ainda assim não abrir a área (ex.: tabela sendo alterada em paralelo por outra
+                    // thread) - sem essa checagem, o DBStruct() abaixo dispara "Alias does not exist"
+                    if Select( cAlias ) == 0
                         lSuccess := .F.
-                        Hlp( 'Sem Estrutura',;
-                                'A tabela '+ aTab[nX][2] +' não possui estrutura definida!',;
-                                'Defina uma estrutura por meio da função JSGETSTR e tente novamente.' )
+                        Hlp( 'Falha na Abertura',;
+                                'Não foi possível abrir a tabela '+ aTab[nX][2] +' para obter sua estrutura atual!',;
+                                'Tente novamente em alguns instantes' )
+                    else
+                        // Obtem a estrutura da tabela para eviar junto da função TCAlter
+                        aOldStr := ( cAlias )->( DBStruct() )
+                        ( cAlias )->( DBCloseArea() )
+
+                        // Obtem a nova estrutura
+                        aStruct := U_JSGETSTR( aTab[nX][2] /* cTable */ )
+
+                        if len( aStruct ) > 0
+
+                            // Chama função padrão do TopConnect para alterar a tabela intermediária
+                            lSuccess := TCAlter( aTab[nX][2], aOldStr, aStruct, @nTopErr )
+                            if ! lSuccess
+                                Hlp( 'Falha na Alteração',;
+                                        'Falha durante a tentativa de alterar estrutura da tabela '+ aTab[nX][2],;
+                                        TcSQLError() )
+                            else
+                                if len( aIndex ) > 0
+                                    for nIndex := 1 to len( aIndex )
+                                        if ! TCCanOpen( aTab[nX][2], aIndex[nIndex][1] )
+                                            
+                                            cAlias := GetNextAlias()
+                                            DBUseArea( .T. /* lNewArea - nunca reaproveitar a área corrente */, 'TOPCONN', aTab[nX][2], (cAlias), .F., .F. )
+                                            if Select( cAlias ) > 0
+                                                ( cAlias )->( DBCreateIndex( aIndex[nIndex][1], aIndex[nIndex][2], aIndex[nIndex][3] ) )
+                                                ( cAlias )->( DBClearIndex() )
+                                                ( cAlias )->( DBSetIndex( aIndex[nIndex][1] ) )
+                                                ( cAlias )->( DBCloseArea() )
+                                            endif
+                                            lSuccess := TCCanOpen( aTab[nX][2], aIndex[nIndex][1] )
+
+                                        endif
+                                        if ! lSuccess
+                                            Hlp( 'Falha na Criação do Índice',; 
+                                                    'O índice '+ aIndex[nIndex][1] +' da tabela ' + aTab[nX][2] +' não pode ser criado!' )
+                                            Exit
+                                        endif
+                                    next nIndex
+                                endif
+                                if lSuccess
+                                    aTab[nX][3] := "O"
+                                    oBrowse:GoTo( nX, .T. /* lRefresh */ )
+                                    oBrowse:UpdateBrowse( .T. /* lResetSeed */)
+                                endif
+                            endif
+                        else
+                            lSuccess := .F.
+                            Hlp( 'Sem Estrutura',;
+                                    'A tabela '+ aTab[nX][2] +' não possui estrutura definida!',;
+                                    'Defina uma estrutura por meio da função JSGETSTR e tente novamente.' )
+                        endif
                     endif
 
                 elseif aTab[nX][3] == "I"     // Tabelas que não estão criadas
@@ -438,10 +451,12 @@ Static Function nextPage( nAtual )
                                         
                                         cAlias := GetNextAlias()
                                         DBUseArea( .T. /* lNewArea - nunca reaproveitar a área corrente */, 'TOPCONN', aTab[nX][2], (cAlias), .F., .F. )
-                                        ( cAlias )->( DBCreateIndex( aIndex[nIndex][1], aIndex[nIndex][2], aIndex[nIndex][3] ) )
-                                        ( cAlias )->( DBClearIndex() )
-                                        ( cAlias )->( DBSetIndex( aIndex[nIndex][1] ) )
-                                        ( cAlias )->( DBCloseArea() )
+                                        if Select( cAlias ) > 0
+                                            ( cAlias )->( DBCreateIndex( aIndex[nIndex][1], aIndex[nIndex][2], aIndex[nIndex][3] ) )
+                                            ( cAlias )->( DBClearIndex() )
+                                            ( cAlias )->( DBSetIndex( aIndex[nIndex][1] ) )
+                                            ( cAlias )->( DBCloseArea() )
+                                        endif
                                         lSuccess := TCCanOpen( aTab[nX][2], aIndex[nIndex][1] )
 
                                     endif

@@ -141,19 +141,26 @@ user function JSTBLCHK( cTable )
         // (fechava) a área atualmente selecionada, o que chegou a derrubar a SM0 quando ela
         // era a área corrente no momento da checagem das estruturas
         DBUseArea( .T., 'TOPCONN', cTable, cAlias, .T., .F. )
-        
-        // Retorna estrutura da tabela para a versão atual do plugIn
-        aStruct := U_JSGETSTR( cTable )
 
-        // Obtem a estrutura atual da tabela física presente no banco
-        aOldStr := ( cAlias )->( DBStruct() )
-        ( cAlias )->( DBCloseArea() )
-
-        // Compara as duas estruturas para saber se tem necessidade de atualizar
-        if hasChange( aStruct, aOldStr, cTable )
-            cRet := "U"
+        // TCCanOpen pode indicar sucesso e o DBUseArea ainda assim não abrir a área (ex.:
+        // tabela sendo criada/alterada em paralelo por outra thread) - sem essa checagem,
+        // o DBStruct() abaixo dispara "Alias does not exist" por operar num alias inexistente
+        if Select( cAlias ) == 0
+            cRet := "U"             // Força o fluxo de atualização/recriação da estrutura
         else
-            cRet := "O"
+            // Retorna estrutura da tabela para a versão atual do plugIn
+            aStruct := U_JSGETSTR( cTable )
+
+            // Obtem a estrutura atual da tabela física presente no banco
+            aOldStr := ( cAlias )->( DBStruct() )
+            ( cAlias )->( DBCloseArea() )
+
+            // Compara as duas estruturas para saber se tem necessidade de atualizar
+            if hasChange( aStruct, aOldStr, cTable )
+                cRet := "U"
+            else
+                cRet := "O"
+            endif
         endif
     endif
 

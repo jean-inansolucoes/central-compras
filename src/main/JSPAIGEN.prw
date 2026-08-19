@@ -223,6 +223,7 @@ user function JSDETVER()
     aAdd( aDetVer, { '21','0005','24/07/2026', 'Correção de bug que fazia com que houvesse inconsistências na exibição dos dados do carrinho de compras por fornecedor' } )
     aAdd( aDetVer, { '23','0001','04/08/2026', 'Novos recursos para o motor de cálculo de sugestão de compra multi-filial' } )
     aAdd( aDetVer, { '23','0002','11/08/2026', 'Ajuste do novo recurso de gráfico para adicionar casa decimal quando tipo de gráfico for "Misto" para que as barras fiquem coerentes com os números que são apresentados' } )
+    aAdd( aDetVer, { '23','0003','19/08/2026', 'Checagens pontuais antes de usar alíases ligados a tabelas de controle interno' } )
 
 return aDetVer
 
