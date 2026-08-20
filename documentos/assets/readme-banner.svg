@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 220" width="1200" height="220" role="img" aria-label="SmartSupply - Painel de Compras Inteligente para o TOTVS Protheus">
+  <defs>
+    <linearGradient id="bgGrad" x1="10%" y1="0%" x2="90%" y2="100%">
+      <stop offset="0%" stop-color="#2e105d"/>
+      <stop offset="100%" stop-color="#441c7d"/>
+    </linearGradient>
+    <linearGradient id="topBar" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#6b31b0"/>
+      <stop offset="50%" stop-color="#f41dab"/>
+      <stop offset="100%" stop-color="#cd1f92"/>
+    </linearGradient>
+    <linearGradient id="badgeGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#f41dab"/>
+      <stop offset="100%" stop-color="#cd1f92"/>
+    </linearGradient>
+    <linearGradient id="titleGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#f41dab"/>
+      <stop offset="100%" stop-color="#a57dd0"/>
+    </linearGradient>
+    <filter id="glowBlur" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="36"/>
+    </filter>
+    <clipPath id="panelClip">
+      <rect x="0" y="0" width="1200" height="220" rx="20"/>
+    </clipPath>
+  </defs>
+
+  <rect x="0" y="0" width="1200" height="220" rx="20" fill="url(#bgGrad)"/>
+
+  <g clip-path="url(#panelClip)">
+    <circle cx="1120" cy="10" r="130" fill="#f41dab" opacity="0.28" filter="url(#glowBlur)"/>
+    <circle cx="40" cy="240" r="150" fill="#6b31b0" opacity="0.22" filter="url(#glowBlur)"/>
+    <rect x="0" y="0" width="1200" height="6" fill="url(#topBar)"/>
+  </g>
+
+  <rect x="44" y="34" width="196" height="32" rx="16" fill="url(#badgeGrad)"/>
+  <circle cx="62" cy="50" r="4" fill="#ffffff"/>
+  <text x="76" y="55" font-family="'Segoe UI',Arial,sans-serif" font-size="12" font-weight="700" letter-spacing="2" fill="#ffffff">SMARTSUPPLY</text>
+
+  <text x="44" y="128" font-family="'Segoe UI',Arial,sans-serif" font-size="42" font-weight="800" fill="#ffffff">Painel de <tspan fill="url(#titleGrad)">Compras</tspan> Inteligente</text>
+
+  <text x="44" y="164" font-family="'Segoe UI',Arial,sans-serif" font-size="17" fill="#b6acc7">Sugest&#227;o autom&#225;tica de compras, multi-filial, an&#225;lise de giro e sazonalidade</text>
+
+  <text x="44" y="196" font-family="'Segoe UI',Arial,sans-serif" font-size="12.5" letter-spacing="1" fill="#a57dd0">TOTVS PROTHEUS &#183; M&#211;DULO COMPRAS (SIGACOM) &#183; INAN SOLU&#199;&#213;ES</text>
+</svg>
