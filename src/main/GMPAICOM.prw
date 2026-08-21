@@ -7796,6 +7796,8 @@ Static Function GMPCPRINT( cFil, cPC )
 
 	if lCustom
 		U_JSRLPDCO( SC7->(Recno()) )
+	elseif ExistBlock( 'MATR110C' )
+		U_MATR110C( 'SC7', SC7->(Recno()), 1 )
 	else
 		MATR110( 'SC7', SC7->(Recno()), 1 )
 	endif
