@@ -224,6 +224,7 @@ user function JSDETVER()
     aAdd( aDetVer, { '23','0001','04/08/2026', 'Novos recursos para o motor de cálculo de sugestão de compra multi-filial' } )
     aAdd( aDetVer, { '23','0002','11/08/2026', 'Ajuste do novo recurso de gráfico para adicionar casa decimal quando tipo de gráfico for "Misto" para que as barras fiquem coerentes com os números que são apresentados' } )
     aAdd( aDetVer, { '23','0003','19/08/2026', 'Checagens pontuais antes de usar alíases ligados a tabelas de controle interno' } )
+    aAdd( aDetVer, { '23','0004','23/08/2026', 'Adição de novo campo "Mês Atual" na grid de quantidades por filial e ajuste do padrão de cálculo dos números apresentados nos gráficos' } )
 
 return aDetVer
 
@@ -667,7 +668,6 @@ user function JSQRYINF( aConf, aFilters, cPedSol, aCustom, aMPs )
     local cTypes   := "" as character
     local aAux     := {} as array
     local y        := 0  as numeric
-    local dDtCalc  := CtoD( SubStr( GetMv( 'MV_X_PNC12',,DtoC(date()) ), 01, 10 ) )
     local lLike    := .F. as logical
     local cFilHist := cFilAnt
     local nFil     := 0 as numeric
@@ -886,7 +886,10 @@ user function JSQRYINF( aConf, aFilters, cPedSol, aCustom, aMPs )
             cQuery += "LEFT JOIN "+ cZB3 +" "+ cZB3 +" " + CEOL
             cQuery += " ON "+ cZB3 +".FILIAL = '"+ cFilAnt +"' " + CEOL
             cQuery += "AND "+ cZB3 +".PROD   = B1.B1_COD " + CEOL
-            cQuery += "AND "+ cZB3 +".DTREF   = '"+ DtoS( dDtCalc ) +"' " + CEOL
+            // DTREF mais recente gravado para ESTA filial (cFilAnt, do loop acima) - nao um valor
+            // unico global (bug anterior: filiais cujo GMINDPRO rodou em dia diferente da filial
+            // "atual" da sessao ficavam de fora do join e o consumo medio saia zerado para elas)
+            cQuery += "AND "+ cZB3 +".DTREF   = ( SELECT MAX(ZBDT.DTREF) FROM "+ cZB3 +" ZBDT WHERE ZBDT.FILIAL = '"+ cFilAnt +"' AND ZBDT.D_E_L_E_T_ = ' ' ) " + CEOL
             cQuery += "AND "+ cZB3 +".D_E_L_E_T_ = ' ' " + CEOL
         endif
 
@@ -895,7 +898,7 @@ user function JSQRYINF( aConf, aFilters, cPedSol, aCustom, aMPs )
             cQuery += "LEFT JOIN PNC_RVCALC_"+ cEmpAnt +" RV " + CEOL
             cQuery += " ON RV.FILIAL = '"+ cFilAnt +"' " + CEOL
             cQuery += "AND RV.PROD   = B1.B1_COD " + CEOL
-            cQuery += "AND RV.DTCALC = '"+ DtoS( dDtCalc ) +"' " + CEOL
+            cQuery += "AND RV.DTCALC = ( SELECT MAX(RVDT.DTCALC) FROM PNC_RVCALC_"+ cEmpAnt +" RVDT WHERE RVDT.FILIAL = '"+ cFilAnt +"' AND RVDT.D_E_L_E_T_ = ' ' ) " + CEOL
             cQuery += "AND RV.D_E_L_E_T_ = ' ' " + CEOL
         endif
 
@@ -1123,7 +1126,12 @@ user function JSQRYSAI( cProduto, dDe, dAte, _aFil )
         cFilAnt := _aFil[nFil]
         lTrfFil := U_JSTRFFIL( cFilAnt )    // Indica se a filial considera movimentações intra-grupo no cálculo de média de consumo
 
-        cQuery := "SELECT " + CEOL
+        // cQuery deve ACUMULAR (+=) entre as iterações do laço, nunca ser reatribuído (:=) - com ":="
+        // aqui, cada filial processada sobrescrevia o UNION ALL das filiais anteriores, fazendo a
+        // função retornar apenas os dados da última filial do vetor _aFil em vez da soma de todas
+        // (bug visível ao chamar com múltiplas filiais de uma vez, como a barra "Mês Atual" do
+        // gráfico misto - getMedia(aFilMis,...) - que ficava restrita a uma única filial)
+        cQuery += "SELECT " + CEOL
         cQuery += "  'V' AS TIPO, D2.D2_FILIAL, D2.D2_COD, D2.D2_DOC, D2.D2_SERIE, D2.D2_EMISSAO, D2.D2_CLIENTE, D2.D2_LOJA, " + CEOL
         cQuery += "  A1.A1_NOME, D2.D2_LOCAL, D2.D2_QUANT " + CEOL
         cQuery += "FROM "+ RetSqlName( 'SD2' ) +" D2 " + CEOL

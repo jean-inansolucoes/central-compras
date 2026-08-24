@@ -363,7 +363,10 @@ Static Function nextPage( nAtual )
                     
                     // Obtem um nome de alias temporário
                     cAlias := GetNextAlias()
-                    DBUseArea( .T. /* lNewArea - nunca reaproveitar a área corrente */, 'TOPCONN', aTab[nX][2], (cAlias), .F., .F. )
+                    // lShared=.T. - aqui só se lê a estrutura via DBStruct() (nenhuma gravação); exclusivo
+                    // era desnecessário e conflitava com JSTBLCHK (checagem, que já abre compartilhado),
+                    // causando "Falha na Abertura" quando havia qualquer acesso concorrente à tabela
+                    DBUseArea( .T. /* lNewArea - nunca reaproveitar a área corrente */, 'TOPCONN', aTab[nX][2], (cAlias), .T., .F. )
 
                     // TCCanOpen (checado na tela anterior) pode ter indicado sucesso e o DBUseArea
                     // ainda assim não abrir a área (ex.: tabela sendo alterada em paralelo por outra

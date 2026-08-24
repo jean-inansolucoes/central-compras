@@ -630,7 +630,11 @@ static function openZB3()
 		if ! TCCanOpen( cZB3 )
 			lSuccess := .F.
 		else
-			DBUseArea( .T. /* lNewArea */, 'TOPCONN', cZB3, cZB3, .F. /* lShared - exclusivo, mesmo padrão de gravação usado em JSREVEST.prw */, .F. )
+			// lShared=.T.: todas as gravações em cZB3 usam RecLock/MsUnlock (lock de registro), então
+			// exclusivo no arquivo inteiro era desnecessário e, mantido pela sessão inteira da tela,
+			// bloqueava qualquer outra abertura da tabela (ex.: o assistente de configuração
+			// U_JSGLBPAR ao tentar ler a estrutura atual para aplicar um ajuste de dicionário)
+			DBUseArea( .T. /* lNewArea */, 'TOPCONN', cZB3, cZB3, .T. /* lShared */, .F. )
 			( cZB3 )->( DBSetIndex( cZB3 +'_01' ) )
 		endif
 	endif
@@ -3363,13 +3367,12 @@ Static Function fLoadAna( lNoInt )
 	local lPEPNC08 := ExistBlock( 'PEPNC08' )
 	local cFilExcl := "" as character
 	local aFilChk  := {} as array
-	local dDtCalc  := StoD("") as date
 	local nCM12M   := 0 as numeric
 	local nCM06M   := 0 as numeric
 	local nCM03M   := 0 as numeric
 	local nCMAnt   := 0 as numeric
 	local aFilMis  := {} as array
-	local cAliMis  := "" as character
+	local aSnpMed  := {} as array
 	// local oData    := JsonObject():New()
 	// local aData    := {}
 
@@ -3386,8 +3389,6 @@ Static Function fLoadAna( lNoInt )
 		if oBrwPro != Nil .and. Len( aColPro ) > 0
 
 			oDash:SetPicture( "@E 999,999,999.9" )	// 1 casa decimal - exclusivo do tipo "Misto", para o rotulo da barra bater com a proporcao exibida
-			dDtCalc := CtoD( SubStr( GetMv( 'MV_X_PNC12',,DtoC(date()) ), 01, 10 ) )
-
 			// Resolve a(s) filial(is) a consolidar conforme a seleção do combo oCboFil (mesma
 			// interpretação de XX/YY já usada mais abaixo nesta função para os demais tipos de
 			// período): XX=Todas as filiais da empresa, YY=Filtro de filiais (_aFil) ou uma
@@ -3401,23 +3402,19 @@ Static Function fLoadAna( lNoInt )
 				aFilMis := { cCboFil }
 			endif
 
-			// Consolida (soma) os índices pré-calculados das filiais selecionadas - o volume de
-			// registros por produto é baixo o suficiente para que a consulta direta não impacte
-			// a experiência do usuário
-			cQuery := "SELECT COALESCE(SUM(CM12M),0) CM12M, COALESCE(SUM(CM06M),0) CM06M, COALESCE(SUM(CM03M),0) CM03M, COALESCE(SUM(CMANT),0) CMANT FROM "+ cZB3 +" " + CEOL
-			cQuery += "WHERE PROD = '"+ aColPro[oBrwPro:nAt][nPosPrd] +"' " + CEOL
-			cQuery += "  AND DTREF = '"+ DtoS( dDtCalc ) +"' " + CEOL
-			cQuery += "  AND FILIAL IN ( "+ fmtFilIn( aFilMis ) +" ) " + CEOL
-			cQuery += "  AND D_E_L_E_T_ = ' ' " + CEOL
-
-			cAliMis := MPSysOpenQuery( cQuery )
-			if ! ( cAliMis )->( EOF() )
-				nCM12M := ( cAliMis )->CM12M
-				nCM06M := ( cAliMis )->CM06M
-				nCM03M := ( cAliMis )->CM03M
-				nCMAnt := ( cAliMis )->CMANT
-			endif
-			( cAliMis )->( DBCloseArea() )
+			// Consolida (soma) os índices pré-calculados das filiais selecionadas via getSnpMed - mesma
+			// função usada pela tela "Quantidades x Filial" (PCOMPRE), garantindo que os números sempre
+			// batem entre as duas telas; getSnpMed já resolve o DTREF mais recente de cada filial
+			// individualmente, então filiais cujo GMINDPRO rodou em dias diferentes não ficam de fora
+			nCM12M := 0
+			nCM06M := 0
+			nCM03M := 0
+			nCMAnt := 0
+			aEval( aFilMis, {|cFilMis| aSnpMed := getSnpMed( cFilMis, aColPro[oBrwPro:nAt][nPosPrd] ),;
+			                           nCM12M += aSnpMed[1],;
+			                           nCM06M += aSnpMed[2],;
+			                           nCM03M += aSnpMed[3],;
+			                           nCMAnt += aSnpMed[4] } )
 
 			oDash:AddSerie( '12 Meses'  , nCM12M )
 			oDash:AddSerie( '6 Meses'   , nCM06M )
@@ -6313,7 +6310,7 @@ Static Function fGrpCalNec( cProduto )
 	local aPeso     := {} as array
 	local nSomaPes  := 0  as numeric
 	local aParte    := {} as array
-	local nMaior    := 1  as numeric
+	local nMaior    := 0  as numeric
 	local nQtdAtual := 0  as numeric
 	local nPrjEst   := 0  as numeric
 	local nEmE      := 0  as numeric
@@ -6391,30 +6388,36 @@ Static Function fGrpCalNec( cProduto )
 
 	endif
 
-	// Distribui o resultado final de volta em _aProdFil, proporcionalmente ao peso de cada filial
+	// Distribui o resultado final de volta em _aProdFil, proporcionalmente ao peso de cada filial -
+	// filial com peso zero (sem consumo/necessidade propria) NUNCA recebe fatia, nem proporcional nem
+	// o residuo de arredondamento da "maior fatia" abaixo - garante 0 exato (nunca 0.01 residual) para
+	// a filial que nao contribuiu em nada para a necessidade consolidada do produto
 	for nX := 1 to len( aPeso )
 		nSomaPes += aPeso[nX]
 	next nX
 
 	for nX := 1 to len( aIdx )
-		if nSomaPes > 0
-			aAdd( aParte, Round( nQtdGrp * aPeso[nX] / nSomaPes, 2 ) )
+		if aPeso[nX] == 0
+			aAdd( aParte, 0 )
 		else
-			aAdd( aParte, Round( nQtdGrp / len( aIdx ), 2 ) )
+			aAdd( aParte, Round( nQtdGrp * aPeso[nX] / nSomaPes, 2 ) )
 		endif
 	next nX
 
-	// Ajusta a maior fatia para a soma das partes bater exatamente com nQtdGrp (sem deriva de arredondamento)
+	// Ajusta a maior fatia para a soma das partes bater exatamente com nQtdGrp (sem deriva de
+	// arredondamento) - so considera filiais de peso positivo como candidatas a receber o residuo
 	nSoma := 0
 	for nX := 1 to len( aParte )
 		nSoma += aParte[nX]
 	next nX
-	for nX := 2 to len( aParte )
-		if aParte[nX] > aParte[nMaior]
+	for nX := 1 to len( aParte )
+		if aPeso[nX] > 0 .and. ( nMaior == 0 .or. aParte[nX] > aParte[nMaior] )
 			nMaior := nX
 		endif
 	next nX
-	aParte[nMaior] += ( nQtdGrp - nSoma )
+	if nMaior > 0
+		aParte[nMaior] += ( nQtdGrp - nSoma )
+	endif
 
 	for nX := 1 to len( aIdx )
 		_aProdFil[ aIdx[nX] ][nPosNec] := aParte[nX]
@@ -10288,9 +10291,11 @@ user function PCOMPRE(oBrw, oCol, cPre )
 			aColumns[len(aColumns)]:SetPicture( "@E 999,999,999.9999" )
 			aColumns[len(aColumns)]:SetID( 'CONSMED' )
 			
+			// Colunas 12M/6M/3M/Mês Anterior lidas do snapshot pré-calculado (getSnpMed) - mesma fonte
+			// usada pelo gráfico misto (fLoadAna), garantindo que os números sempre batem entre as telas
 			aAdd( aColumns, FWBrwColumn():New() )
 			aColumns[len(aColumns)]:SetTitle( 'Media 12M' )
-			aColumns[len(aColumns)]:SetData( &( "{|oBrw| getMedia( aProFil[oBrw:At()]["+ cValToChar(len( aProFil[1] )) +"], aProFil[oBrw:At()]["+ cValToChar( nPosPrd ) +"], 12 ) }" ) )
+			aColumns[len(aColumns)]:SetData( &( "{|oBrw| getSnpMed( aProFil[oBrw:At()]["+ cValToChar(len( aProFil[1] )) +"], aProFil[oBrw:At()]["+ cValToChar( nPosPrd ) +"] )[1] }" ) )
 			aColumns[len(aColumns)]:SetType( 'N' )
 			aColumns[len(aColumns)]:SetAlign( 2 )		// Alinha a Direita
 			aColumns[len(aColumns)]:SetSize( 14 )
@@ -10300,7 +10305,7 @@ user function PCOMPRE(oBrw, oCol, cPre )
 
 			aAdd( aColumns, FWBrwColumn():New() )
 			aColumns[len(aColumns)]:SetTitle( 'Media 6M' )
-			aColumns[len(aColumns)]:SetData( &( "{|oBrw| getMedia( aProFil[oBrw:At()]["+ cValToChar(len( aProFil[1] )) +"], aProFil[oBrw:At()]["+ cValToChar( nPosPrd ) +"], 6 ) }" ) )
+			aColumns[len(aColumns)]:SetData( &( "{|oBrw| getSnpMed( aProFil[oBrw:At()]["+ cValToChar(len( aProFil[1] )) +"], aProFil[oBrw:At()]["+ cValToChar( nPosPrd ) +"] )[2] }" ) )
 			aColumns[len(aColumns)]:SetType( 'N' )
 			aColumns[len(aColumns)]:SetAlign( 2 )		// Alinha a Direita
 			aColumns[len(aColumns)]:SetSize( 14 )
@@ -10310,7 +10315,7 @@ user function PCOMPRE(oBrw, oCol, cPre )
 
 			aAdd( aColumns, FWBrwColumn():New() )
 			aColumns[len(aColumns)]:SetTitle( 'Media 3M' )
-			aColumns[len(aColumns)]:SetData( &( "{|oBrw| getMedia( aProFil[oBrw:At()]["+ cValToChar(len( aProFil[1] )) +"], aProFil[oBrw:At()]["+ cValToChar( nPosPrd ) +"], 3 ) }" ) )
+			aColumns[len(aColumns)]:SetData( &( "{|oBrw| getSnpMed( aProFil[oBrw:At()]["+ cValToChar(len( aProFil[1] )) +"], aProFil[oBrw:At()]["+ cValToChar( nPosPrd ) +"] )[3] }" ) )
 			aColumns[len(aColumns)]:SetType( 'N' )
 			aColumns[len(aColumns)]:SetAlign( 2 )		// Alinha a Direita
 			aColumns[len(aColumns)]:SetSize( 14 )
@@ -10318,15 +10323,31 @@ user function PCOMPRE(oBrw, oCol, cPre )
 			aColumns[len(aColumns)]:SetPicture( "@E 999,999,999.9999" )
 			aColumns[len(aColumns)]:SetID( 'MEDIA3' )
 
+			// "Mês Anterior": mês fechado anterior, lido do snapshot (CMANT via getSnpMed) - mesmo
+			// conceito da barra "Mês Ant." do gráfico misto (antes chamada "Ult. Mês" e calculada ao
+			// vivo com getMedia(...,1), que na verdade representava o mesmo período de "Mês Atual")
 			aAdd( aColumns, FWBrwColumn():New() )
-			aColumns[len(aColumns)]:SetTitle( 'Ult. Mês' )
+			aColumns[len(aColumns)]:SetTitle( 'Mês Anterior' )
+			aColumns[len(aColumns)]:SetData( &( "{|oBrw| getSnpMed( aProFil[oBrw:At()]["+ cValToChar(len( aProFil[1] )) +"], aProFil[oBrw:At()]["+ cValToChar( nPosPrd ) +"] )[4] }" ) )
+			aColumns[len(aColumns)]:SetType( 'N' )
+			aColumns[len(aColumns)]:SetAlign( 2 )		// Alinha a Direita
+			aColumns[len(aColumns)]:SetSize( 14 )
+			aColumns[len(aColumns)]:SetDecimal( 4 )
+			aColumns[len(aColumns)]:SetPicture( "@E 999,999,999.9999" )
+			aColumns[len(aColumns)]:SetID( 'MESANT' )
+
+			// "Mês Atual": quantidade de saída do dia 1 até hoje do mês corrente, calculada ao vivo
+			// (não vem do snapshot - mês em andamento não é materializado pelo GMINDPRO) - mesma
+			// fórmula/função usada na barra "Mês Atual" do gráfico misto
+			aAdd( aColumns, FWBrwColumn():New() )
+			aColumns[len(aColumns)]:SetTitle( 'Mês Atual' )
 			aColumns[len(aColumns)]:SetData( &( "{|oBrw| getMedia( aProFil[oBrw:At()]["+ cValToChar(len( aProFil[1] )) +"], aProFil[oBrw:At()]["+ cValToChar( nPosPrd ) +"], 1 ) }" ) )
 			aColumns[len(aColumns)]:SetType( 'N' )
 			aColumns[len(aColumns)]:SetAlign( 2 )		// Alinha a Direita
 			aColumns[len(aColumns)]:SetSize( 14 )
 			aColumns[len(aColumns)]:SetDecimal( 4 )
 			aColumns[len(aColumns)]:SetPicture( "@E 999,999,999.9999" )
-			aColumns[len(aColumns)]:SetID( 'MEDIA1' )
+			aColumns[len(aColumns)]:SetID( 'MESATU' )
 
 			aAdd( aColumns, FWBrwColumn():New() )
 			aColumns[len(aColumns)]:SetTitle( 'Em Estoque' )
@@ -10606,6 +10627,41 @@ static function getMesAnt( cFil, cProd )
 
 	( cTmp )->( DBCloseArea() )
 return nTotal
+
+/*/{Protheus.doc} getSnpMed
+Retorna as médias pré-calculadas (12M/6M/3M/mês anterior fechado) gravadas no snapshot
+PNC_PROD_<empresa> para uma filial e produto específicos, sempre a partir do DTREF mais recente
+gravado para aquela filial - não depende do parâmetro MV_X_PNC12 (que é escopado por filial e por
+isso não reflete corretamente filiais cujo GMINDPRO rodou em dias diferentes). Fonte única usada
+tanto pelo gráfico misto (fLoadAna) quanto pela tela "Quantidades x Filial" (PCOMPRE), garantindo
+que os números sejam sempre coerentes entre as duas telas.
+@type function
+@version 20.0004
+@author Jean Carlos Pandolfo Saggin
+@since 23/08/2026
+@param cFil, character, filial a ser considerada
+@param cProd, character, ID do produto
+@return array, { nCM12M, nCM06M, nCM03M, nCMAnt }
+/*/
+static function getSnpMed( cFil, cProd )
+
+	local aRet    := { 0, 0, 0, 0 } as array
+	local cQuery  := "" as character
+	local cTable  := "PNC_PROD_"+ cEmpAnt as character
+	local cTmp    := "" as character
+
+	cQuery := "SELECT COALESCE(CM12M,0) CM12M, COALESCE(CM06M,0) CM06M, COALESCE(CM03M,0) CM03M, COALESCE(CMANT,0) CMANT " + CEOL
+	cQuery += "FROM "+ cTable +" PNC " + CEOL
+	cQuery += "WHERE PROD = '"+ cProd +"' AND FILIAL = '"+ cFil +"' AND D_E_L_E_T_ = ' ' " + CEOL
+	cQuery += "  AND DTREF = ( SELECT MAX(DTREF) FROM "+ cTable +" PNC2 WHERE PNC2.FILIAL = '"+ cFil +"' AND PNC2.D_E_L_E_T_ = ' ' ) " + CEOL
+
+	cTmp := MPSysOpenQuery( cQuery )
+	if ! ( cTmp )->( EOF() )
+		aRet := { ( cTmp )->CM12M, ( cTmp )->CM06M, ( cTmp )->CM03M, ( cTmp )->CMANT }
+	endif
+	( cTmp )->( DBCloseArea() )
+
+return aRet
 
 /*/{Protheus.doc} updCarCom
 Função para atualizar quantidade no carrinho de compra
