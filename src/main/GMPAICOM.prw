@@ -124,6 +124,7 @@ User Function GMPAICOM()
 	Private nPosChk   := 0
 	Private nPosFor   := 0
 	Private nPosLoj   := 0
+	Private nPosCPF   := 0 as numeric				// Posicao do codigo do produto no fornecedor (A5_CODPRF)
 	Private nPosBlq   := 0
 	Private nPosNec   := 0
 	Private nPosOri   := 0
@@ -131,6 +132,7 @@ User Function GMPAICOM()
 	Private nPosUlt   := 0
 	Private nPosCon   := 0 
 	Private nPosEMi   := 0 as numeric
+	Private nPosEMx   := 0 as numeric
 	Private nPosPVe   := 0 as numeric
 	Private nPosDur   := 0 
 	Private nPosEmE   := 0 
@@ -321,6 +323,7 @@ User Function GMPAICOM()
 	nPosLtM := gtMain("B1_LM")
 	nPosFor := gtMain("A5_FORNECE")
 	nPosLoj := gtMain("A5_LOJA")
+	nPosCPF := gtMain("A5_CODPRF")
 	nPosNec := gtMain("NECCOMP")
 	nPosOri := gtMain("ORIGCALC")
 	nPosNeg := gtMain("PRCNEGOC")
@@ -339,6 +342,7 @@ User Function GMPAICOM()
 	nPosQtE := gtMain("B1_QE")
 	nPosLtE := gtMain("B1_LE")
 	nPosEMi := gtMain("B1_EMIN")
+	nPosEMx := gtMain("B1_EMAX")
 	nPosPVe := gtMain("PRCVEN")
 	nPosOrd := gtMain("ORDPROD")
 	nPosInc := 1
@@ -690,7 +694,6 @@ static function entryDocs( cProduto, cDoc, cSerie, cFornece, cLoja, cTipo )
 	local lEnable  := .T. as logical
 	local cAlias   := "SD1TMP" as character
 	local oTmp     as object
-	local aFornSM0 := U_JSSUPSM0()
 	local aLast    := {} as array
 	
 	// Última compra
@@ -887,8 +890,11 @@ static function entryDocs( cProduto, cDoc, cSerie, cFornece, cLoja, cTipo )
 						"D1_VUNIT", "D1_TOTAL", "D1_VALDESC", "F1_X_FPRC", "D1_TIPO"  }
 	endif
 
-	// Monta expressão IN para desconsiderar documentos de entrada no momento da consulta de histórico
-	aEval( aFornSM0, {|x| cFornSM0 += iif( !Empty( cFornSM0 ), ",", "" ) + "'"+ x +"'" } )
+	// Monta expressão IN para desconsiderar documentos de entrada de empresas do mesmo grupo
+	// econômico no momento da consulta de histórico - reusa montaSM0() (mesma fonte usada em
+	// betterSupplier/qryAvgLt/querySupplyers), que já respeita o TRFFIL da filial: desconsidera
+	// apenas quando TRFFIL estiver desativado; devolve vazio (nenhuma exclusão) quando ativo
+	cFornSM0 := montaSM0()
 
 	if len( _aFil ) > 0
 		cQuery := "SELECT TEMP.* FROM ( "+ CEOL
@@ -3622,6 +3628,7 @@ Static Function fLoadInf( aMPs, lAll, lEnd )
 	local nPrice    := 0  as numeric
 	local cFornece  := "" as character
 	local cLoja     := "" as character
+	local cCodPrF   := "" as character	// A5_CODPRF do fornecedor atualmente resolvido para o produto
 	local nQtdAtual := 0  as numeric
 	local cProdAnt  := "" as character
 	local cProdFor  := "" as character	// Produto para o qual cFornece/cLoja ja foram calculados (garante 1 fornecedor por produto, nao por filial)
@@ -3717,6 +3724,14 @@ Static Function fLoadInf( aMPs, lAll, lEnd )
 						cLoja    := Space( TAMSX3('A2_LOJA')[1] )
 					endif
 					cProdFor := PRDTMP->B1_COD
+
+					// Codigo do produto no fornecedor (A5_CODPRF) - busca exata pelo vinculo SA5 do fornecedor
+					// recem-resolvido acima; fica em branco se nao existir vinculo SA5 para esse fornecedor+loja
+					if ! Empty( cFornece ) .and. ! Empty( cLoja )
+						cCodPrF := RetField( 'SA5', 1, FWxFilial('SA5') + cFornece + cLoja + PRDTMP->B1_COD, 'A5_CODPRF' )
+					else
+						cCodPrF := ""
+					endif
 				endif
 
 				// Identifica lead-time conforme regra definida para produto, fornecedor (informado) ou fornecedor (calculado)
@@ -3828,8 +3843,10 @@ Static Function fLoadInf( aMPs, lAll, lEnd )
 					aLinPro[nPosQtE] := PRDTMP->B1_QE
 					aLinPro[nPosLtE] := PRDTMP->B1_LE
 					aLinPro[nPosEMi] := PRDTMP->B1_EMIN
+					aLinPro[nPosEMx] := PRDTMP->B1_EMAX
 					aLinPro[nPosFor] := cFornece
 					aLinPro[nPosLoj] := cLoja
+					aLinPro[nPosCPF] := cCodPrF
 					aLinPro[nPosSol] := PRDTMP->QTDSOL
 					aLinPro[nPosOrd] := PRDTMP->ORDPROD
 					if len( aPEPNC05 ) > 0
@@ -4105,7 +4122,10 @@ return cQuery
 /*/{Protheus.doc} montaSM0
 Monta a expressao IN (lista de codigos entre aspas separados por virgula) com os fornecedores que
 sejam empresas do mesmo grupo economico (U_JSSUPSM0), para uso em NOT IN nas consultas que
-desconsideram esses fornecedores (betterSupplier/qryAvgLt/querySupplyers).
+desconsideram esses fornecedores (betterSupplier/qryAvgLt/querySupplyers). So desconsidera esses
+fornecedores quando a filial NAO estiver configurada para considerar movimentacoes intra-grupo
+(TRFFIL desativado, U_JSTRFFIL) - mesmo criterio ja usado para vendas/consumo em JSQRYSAI; quando
+TRFFIL estiver ativo, devolve string vazia (nenhum fornecedor e desconsiderado).
 @type function
 @version 1.0
 @author Visualize - Software e Inovacao
@@ -4114,10 +4134,15 @@ desconsideram esses fornecedores (betterSupplier/qryAvgLt/querySupplyers).
 /*/
 static function montaSM0()
 
-	local aForSM0 := U_JSSUPSM0() as array
+	local aForSM0 := {} as array
 	local cRet    := "" as character
 	local nX      := 0 as numeric
 
+	if U_JSTRFFIL( cFilAnt )
+		return cRet
+	endif
+
+	aForSM0 := U_JSSUPSM0()
 	for nX := 1 to len( aForSM0 )
 		if ! Empty( cRet )
 			cRet += ","
@@ -4652,7 +4677,7 @@ Static Function fMarkPro( aData, oBrw )
 	endif
 
 	if ! isInCallStack( 'U_GMINDPRO' )
-		saveData( 'carrinho', aCarCom, aHeaCar )
+		saveData( 'carrinho', aCarCom, aHeaCar, .F. /* lFlush */ )
 		saveData( 'carrinho_filial', aCarFil, aHeaCar )
 	endif
 
@@ -4746,6 +4771,11 @@ User Function PCOMVLD()
 						aColPro[oBrwPro:At()][nPosFor] /* cFornece */,;
 						aColPro[oBrwPro:At()][nPosLoj] /* cLoja */ )
 
+				// Atualiza o código do produto no novo fornecedor (A5_CODPRF) - fica em branco se não
+				// existir vínculo SA5 para o fornecedor/loja recém-selecionado
+				aColPro[oBrwPro:At()][nPosCPF] := RetField( 'SA5', 1, FWxFilial('SA5') + aColPro[oBrwPro:At()][nPosFor] + aColPro[oBrwPro:At()][nPosLoj] + aColPro[oBrwPro:nAt][nPosPrd], 'A5_CODPRF' )
+				aFullPro[ aScan( aFullPro, {|x| x[nPosPrd] == aColPro[oBrwPro:nAt][nPosPrd] } ) ] := aClone( aColPro[oBrwPro:nAt] )
+
 				// Quando usuário não alterou o preço negociado, atualiza o conteúdo do campo do preço conforme tabela de preço do novo fornecedor ou preço historico do novo fornecedor
 				if aColPro[oBrwPro:nAt][nPosUlt] == aColPro[obrwPro:nAt][nPosNeg]
 
@@ -4776,6 +4806,17 @@ User Function PCOMVLD()
 				endif
 
 			endif
+
+		endif
+
+		if cField == "A5_CODPRF"					// Alteração do código do produto no fornecedor
+
+			updProFor( aColPro[oBrwPro:nAt][nPosPrd] /* cProduto */,;
+					aColPro[oBrwPro:At()][nPosFor] /* cFornece */,;
+					aColPro[oBrwPro:At()][nPosLoj] /* cLoja */,;
+					.F. /* lRemover */,;
+					aColPro[oBrwPro:At()][nPosCPF] /* cCodPrF */ )
+			aFullPro[ aScan( aFullPro, {|x| x[nPosPrd] == aColPro[oBrwPro:nAt][nPosPrd] } ) ] := aClone( aColPro[oBrwPro:nAt] )
 
 		endif
 
@@ -6744,6 +6785,7 @@ Static Function fCarCom( cFor, cLoj, lRecalc )
 	local cPicTransp := "" as character
 	local cPicName   := "" as character
 	local oBtnObs    as object
+	local oBtnDel    as object
 	local cPEPNC10   := Space( TAMSX3('C7_COND')[1] )
 	
 	Private nDescont := 0 as numeric
@@ -6889,9 +6931,11 @@ Static Function fCarCom( cFor, cLoj, lRecalc )
 	endif
 
 	nLin := 58
+	// GD_DELETE removido: a exclusao nativa do MsNewGetDados so tirava a linha visualmente sem
+	// atualizar aCarFil/aCarCom nem a grid principal (o item reaparecia ao trocar de filial ou
+	// reabrir o carrinho) - a remocao agora e feita exclusivamente pelo botao oBtnDel (delItCar)
 	oBrwCar := MsNewGetDados():New( nLin, 004, nVer-40, iif( _cPedSol == '1' .and. carPos('C7OBSM') > 0, nHor-24, nHor-04 ),;
-			 GD_DELETE+GD_UPDATE, "AllwaysTrue", "AllwaysTrue", "", aAltCar,, Len( aCarrinho ), "U_FMANCAR", "", "AllwaysTrue", oDlgCar, aHeaCar, aCarrinho )
-    oBrwCar:oBrowse:bDelOk := {|| fBrwDel() }
+			 GD_UPDATE, "AllwaysTrue", "AllwaysTrue", "", aAltCar,, Len( aCarrinho ), "U_FMANCAR", "", "AllwaysTrue", oDlgCar, aHeaCar, aCarrinho )
 
 	// Quando pedido de compra, exibe botão para observações
 	if _cPedSol == '1' .and. carPos('C7OBSM') > 0
@@ -6904,6 +6948,18 @@ Static Function fCarCom( cFor, cLoj, lRecalc )
 			oDlgCar:Refresh() },; 
 		nil, .F., .F., nil, nil, .F., nil, .T., nil, .F.)
 	endif
+
+	// Botão para remover o item posicionado do carrinho, na filial selecionada no combo - fica
+	// logo abaixo do botão de observação quando ele existe, ou na mesma posição quando não (ex.:
+	// solicitação de compra), garantindo que a remoção continue disponível em ambos os contextos
+	if _cPedSol == '1' .and. carPos('C7OBSM') > 0
+		nLin := 78+24
+	else
+		nLin := 78
+	endif
+	oBtnDel := TBitmap():New( nLin, nHor-22, nLin+20, nHor-2, "painel_tag009.png", Nil, .T., oDlgCar,;
+		{|| delItCar( oBrwCar, cCbo, cGetFor, cGetLoj ) },;
+		nil, .F., .F., nil, nil, .F., nil, .T., nil, .F.)
 
 	nCol := 6
 	nLin := nVer - 30
@@ -6996,6 +7052,86 @@ static function putObs( oBrw, cFil, cObs )
 	aCarFil[aScan(aCarFil,{|x| x[len(x)] == cFil .and. x[carPos('C7_PRODUTO')] == oBrw:aCols[oBrw:nAt][carPos('C7_PRODUTO')] })][carPos('C7OBSM')] := cObs
 	oBrw:aCols[oBrw:nAt][carPos('C7OBSM')] := iif( Empty( cObs ), LG_NO_OBS, LG_OBS )
 return 
+
+/*/{Protheus.doc} delItCar
+Remove o item posicionado no carrinho de compras (oBrwCar) para a filial selecionada no combo
+(cCbo) - unico caminho valido de remocao, ja que a exclusao nativa do MsNewGetDados (GD_DELETE)
+foi desativada por nao atualizar aCarFil/aCarCom nem a grid principal (a linha só sumia
+visualmente, mas reaparecia ao trocar de filial ou reabrir o carrinho). Verifica se o produto
+ainda consta no carrinho para outra filial e, caso nao conste, desmarca-o na grid principal
+(aColPro/aFullPro), remove de aCarCom e atualiza a quantidade de itens do fornecedor na grid
+de carrinho por fornecedor (checkForn/oBrwFor), removendo-o do grid quando nao sobrar item
+algum. Ao final, recarrega a grid do carrinho a partir de aCarFil e reprocessa totais/rateios
+(fChgCar).
+@type function
+@version 23.0011
+@author Jean Carlos Pandolfo Saggin
+@since 25/08/2026
+@param oBrw, object, browse do carrinho (oBrwCar)
+@param cCbo, character, filial selecionada no combo do carrinho
+@param cGetFor, character, fornecedor do carrinho corrente
+@param cGetLoj, character, loja do fornecedor do carrinho corrente
+@return nil
+/*/
+static function delItCar( oBrw, cCbo, cGetFor, cGetLoj )
+
+	local cProduto := "" as character
+	local nPos     := 0 as numeric
+	local lOutFil  := .F. as logical
+
+	if oBrw == Nil .or. oBrw:nAt == 0 .or. Len( oBrw:aCols ) == 0
+		return Nil
+	endif
+
+	cProduto := oBrw:aCols[oBrw:nAt][carPos('C7_PRODUTO')]
+
+	if ! MsgYesNo( 'Confirma a remoção do produto '+ AllTrim( oBrw:aCols[oBrw:nAt][carPos('C7_DESCRI')] ) +' do carrinho para esta filial?', 'Remover Item' )
+		return Nil
+	endif
+
+	// Remove a linha de aCarFil (produto+fornecedor+loja+filial do combo)
+	nPos := aScan( aCarFil, {|x| x[carPos('C7_PRODUTO')] == cProduto .and. x[carPos('C7_FORNECE')] == cGetFor .and.;
+								  x[carPos('C7_LOJA')] == cGetLoj .and. x[len(x)] == cCbo } )
+	if nPos > 0
+		aDel( aCarFil, nPos )
+		aSize( aCarFil, len( aCarFil )-1 )
+	endif
+
+	// Se o produto nao constar mais no carrinho (deste fornecedor/loja) para nenhuma outra filial,
+	// remove de aCarCom (consolidado) e desmarca o produto na grid principal
+	lOutFil := aScan( aCarFil, {|x| x[carPos('C7_PRODUTO')] == cProduto .and. x[carPos('C7_FORNECE')] == cGetFor .and. x[carPos('C7_LOJA')] == cGetLoj } ) > 0
+	if ! lOutFil
+
+		nPos := aScan( aCarCom, {|x| x[carPos('C7_PRODUTO')] == cProduto } )
+		if nPos > 0
+			aDel( aCarCom, nPos )
+			aSize( aCarCom, len( aCarCom )-1 )
+		endif
+
+		// Atualiza a quantidade de itens do fornecedor na grid de carrinho por fornecedor (oBrwFor) -
+		// checkForn recalcula a contagem a partir de aCarCom e remove o fornecedor do grid quando
+		// nao sobrar nenhum item
+		checkForn( cGetFor, cGetLoj )
+
+		nPos := aScan( aColPro, {|x| x[nPosPrd] == cProduto } )
+		if nPos > 0
+			aColPro[nPos][nPosChk] := .F.
+		endif
+		nPos := aScan( aFullPro, {|x| x[nPosPrd] == cProduto } )
+		if nPos > 0
+			aFullPro[nPos][nPosChk] := .F.
+		endif
+		if oBrwPro != Nil
+			oBrwPro:UpdateBrowse()
+		endif
+
+	endif
+
+	// Recarrega a grid do carrinho a partir de aCarFil e reprocessa totais/rateios
+	alterFil( oBrw, cCbo, cGetFor, cGetLoj )
+	fChgCar()
+
+return Nil
 
 /*/{Protheus.doc} fChgObjFr
 Função para alterar configurações do objeto relacionado ao tipo de frete do pedido de compra
@@ -8111,28 +8247,14 @@ Static Function fChgCar()
 		dataProdUpd( oBrwCar, cCbo )
 
 		// Executa opção de salvamento de dados apenas quando chamada não partir da rotina de recálculo  de índices de produtos
-		saveData( 'carrinho', aCarCom, aHeaCar )
+		// (lFlush=.F. na 1a chamada: grava as duas partes em memoria e so persiste em disco 1 vez, no final)
+		saveData( 'carrinho', aCarCom, aHeaCar, .F. /* lFlush */ )
 		saveData( 'carrinho_filial', aCarFil, aHeaCar )
 
 		oBrwPro:oBrowse:Refresh()
 	EndIf
 	
 Return ( Nil )
-
-/*
-+-----------------+-------------------------+---------------------------------+-------------------+
-| Fonte: GMPAICOM | Funcao:  fChgCar        | Autor: Jean Carlos P. Saggin    |  Data: 30.07.2019 |
-+-----------------+-------------------------+---------------------------------+-------------------+
-| Descricao: Função para recalcular informações do grid quando houver qualquer tipo de alteração  |
-+-------------------------------------------------------------------------------------------------+
-| Parametros recebidos: Nenhum                                                                    |
-+-------------------------------------------------------------------------------------------------+
-| Retorno da funcao: Nil                                                                          |
-+-------------------------------------------------------------------------------------------------+  
-*/
-Static Function fBrwDel()
-	fChgCar()
-Return ( .T. ) 
 
 /*/{Protheus.doc} fShowEm
 Função para exibir empenhos do produto
@@ -9588,7 +9710,7 @@ user function JSCOLPRO( aFields, aAlter, oPrefs )
 
 	for nX := 1 to len( aFields )
 		DBSelectArea( 'SB1' )
-		if SB1->( FieldPos( aFields[nX] ) ) > 0 .or. Alltrim(aFields[nX]) $ "A5_FORNECE|A5_LOJA"
+		if SB1->( FieldPos( aFields[nX] ) ) > 0 .or. Alltrim(aFields[nX]) $ "A5_FORNECE|A5_LOJA|A5_CODPRF"
 			cType := StrTran(GetSX3Cache( aFields[nX], 'X3_TIPO' ),'M','C')
 			if !Empty(GetSX3Cache( aFields[nX], "X3_CBOX" ))
 				aAux := StrTokArr( GetSX3Cache( aFields[nX], "X3_CBOX" ),';')
@@ -10349,6 +10471,28 @@ user function PCOMPRE(oBrw, oCol, cPre )
 			aColumns[len(aColumns)]:SetPicture( "@E 999,999,999.9999" )
 			aColumns[len(aColumns)]:SetID( 'MESATU' )
 
+			// Estoque Min./Max. por filial: indicador de produto (SBZ) quando cadastrado, senão cai no
+			// cadastro geral do produto (B1_EMIN/B1_EMAX) - resolvido por getMinMax()
+			aAdd( aColumns, FWBrwColumn():New() )
+			aColumns[len(aColumns)]:SetTitle( 'Est. Minimo' )
+			aColumns[len(aColumns)]:SetData( &( "{|oBrw| getMinMax( aProFil[oBrw:At()]["+ cValToChar(len( aProFil[1] )) +"], aProFil[oBrw:At()]["+ cValToChar( nPosPrd ) +"] )[1] }" ) )
+			aColumns[len(aColumns)]:SetType( 'N' )
+			aColumns[len(aColumns)]:SetAlign( 2 )		// Alinha a Direita
+			aColumns[len(aColumns)]:SetSize( 11 )
+			aColumns[len(aColumns)]:SetDecimal( 2 )
+			aColumns[len(aColumns)]:SetPicture( "@E 999,999.99" )
+			aColumns[len(aColumns)]:SetID( 'ESTMIN' )
+
+			aAdd( aColumns, FWBrwColumn():New() )
+			aColumns[len(aColumns)]:SetTitle( 'Est. Maximo' )
+			aColumns[len(aColumns)]:SetData( &( "{|oBrw| getMinMax( aProFil[oBrw:At()]["+ cValToChar(len( aProFil[1] )) +"], aProFil[oBrw:At()]["+ cValToChar( nPosPrd ) +"] )[2] }" ) )
+			aColumns[len(aColumns)]:SetType( 'N' )
+			aColumns[len(aColumns)]:SetAlign( 2 )		// Alinha a Direita
+			aColumns[len(aColumns)]:SetSize( 11 )
+			aColumns[len(aColumns)]:SetDecimal( 2 )
+			aColumns[len(aColumns)]:SetPicture( "@E 999,999.99" )
+			aColumns[len(aColumns)]:SetID( 'ESTMAX' )
+
 			aAdd( aColumns, FWBrwColumn():New() )
 			aColumns[len(aColumns)]:SetTitle( 'Em Estoque' )
 			aColumns[len(aColumns)]:SetData( &( "{|oBrw| aProFil[oBrw:At()]["+ cValToChar( nPosEmE ) +"] }" ) )
@@ -10663,6 +10807,38 @@ static function getSnpMed( cFil, cProd )
 
 return aRet
 
+/*/{Protheus.doc} getMinMax
+Retorna o estoque mínimo/máximo de um produto numa filial específica: quando existir indicador
+de produto cadastrado (SBZ) para a filial, usa BZ_EMIN/BZ_EMAX; senão, cai no cadastro geral do
+produto (SB1.B1_EMIN/B1_EMAX). Fonte usada pela tela "Quantidades x Filial" (PCOMPRE).
+@type function
+@version 23.0010
+@author Jean Carlos Pandolfo Saggin
+@since 25/08/2026
+@param cFil, character, filial a ser considerada
+@param cProd, character, ID do produto
+@return array, { nEMin, nEMax }
+/*/
+static function getMinMax( cFil, cProd )
+
+	local aRet   := { 0, 0 } as array
+	local cQuery := "" as character
+	local cTmp   := "" as character
+
+	cQuery := "SELECT COALESCE(BZ.BZ_EMIN,B1.B1_EMIN) EMIN, COALESCE(BZ.BZ_EMAX,B1.B1_EMAX) EMAX " + CEOL
+	cQuery += "FROM "+ RetSqlName('SB1') +" B1 " + CEOL
+	cQuery += "LEFT JOIN "+ RetSqlName('SBZ') +" BZ " + CEOL
+	cQuery += " ON BZ.BZ_FILIAL = '"+ cFil +"' AND BZ.BZ_COD = B1.B1_COD AND BZ.D_E_L_E_T_ = ' ' " + CEOL
+	cQuery += "WHERE B1.B1_FILIAL = '"+ FWxFilial('SB1') +"' AND B1.B1_COD = '"+ cProd +"' AND B1.D_E_L_E_T_ = ' ' " + CEOL
+
+	cTmp := MPSysOpenQuery( cQuery )
+	if ! ( cTmp )->( EOF() )
+		aRet := { ( cTmp )->EMIN, ( cTmp )->EMAX }
+	endif
+	( cTmp )->( DBCloseArea() )
+
+return aRet
+
 /*/{Protheus.doc} updCarCom
 Função para atualizar quantidade no carrinho de compra
 @type function
@@ -10824,13 +11000,49 @@ static function dataProdUpd( oBrw, cCbo )
 	local nValue   := 0 as numeric
 	local cReadVar := ReadVar()
 	local nX       := 0 as numeric
+	local nZ       := 0 as numeric
 	local nAux     := 0 as numeric
 	local nQtdSeg  := 0 as numeric
 	local nValSeg  := 0 as numeric
+	local cProduto := "" as character
+	local nSomOtr  := 0 as numeric
+	local nIdxFul  := 0 as numeric
+	local oIdxCFl  := HMNew()	// aCarFil: chave produto+fornece+loja+filial -> posicao
+	local oIdxPFl  := HMNew()	// _aProdFil (desta filial cCbo): chave produto -> posicao
+	local oSomOtr  := HMNew()	// _aProdFil (demais filiais): chave produto -> soma de nPosNec
+	local oIdxCol  := HMNew()	// aColPro: chave produto -> posicao
+	local oIdxFul  := HMNew()	// aFullPro: chave produto -> posicao
 
 	if len( aCols ) > 0
 		
+		// Indices auxiliares montados uma unica vez (O(M)) para substituir os aScan/aEval lineares
+		// que rodavam uma vez POR LINHA do carrinho (O(N) cada), custando O(N x M) no total e
+		// deixando a tela perceptivelmente lenta com carrinhos grandes
+		for nZ := 1 to len( aCarFil )
+			HMSet( oIdxCFl, aCarFil[nZ][carPos('C7_PRODUTO')] + aCarFil[nZ][carPos('C7_FORNECE')] + aCarFil[nZ][carPos('C7_LOJA')] + aCarFil[nZ][len(aCarFil[nZ])], nZ )
+		next nZ
+
+		for nZ := 1 to len( _aProdFil )
+			if _aProdFil[nZ][len(_aProdFil[nZ])] == cCbo
+				HMSet( oIdxPFl, _aProdFil[nZ][nPosPrd], nZ )
+			else
+				nSomOtr := 0
+				HMGet( oSomOtr, _aProdFil[nZ][nPosPrd], @nSomOtr )
+				HMSet( oSomOtr, _aProdFil[nZ][nPosPrd], nSomOtr + _aProdFil[nZ][nPosNec] )
+			endif
+		next nZ
+
+		for nZ := 1 to len( aColPro )
+			HMSet( oIdxCol, aColPro[nZ][nPosPrd], nZ )
+		next nZ
+
+		for nZ := 1 to len( aFullPro )
+			HMSet( oIdxFul, aFullPro[nZ][nPosPrd], nZ )
+		next nZ
+
 		for nX := 1 to len( aCols )
+
+			cProduto := aCols[nX][carPos('C7_PRODUTO')]
 
 			nQuant := 0
 			if oBrw:aHeader[oBrw:oBrowse:ColPos()][2] == 'QUANT' .and. 'QUANT' $ cReadVar .and. nX == oBrw:nAt
@@ -10858,7 +11070,8 @@ static function dataProdUpd( oBrw, cCbo )
 			endif
 
 			// Ajusta o vetor de origem do carrinho individual por filial
-			nAux := aScan( aCarFil, {|x| x[carPos('C7_PRODUTO')] == aCols[nX][carPos('C7_PRODUTO')] .and. x[carPos('C7_FORNECE')] == cGetFor .and. x[carPos('C7_LOJA')] == cGetLoj .and. x[len(x)] == cCbo } )
+			nAux := 0
+			HMGet( oIdxCFl, cProduto + cGetFor + cGetLoj + cCbo, @nAux )
 			if nAux > 0
 				aCarFil[nAux][carPos('QUANT')]      := nQuant
 				aCarFil[nAux][carPos('PRECO')]      := nValue
@@ -10868,26 +11081,33 @@ static function dataProdUpd( oBrw, cCbo )
 			endif
 
 			// Ajusta o vetor que armazena dados do produto x filial
-			nAux := aScan( _aProdFil, {|x| x[nPosPrd] == aCols[nX][carPos('C7_PRODUTO')] .and. x[len(x)] == cCbo } )
+			nAux := 0
+			HMGet( oIdxPFl, cProduto, @nAux )
 			if nAux > 0 
 				_aProdFil[nAux][nPosNec] := nQuant		
 				_aProdFil[nAux][nPosNeg] := nValue
 			endif
 
-			// Soma quantidade geral por produto a ser comprado
-			nQuant := 0
-			aEval( _aProdFil, {|x| iif( x[nPosPrd] == aCols[nX][carPos('C7_PRODUTO')], nQuant += x[nPosNec], Nil ) } )
+			// Soma quantidade geral por produto a ser comprado (esta filial + soma pre-calculada das demais)
+			nSomOtr := 0
+			HMGet( oSomOtr, cProduto, @nSomOtr )
+			nQuant := nSomOtr + nQuant
 
 			// Verifica se consegue encontrar o produto no vetor de produtos
-			nAux := aScan( aColPro, {|x| x[nPosPrd] == aCols[nX][carPos('C7_PRODUTO')] } )
+			nAux := 0
+			HMGet( oIdxCol, cProduto, @nAux )
 			
 			// Percorre vetor alterando quantidade genérica por produto
 			if nAux > 0 
 				aColPro[nAux][nPosNec] := nQuant
 				aColPro[nAux][nPosNeg] := nValue
 
-				// Replace no vetor de 
-				aFullPro[ aScan( aFullPro, {|x| x[nPosPrd] == aCols[nX][carPos('C7_PRODUTO')] } ) ] := aClone( aColPro[nAux] )
+				// Replace no vetor de backup
+				nIdxFul := 0
+				HMGet( oIdxFul, cProduto, @nIdxFul )
+				if nIdxFul > 0
+					aFullPro[nIdxFul] := aClone( aColPro[nAux] )
+				endif
 			endif
 
 			// if AllTrim( oBrw:aHeader[oBrw:oBrowse:ColPos()][2] ) == 'C7OBSM'
@@ -11371,12 +11591,14 @@ Função de atualização do vínculo entre produto e fornecedor
 @param cFornece, character, ID do fornecedor
 @param cLoja, character, Loja do fornecedor
 @param lRemover, logical, Indica se o vínculo deve ser removido
+@param cCodPrF, character, Código do produto no fornecedor (A5_CODPRF) - opcional, grava/atualiza quando informado
 @return logical, lSuccess
 /*/
-static function updProFor( cProduto, cFornece, cLoja, lRemover )
+static function updProFor( cProduto, cFornece, cLoja, lRemover, cCodPrF )
 	
 	local lSuccess := .F. as logical
 	default lRemover := .F.
+	default cCodPrF  := ""
 
 	if lRemover
 		DBSelectArea( 'SA5' )
@@ -11419,6 +11641,15 @@ static function updProFor( cProduto, cFornece, cLoja, lRemover )
 					SA5->A5_PRODUTO := cProduto
 					SA5->A5_NOMPROD := RetField( "SB1", 1, FWxFilial( 'SB1' ) + cProduto, 'B1_DESC' )
 					SA5->A5_CHAVE   := newKey()
+					if ! Empty( cCodPrF )
+						SA5->A5_CODPRF := cCodPrF
+					endif
+					SA5->( MsUnlock() )
+					lSuccess := .T.
+				elseif ! Empty( cCodPrF ) .and. AllTrim( SA5->A5_CODPRF ) != AllTrim( cCodPrF )
+					// Vínculo já existia: apenas atualiza o código do produto no fornecedor quando informado e diferente
+					RecLock( 'SA5', .F. )
+					SA5->A5_CODPRF := cCodPrF
 					SA5->( MsUnlock() )
 					lSuccess := .T.
 				endif
@@ -11658,6 +11889,7 @@ user function JSSUPPLY( lForce, aData, oBrw )
 	local bOk      := {||   xRet := iif( !Empty( FORPRO->A5_FORNECE ) .and. !Empty( FORPRO->A5_LOJA ),; 
 										FORPRO->A5_FORNECE + FORPRO->A5_LOJA,; 
 										Space( TAMSX3('A2_COD')[1] ) + Space( TAMSX3('A2_LOJA')[1] )),; 
+								cCodPrF := FORPRO->A5_CODPRF,; 
 							iif( !lForce .or. !Empty(xRet),; 
 								oDlgFor:End(),; 
 								Hlp( "FORNOBRIGAT",;
@@ -11673,6 +11905,7 @@ user function JSSUPPLY( lForce, aData, oBrw )
 	local nAux     := 0 as numeric
 	local lMPs     := isInCallStack( 'U_JSORDPRD' )
 	local cOldFor  := "" as character
+	local cCodPrF  := "" as character	// A5_CODPRF do fornecedor selecionado no dialog (capturado ainda com FORPRO posicionado)
 
 	default lForce := .F.
 	default aData  := aColPro
@@ -11756,6 +11989,7 @@ user function JSSUPPLY( lForce, aData, oBrw )
 
 		aData[oBrw:At()][nPosFor] := SubStr( xRet, 1, TAMSX3('A2_COD')[1] )
 		aData[oBrw:At()][nPosLoj] := SubStr( xRet, TAMSX3('A2_COD')[1]+1, TAMSX3('A2_LOJA')[1] )
+		aData[oBrw:At()][nPosCPF] := cCodPrF
 
 		// Atualiza quantidade de registros para o fornecedor
 		checkForn( SubStr( cOldFor, 01, TAMSX3('A2_COD')[1] ), SubStr( cOldFor, TAMSX3('A2_COD')[1]+1, TAMSX3('A2_LOJA')[1] ) )
@@ -11768,6 +12002,7 @@ user function JSSUPPLY( lForce, aData, oBrw )
 				if _aProdFil[nX][nPosPrd] == aData[oBrw:At()][nPosPrd] 
 					_aProdFil[nX][nPosFor] := aData[oBrw:At()][nPosFor] 
 					_aProdFil[nX][nPosLoj] := aData[oBrw:At()][nPosLoj] 
+					_aProdFil[nX][nPosCPF] := aData[oBrw:At()][nPosCPF] 
 				endif
 			next nX
 			aFullPro[aScan( aFullPro, {|x| x[nPosPrd] == aData[oBrw:At()][nPosPrd] } )] := aClone( aData[oBrw:At()] )
@@ -12073,7 +12308,7 @@ Função responsável pelo salvamento dos dados no Json de restauração do processo
 @param aData, array, vetor de dados a serem salvos no bloco
 @return logical, lSuccess
 /*/
-static function saveData( cPart, aData, aHeader )
+static function saveData( cPart, aData, aHeader, lFlush )
 	
 	local lSuccess := .T. as logical
 	local nPar     := 0 as numeric
@@ -12085,6 +12320,10 @@ static function saveData( cPart, aData, aHeader )
 
 	default cPart   := ""
 	default aHeader := {}
+	// lFlush=.F.: atualiza oRestore em memoria mas adia a gravacao em disco (toJsonFile) para uma
+	// chamada seguinte - usado quando 'carrinho' e 'carrinho_filial' sao salvos em sequencia pela
+	// mesma alteracao, evitando 2 gravacoes completas em disco (I/O sincrono) para 1 unica mudanca
+	default lFlush  := .T.
 
 	// Verifica se o salvamento está habilitado nas configurações
 	if ! aConfig[29] == 'S' .or. isInCallStack( 'U_GMINDPRO' )
@@ -12122,13 +12361,15 @@ static function saveData( cPart, aData, aHeader )
 	endif
 	// Sempre salva posição das filiais
 
-	oRestore['filiais'] := _aFil
-	cResult  := oRestore:toJsonFile( U_JSPATHSV() )
-	lSuccess := ValType( cResult ) != 'C'
-	if ! lSuccess
-		hlp( 'NO_SAVE',;
-			 'Não foi possível salvar os dados do processo em andamento no arquivo de restauração',;
-			 'Falha: '+ cResult )
+	if lFlush
+		oRestore['filiais'] := _aFil
+		cResult  := oRestore:toJsonFile( U_JSPATHSV() )
+		lSuccess := ValType( cResult ) != 'C'
+		if ! lSuccess
+			hlp( 'NO_SAVE',;
+				 'Não foi possível salvar os dados do processo em andamento no arquivo de restauração',;
+				 'Falha: '+ cResult )
+		endif
 	endif
 return lSuccess
 

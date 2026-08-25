@@ -225,6 +225,14 @@ user function JSDETVER()
     aAdd( aDetVer, { '23','0002','11/08/2026', 'Ajuste do novo recurso de gráfico para adicionar casa decimal quando tipo de gráfico for "Misto" para que as barras fiquem coerentes com os números que são apresentados' } )
     aAdd( aDetVer, { '23','0003','19/08/2026', 'Checagens pontuais antes de usar alíases ligados a tabelas de controle interno' } )
     aAdd( aDetVer, { '23','0004','23/08/2026', 'Adição de novo campo "Mês Atual" na grid de quantidades por filial e ajuste do padrão de cálculo dos números apresentados nos gráficos' } )
+    aAdd( aDetVer, { '23','0005','24/08/2026', 'Adição de critério para considerar/desconsiderar empresas do mesmo grupo econômico na listagem de produto x fornecedor conforme parâmetro interno se considera movimentação integrupo.' } )
+    aAdd( aDetVer, { '23','0006','24/08/2026', 'Adição de critério para considerar/desconsiderar empresas do mesmo grupo econômico na listagem de histórico de entradas do produto' } )
+    aAdd( aDetVer, { '23','0007','23/08/2026', 'Correção de falha "Falha na Abertura" no assistente de configuração ao aplicar ajustes na estrutura de tabelas internas, causada por conflito de acesso entre o Painel de Compras e o assistente ao usarem a mesma tabela simultaneamente' } )
+    aAdd( aDetVer, { '23','0008','24/08/2026', 'Correção para que a sugestão de compra por filial no modo de cálculo Pool/Consolidado exiba corretamente quantidade zero para filiais sem consumo médio no período, em vez de uma fração residual do arredondamento' } )
+    aAdd( aDetVer, { '23','0009','24/08/2026', 'Adição do código do produto no fornecedor na grid principal, sincronizado automaticamente ao trocar o fornecedor do produto (edição direta ou tela de seleção de fornecedores) e editável diretamente pelo usuário' } )
+    aAdd( aDetVer, { '23','0010','24/08/2026', 'Adição dos campos de estoque mínimo e máximo editáveis na grid principal de produtos, com gravação direta no cadastro do produto, e adição do estoque mínimo/máximo por filial (via indicador de produto, quando cadastrado) na tela de quantidades por filial' } )
+    aAdd( aDetVer, { '23','0011','24/08/2026', 'Adição de botão no carrinho de compras para remover um item da filial selecionada, substituindo a exclusão padrão da grid que não atualizava corretamente os dados internos nem desmarcava o produto na tela principal' } )
+    aAdd( aDetVer, { '23','0012','24/08/2026', 'Melhoria de desempenho na tela do carrinho de compras, reduzindo o tempo de resposta ao editar itens em carrinhos com grande volume de produtos' } )
 
 return aDetVer
 
@@ -744,6 +752,7 @@ user function JSQRYINF( aConf, aFilters, cPedSol, aCustom, aMPs )
         cQuery += "  AND B2.D_E_L_E_T_ = ' ' ),0) EMPENHO, " + CEOL
         cQuery += "B1.B1_PE, " + CEOL
         cQuery += "B1.B1_EMIN, " + CEOL
+        cQuery += "B1.B1_EMAX, " + CEOL
         
         cQuery += "COALESCE((SELECT SUM(C7BLOQ.C7_QUANT - C7BLOQ.C7_QUJE) FROM "+ RetSqlName( "SC7" ) +" C7BLOQ " + CEOL
         cQuery += "WHERE C7BLOQ.C7_FILIAL = '"+ FWxFilial( 'SC7' ) +"' " + CEOL
@@ -1960,8 +1969,10 @@ user function JSMAINFD()
                       "B1_QE",;
                       "B1_LE",;
                       "B1_EMIN",;
+                      "B1_EMAX",;
                       "A5_FORNECE",;
-                      "A5_LOJA";
+                      "A5_LOJA",;
+                      "A5_CODPRF";
                       }
     
     local aAlter := {"NECCOMP",;
@@ -1975,7 +1986,9 @@ user function JSMAINFD()
                     "LEADTIME",;
                     "B1_DESC",;
                     "B1_EMIN",;
-                    "PRCVEN";
+                    "B1_EMAX",;
+                    "PRCVEN",;
+                    "A5_CODPRF";
                     }
 
 return { aFields, aAlter }
