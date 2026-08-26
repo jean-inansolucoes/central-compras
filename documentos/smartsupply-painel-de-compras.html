@@ -370,7 +370,7 @@
   </div>
   <div class="rodape-capa">
     <div class="marca">INAN Soluções · SmartSupply</div>
-    <div class="info">Documentação de referência para usuários de negócio<br>Versão 1.0 — Agosto de 2026</div>
+    <div class="info">Documentação de referência para usuários de negócio<br>Versão 1.1 — Agosto de 2026</div>
   </div>
 </section>
 
@@ -743,7 +743,12 @@
     <p style="margin:0"><strong>Individual</strong> é mais indicado quando cada loja compra de fornecedores diferentes ou tem operação totalmente independente. <strong>Pool</strong> é mais indicado quando a empresa negocia como rede (um pedido único, melhor preço por volume) e depois faz a distribuição física entre os pontos de estoque.</p>
   </div>
 
-  <p>Independentemente do modo escolhido, a tela do comprador sempre mostra a quantidade final já dividida por filial — quem opera no dia a dia não precisa entender qual conta foi feita por trás, apenas confirmar ou ajustar o número final de cada loja antes de fechar o pedido.</p>
+  <p>Independentemente do modo escolhido, a tela do comprador sempre mostra a quantidade final já dividida por filial — quem opera no dia a dia não precisa entender qual conta foi feita por trás, apenas confirmar ou ajustar o número final de cada loja antes de fechar o pedido. Para quem quer o detalhe completo, existe também a tela <strong>Quantidades por Filial</strong>, que mostra, produto a produto, o consumo médio, o estoque disponível e o estoque mínimo/máximo cadastrado de cada loja lado a lado — incluindo o quanto já foi consumido no <strong>mês atual</strong>, para acompanhar a tendência sem esperar o mês fechar.</p>
+
+  <div class="caixa caixa-atencao">
+    <div class="titulo-caixa">Zero é zero, mesmo no modo Pool</div>
+    <p style="margin:0">No modo Pool, quando uma filial não teve nenhum consumo no período analisado, a parte dela na necessidade consolidada é sempre <strong>zero</strong> — o sistema não distribui para essa loja nenhuma fração residual do arredondamento, evitando sugerir compra para quem não vende ou não consome aquele produto.</p>
+  </div>
 
   <div class="rodape-pagina"><span>SmartSupply — Painel de Compras</span><span>10</span></div>
 </section>
@@ -875,7 +880,7 @@
     </tbody>
   </table>
 
-  <p>Abaixo desses quatro blocos fica a <strong>grade de produtos</strong> — a lista completa, colorida conforme a faixa de giro, mostrando lado a lado o estoque, o consumo médio, a necessidade sugerida, o fornecedor e o preço de cada item.</p>
+  <p>Abaixo desses quatro blocos fica a <strong>grade de produtos</strong> — a lista completa, colorida conforme a faixa de giro, mostrando lado a lado o estoque, o consumo médio, a necessidade sugerida, o fornecedor e o preço de cada item. Alguns desses campos podem ser editados direto na grade, sem abrir outra tela: o <strong>código do produto no fornecedor</strong> (que se atualiza sozinho sempre que o fornecedor do item é trocado) e o <strong>estoque mínimo e máximo</strong> do produto, já gravando direto no cadastro.</p>
 
   <h3>Principais ações do comprador</h3>
   <ul>
@@ -884,6 +889,7 @@
     <li><strong>Alterar o preço de venda na própria tela</strong> — uma novidade recente: ao revisar o custo de compra de um item, o comprador (se autorizado) já pode ajustar o preço de venda daquele produto sem sair da tela principal, evitando o retrabalho de abrir outra rotina.</li>
     <li><strong>Consultar pedidos em aberto</strong> — uma tela reformulada que permite buscar livremente por fornecedor ou por produto entre todos os pedidos pendentes da empresa, não apenas os do item selecionado no momento.</li>
     <li><strong>Selecionar quais filiais entram na análise</strong> — controlando exatamente o cenário multi-filial descrito na seção 5.</li>
+    <li><strong>Remover um item do carrinho por filial</strong> — um botão dedicado retira o item apenas da filial selecionada, sem bagunçar os dados internos do carrinho nem deixar o produto marcado por engano na tela principal, e o carrinho responde mais rápido mesmo com muitos produtos dentro dele.</li>
   </ul>
 
   <div class="rodape-pagina"><span>SmartSupply — Painel de Compras</span><span>14</span></div>
@@ -925,6 +931,11 @@
   <div class="caixa caixa-conceito">
     <div class="titulo-caixa"><span class="badge-icone">i</span> O sistema sugere, a pessoa decide</div>
     <p style="margin:0">Em nenhum momento o SmartSupply gera um pedido sozinho, sem revisão humana. Todo o cálculo automático serve para <strong>eliminar o trabalho repetitivo</strong> de fazer a conta produto a produto — mas a decisão final de quanto e quando comprar continua sempre nas mãos do comprador, que pode aceitar, ajustar ou ignorar qualquer sugestão.</p>
+  </div>
+
+  <div class="caixa caixa-atencao">
+    <div class="titulo-caixa">Empresas do grupo não competem entre si</div>
+    <p style="margin:0">Quando duas ou mais empresas do mesmo grupo econômico usam o SmartSupply, elas não aparecem uma para a outra como opção de fornecedor nem entram no histórico de entradas de compra do produto — evitando confundir uma simples transferência interna com uma compra real feita no mercado.</p>
   </div>
 
   <div class="rodape-pagina"><span>SmartSupply — Painel de Compras</span><span>15</span></div>
@@ -1055,6 +1066,9 @@
     <dt>Multi-filial</dt>
     <dd>Recurso que permite analisar e consolidar a necessidade de compra de um mesmo produto entre várias lojas ou fábricas ao mesmo tempo.</dd>
 
+    <dt>Grupo econômico</dt>
+    <dd>Conjunto de empresas ligadas entre si (matriz, filiais ou coligadas) que compartilham o mesmo ambiente do SmartSupply; movimentações e compras entre elas são tratadas de forma diferente das feitas com fornecedores externos de mercado.</dd>
+
     <dt>Análise reversa de estruturas</dt>
     <dd>Cálculo que deriva a necessidade de compra de uma matéria-prima a partir da demanda dos produtos finais que a utilizam, "descendo" pela receita de fabricação.</dd>
 
@@ -1077,7 +1091,7 @@
   <h2>Da conta manual ao clique de confirmar.</h2>
   <p>O SmartSupply não substitui o julgamento do comprador — ele elimina o trabalho repetitivo de refazer a mesma conta, produto a produto, filial a filial, todos os dias, para que esse julgamento seja aplicado onde realmente importa.</p>
   <div class="linha-fina" style="margin:24px auto"></div>
-  <p style="font-size:12px; color:var(--roxo-claro)">INAN Soluções · Documentação Funcional do SmartSupply — Painel de Compras · Versão 1.0 · Agosto de 2026</p>
+  <p style="font-size:12px; color:var(--roxo-claro)">INAN Soluções · Documentação Funcional do SmartSupply — Painel de Compras · Versão 1.1 · Agosto de 2026</p>
 </section>
 
 </body>

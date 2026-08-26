@@ -1,6 +1,6 @@
 ---
 name: protheus-notification-html
-description: Gera conteúdo HTML para notificações internas exibidas na Central de Notificações do Protheus (wrapper AdvPL da INAN Soluções, usado no SmartSupply e outras ferramentas), seguindo o padrão visual roxo/pink da marca e todas as restrições técnicas do wrapper (fragmento cBody, sem aspas simples, acentos em entidades HTML, classes com prefixo ss-). Use esta skill SEMPRE que o usuário pedir um HTML de notificação, comunicado, aviso de nova release/versão, novidade de ferramenta, ou mencionar "notificação do Protheus", "Central de Notificações", "cBody", "notificação do SmartSupply" — mesmo que ele não cite a skill pelo nome. Também use quando ele pedir para "gerar um HTML nesse formato" referindo-se ao padrão de notificações. Quando a notificação comunicar uma novidade real do SmartSupply (funcionalidade, melhoria ou correção), esta skill encadeia automaticamente a skill smartsupply-doc-generator ao final para manter a documentação funcional sincronizada.
+description: Gera conteúdo HTML para notificações internas exibidas na Central de Notificações do Protheus (wrapper AdvPL da INAN Soluções, usado no SmartSupply e outras ferramentas), seguindo o padrão visual roxo/pink da marca e todas as restrições técnicas do wrapper (fragmento cBody, sem aspas simples, acentos em entidades HTML, classes com prefixo ss-), e também publica a notificação de verdade na tabela NOTIFICATION do Supabase (a mesma que a Central de Notificações do SmartSupply lê em tempo real via U_JSNOTIFY). Use esta skill SEMPRE que o usuário pedir um HTML de notificação, comunicado, aviso de nova release/versão, novidade de ferramenta, ou mencionar "notificação do Protheus", "Central de Notificações", "cBody", "notificação do SmartSupply" — mesmo que ele não cite a skill pelo nome. Também use quando ele pedir para "gerar um HTML nesse formato" referindo-se ao padrão de notificações, ou para "publicar"/"cadastrar"/"subir" uma notificação no Supabase/produção. Quando a notificação comunicar uma novidade real do SmartSupply (funcionalidade, melhoria ou correção), esta skill encadeia automaticamente a skill smartsupply-doc-generator ao final para manter a documentação funcional sincronizada.
 ---
 
 # Notificações HTML para o Protheus (padrão INAN / SmartSupply)
@@ -65,7 +65,40 @@ O script:
 
 4. Corrigir qualquer erro apontado pelo script e rodar de novo até passar.
 5. Publicar o `<nome>-preview.html` como Artifact para o usuário conferir visualmente, e apontar o caminho dos 3 arquivos já salvos em `generated_notify/<versao>/`, destacando que o `.advpl.txt` está pronto para colar no fonte.
-6. **Encadeamento com a documentação funcional**: se o conteúdo desta notificação comunica uma novidade real do SmartSupply — nova funcionalidade, melhoria de motor de cálculo, nova tela/relatório, correção de comportamento — invoque em seguida a skill `smartsupply-doc-generator`, passando o mesmo contexto da novidade (do que se trata, quais arquivos/telas foram afetados) como escopo, para que ela atualize `documentos/smartsupply-painel-de-compras.html`/`.pdf` de forma incremental. Pule este passo apenas quando a notificação for um aviso puramente institucional sem relação com o comportamento da ferramenta (ex.: campanha, aviso de manutenção programada, comunicado genérico).
+6. **Publicação no Supabase (Central de Notificações ao vivo)** — ver seção dedicada abaixo. Só executar este passo depois que o usuário validar o preview, e sempre confirmando explicitamente com ele antes de gravar de fato (é uma escrita em produção, visível a todos os usuários do SmartSupply). Pular quando o usuário só quiser os arquivos locais (ex.: para colar manualmente em outro lugar).
+7. **Encadeamento com a documentação funcional**: se o conteúdo desta notificação comunica uma novidade real do SmartSupply — nova funcionalidade, melhoria de motor de cálculo, nova tela/relatório, correção de comportamento — invoque em seguida a skill `smartsupply-doc-generator`, passando o mesmo contexto da novidade (do que se trata, quais arquivos/telas foram afetados) como escopo, para que ela atualize `documentos/smartsupply-painel-de-compras.html`/`.pdf` de forma incremental. Pule este passo apenas quando a notificação for um aviso puramente institucional sem relação com o comportamento da ferramenta (ex.: campanha, aviso de manutenção programada, comunicado genérico).
+
+## Publicação no Supabase (tabela NOTIFICATION)
+
+A Central de Notificações real do SmartSupply (`U_JSNOTIFY`, em `src/main/JSNOTIFY.prw`) não lê os arquivos gerados localmente — ela consulta em tempo real a tabela `NOTIFICATION` no Supabase e renderiza `TITLE`/`BODY` para cada usuário. Os arquivos em `generated_notify/<versao>/` são o rascunho/preview; publicá-los é o que efetivamente os coloca na frente dos usuários.
+
+**Mapeamento de campos** (confirmado em `src/main/JSNOTIFY.prw`, função `doSave`, que já cadastra notificações a partir de um formulário interno do Protheus):
+
+| Campo | Conteúdo |
+|---|---|
+| `ID` | gerado automaticamente pelo Supabase — nunca enviar |
+| `TITLE` | o mesmo título da notificação (pode ter acentos normalmente — só o fragmento `BODY` precisa ser ASCII) |
+| `BODY` | conteúdo bruto do `<nome>-cbody.html` já validado pelo `build_outputs.py` (não precisa de nenhuma transformação extra) |
+| `COMPANYID` | **atenção**: o nome real da coluna é `COMPANYID`, não `COMPANY`. Por padrão enviar `null` (visível para todas as empresas); só usar um ID específico se o usuário pedir explicitamente para direcionar a um cliente |
+| `VERSION` | versão a partir da qual a novidade está disponível, ex.: `"23.0012"` |
+| `USERID` | por padrão `null` (visível para todos os usuários); só preencher se o usuário pedir para direcionar a um único usuário |
+| `CREATED` | gerado automaticamente pelo Supabase — nunca enviar |
+| `DELETED` | sempre `"N"` |
+| `DATAATL` | timestamp atual (`timestamptz`), sempre no timezone `America/Sao_Paulo` — calculado automaticamente pelo script, independente do timezone da máquina que roda o comando |
+
+**Comando**:
+
+```bash
+python3 scripts/publish_supabase.py <raiz-do-projeto>/generated_notify/<versao>/<nome>-cbody.html \
+  --titulo "Título completo, com acentos" \
+  --versao <versao, ex.: 23.0012> \
+  [--company <ID>] [--userid <codigo>]
+```
+
+- Rodar sempre primeiro com `--dry-run` para mostrar ao usuário o payload exato (o `BODY` aparece só com a contagem de caracteres, não o HTML inteiro) antes de gravar de verdade.
+- **Credenciais são resolvidas automaticamente, sem nenhuma configuração manual na maioria dos casos**. O script NUNCA tem a URL/API key do Supabase hardcoded no próprio fonte; a ordem de resolução é: 1) parâmetros `--url`/`--key`; 2) variáveis de ambiente `SUPABASE_URL`/`SUPABASE_KEY`; 3) automaticamente via `generated_notify/supabase_credentials.py`, que lê os mesmos valores que `User Function JSGETDB()` e `User Function JSGETKEY()` retornam em `src/main/JSPAIGEN.prw` (a mesma chave "anon" que o Protheus já usa em produção para ler/gravar nesta tabela). Use `--url`/`--key` (ou as variáveis de ambiente) apenas para apontar para um projeto Supabase diferente (ex.: homologação) ou se `supabase_credentials.py` não conseguir localizar/parsear `JSPAIGEN.prw` (a mensagem de erro do script indica exatamente o que falhou).
+- Sucesso: o script imprime o `ID` gerado e o `CREATED` devolvidos pelo Supabase — reporte isso ao usuário como confirmação.
+- Falha: o script imprime o código HTTP e o corpo do erro devolvido pelo PostgREST (ex.: coluna inexistente, tabela sem permissão) — diagnosticar antes de tentar de novo.
 
 ## Dicas de conteúdo
 
