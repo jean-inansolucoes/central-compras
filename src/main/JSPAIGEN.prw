@@ -233,6 +233,7 @@ user function JSDETVER()
     aAdd( aDetVer, { '23','0010','24/08/2026', 'Adição dos campos de estoque mínimo e máximo editáveis na grid principal de produtos, com gravação direta no cadastro do produto, e adição do estoque mínimo/máximo por filial (via indicador de produto, quando cadastrado) na tela de quantidades por filial' } )
     aAdd( aDetVer, { '23','0011','24/08/2026', 'Adição de botão no carrinho de compras para remover um item da filial selecionada, substituindo a exclusão padrão da grid que não atualizava corretamente os dados internos nem desmarcava o produto na tela principal' } )
     aAdd( aDetVer, { '23','0012','24/08/2026', 'Melhoria de desempenho na tela do carrinho de compras, reduzindo o tempo de resposta ao editar itens em carrinhos com grande volume de produtos' } )
+    aAdd( aDetVer, { '23','0013','04/09/2026', 'Ajuste da regra para alteração de preço de venda direto via grid principal, para que o sistema passe a coniderar também o ponto de entrada PEPNC06' } )
 
 return aDetVer
 

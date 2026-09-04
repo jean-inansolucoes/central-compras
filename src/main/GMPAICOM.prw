@@ -1296,7 +1296,10 @@ static function entryDocs( cProduto, cDoc, cSerie, cFornece, cLoja, cTipo )
 	oGetSug   := doGet( nLine, nIniHor+4, {|u| if( PCount()>0,nGetSug:=u,nGetSug ) }, oPanFld2, 40, 10, "@E 9,999,999.99", 'nGetSug', 'Sug.Preço' )
 	oGetMg1   := doGet( nLine, nIniHor+91,{|u| if( PCount()>0,nGetMg1:=u,nGetMg1 ) }, oPanFld2, 40, 10, "@R 9,999.99 %", 'nGetMg1',, !lEnable )
 	oGetScI   := doGet( nLine, nIniHor+143, {|u| if( PCount()>0,nGetScI:=u,nGetScI ) }, oPanFld2, 40, 10, "@E 9,999,999.99", 'nGetScI', 'PS+IPI',!lEnable )
-	oBtnTab   := TButton():New( nLine, nIniHor+227, "Aplicar",oPanFld2,{|| priceAdjust( cGetTab, cPrdAlt, nGetSug ), oBrowse:LineRefresh(), someChange() }, 30,10,,,.F.,.T.,.F.,,.F.,,,.F. )
+	oBtnTab   := TButton():New( nLine, nIniHor+227, "Aplicar",oPanFld2,{|| iif( !SD1TMP->D1_COD==cPrdAlt, priceAdjust( cGetTab, SD1TMP->D1_COD, nGetSug ), nil ),;
+																			priceAdjust( cGetTab, cPrdAlt, nGetSug ),; 
+																			oBrowse:LineRefresh(),; 
+																			someChange() }, 30,10,,,.F.,.T.,.F.,,.F.,,,.F. )
 	oBtnTab:bWhen := {|| !Empty( cGetTab ) .and. ! Round( nGetSug, 2 ) == nGetPrc .and. ( RetCodUsr() $ cMasters .or. FWIsAdmin() ) }
 
 	if lDocEntr
@@ -4723,6 +4726,7 @@ User Function PCOMVLD()
 	local nY        := 0 as numeric
 	local cProduto  := "" as character
 	local cField    := AllTrim( oBrwPro:GetColumn(oBrwPro:ColPos()):GetID() )
+	local cPrdAlt   := "" as character
 	
 	Private oBtnSel     := Nil
 	Private lMsErroAuto := .F.
@@ -4823,6 +4827,20 @@ User Function PCOMVLD()
 		if cField == 'PRCVEN'						// Alteração do preço de tabela direto na grid principal (mesma trava de permissão de "Aplicar" na Formação de Preços)
 
 			cTabPrc := PADR( SuperGetMV( 'MV_TABPAD',,Space(TAMSX3('DA1_CODTAB')[1]) ), TAMSX3('DA0_CODTAB')[1], ' ' )
+			// PE para substituir produto que vai receber o preço calculado pela rotina de formação de preços
+			// Utilizado para os casos em que o preço de venda é calculado sobre o custo da matéria-prima, mas o produto que é vendido é o PA
+			if ExistBlock( 'PEPNC06' )
+				cPrdAlt := ExecBlock( 'PEPNC06', .F., .F., aColPro[oBrwPro:nAt][nPosPrd] )
+				if ! ValType( cPrdAlt ) == 'C' .or. Empty( cPrdAlt ) .or. !ExistCpo( "SB1", cPrdAlt, 1)
+					cPrdAlt := aColPro[oBrwPro:nAt][nPosPrd]
+				else
+					// Altera o preço para o produto que veio do PE
+					priceAdjust( cTabPrc, cPrdAlt, aColPro[oBrwPro:nAt][nPosPVe] )					
+				endif
+			else
+				cPrdAlt := aColPro[oBrwPro:nAt][nPosPrd]
+			endif
+			// Altera o preço também do produto alterado na grid principal
 			priceAdjust( cTabPrc, aColPro[oBrwPro:nAt][nPosPrd], aColPro[oBrwPro:nAt][nPosPVe] )
 
 		endif
