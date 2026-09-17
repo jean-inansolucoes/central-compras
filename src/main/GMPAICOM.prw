@@ -21,6 +21,12 @@
 #define LG_NO_OBS  "white.bmp" 					// Legenda para itens sem observação preenchida
 #define SIZE_FIELD 0.5							// Proporção em relação ao tamanho real dos campos em relação ao espaço que deve utilizar na tela da grid de produtos
  
+// Cache da formula do perfil de calculo (fCalNec), por cPerfil - static de escopo de arquivo
+// para funcionar independente do caminho de chamada (GMINDPRO via schedule, tela GMPAICOM,
+// JSCALNEC/fGrpCalNec via analise reversa), sem depender de propagacao de variavel Private
+// pela pilha de execucao do chamador (uma Private so existe se o CHAMADOR a declarou)
+Static hFormula
+
 /*/{Protheus.doc} GMPAICOM
 Rotina para gestão de compras, elaboração inteligente de pedidos e acompanhamento de carteira de fornecedores
 @type function
@@ -5451,6 +5457,38 @@ User Function GMINDPRO( aParam )
 	local nCM03M    := 0 as numeric
 	local nCMAnt    := 0 as numeric
 	local lZB3Own   := .F. as logical
+	local aProdLot  := {} as array			// Fase 3: produtos classificados no caminho em lote (agregacoes via GROUP BY)
+	local aProdLeg  := {} as array			// Fase 3: produtos classificados no caminho legado (B1_CODANT ou inclusao recente)
+	local aProdFor  := {} as array			// Fase 3: subconjunto de aProdLot elegivel a resolucao de fornecedor/preco em lote
+	local hIsLote   := Nil					// Fase 3: hash cProduto -> .T. para checagem O(1) dentro do laco principal
+	local hQtdSai   := Nil					// Fase 3: hash de saida de fMonLotSD - contagem de saidas SD2 por produto
+	local hQtdOp    := Nil					// Fase 3: hash de saida de fMonLotSD - contagem de OPs/consumo SD3 por produto
+	local hVenda    := Nil					// Fase 3: hash de saida de fMonLotSD - soma de venda SD2 por produto
+	local hConsum   := Nil					// Fase 3: hash de saida de fMonLotSD - soma de consumo SD3 por produto
+	local hPedido   := Nil					// Fase 3: hash de saida de fMonLotSD - pedidos distintos SD2 por produto
+	local hOps      := Nil					// Fase 3: hash de saida de fMonLotSD - OPs distintas SD3 por produto
+	local hFornLt   := Nil					// Fase 3: hash cProduto -> candidatos de fornecedor/prazo/preco (fMonLotFor/Prc/Fb)
+	local nDUteisLt := 0 as numeric			// Fase 3: dias uteis/corridos do periodo padrao, calculado 1x para todo o caminho em lote
+	local nTamA2Cd  := 0 as numeric			// Fase 1 (item 4): tamanho de A2_COD, hoisted para fora do laco principal
+	local nTamA2Lj  := 0 as numeric			// Fase 1 (item 4): tamanho de A2_LOJA, hoisted para fora do laco principal
+	local lIsLote   := .F. as logical		// Fase 3: indica se o produto da iteracao atual esta no caminho em lote
+	local aFornCand := {} as array			// Fase 3: candidatos de fornecedor do produto atual, lidos de hFornLt
+	local nAuxHM    := 0 as numeric			// Auxiliar generico para o padrao HMGet( hash, chave, @saida )
+	local xGpTpAux  := Nil					// Auxiliar para eliminar IIF() na montagem de _aFilters (CLAUDE.md - IIF proibido)
+	local cAvisoAux := "" as character		// Auxiliar para eliminar IIF() na gravacao do campo AVISO
+	local cJustAux  := "" as character		// Auxiliar para eliminar IIF() na gravacao do campo JUSTIF
+	local cTpDiaAux := "" as character		// Auxiliar para eliminar IIF() na montagem de aDataWF
+	local nRoundAux := 0 as numeric			// Auxiliar para eliminar IIF() encadeado na montagem da mensagem de atraso
+	local cSufAux   := "" as character		// Auxiliar para eliminar IIF() encadeado na montagem da mensagem de atraso
+	local dDtIni    := StoD("") as date		// Contagem de tempo: data/hora de inicio do processamento
+	local dDtFim    := StoD("") as date		// Contagem de tempo: data/hora de termino do processamento
+	local nSegIni   := 0 as numeric			// Contagem de tempo: segundos desde a meia-noite no inicio
+	local nSegFim   := 0 as numeric			// Contagem de tempo: segundos desde a meia-noite no termino
+	local nTotalSeg := 0 as numeric			// Contagem de tempo: total de segundos decorridos (trata virada de dia)
+	local nHoras    := 0 as numeric			// Contagem de tempo: horas do tempo total decorrido
+	local nMinutos  := 0 as numeric			// Contagem de tempo: minutos do tempo total decorrido
+	local nSegRest  := 0 as numeric			// Contagem de tempo: segundos restantes do tempo total decorrido
+	local cTmpProc  := "" as character		// Contagem de tempo: tempo total formatado (hh:mm:ss)
 
 	Private cPerfDef := "" as character
 	Private cPerfil  := "" as character
@@ -5466,6 +5504,11 @@ User Function GMINDPRO( aParam )
 	Private cFornSM0 := "" as character
 
 	Default aParam := {}
+
+	// Contagem de tempo de processamento (inicio) - exibida ao final da rotina via ConOut
+	dDtIni  := Date()
+	nSegIni := Seconds()
+	hFormula := HMNew()					// Fase 1 (item 2): cache novo a cada execucao (evita cache indevido entre filiais)
 	
 	// Valida parâmetros
 	if aParam != Nil .and. Len( aParam ) > 0
@@ -5516,13 +5559,26 @@ User Function GMINDPRO( aParam )
 	cZB6 := AllTrim( SuperGetMv( 'MV_X_PNC04',,"" ) )			// Alias da tabela ZB6 no ambiente do cliente
 	cZB3 := "PNC_PROD_"+ cEmpAnt							// Nome fixo da tabela de índices por produto (fora do dicionário)
 	cFdGroup  := AllTrim( Upper( SuperGetMv( 'MV_X_PNC13',,'B1_GRUPO' ) ) )
+
+	// Hoist de tamanhos de campo (TAMSX3) usados repetidamente dentro do laco principal de produtos -
+	// calculados uma unica vez aqui, pois nao mudam durante a execucao da rotina (Fase 1, item 4)
+	nTamA2Cd := TAMSX3('A2_COD')[1]
+	nTamA2Lj := TAMSX3('A2_LOJA')[1]
+
+	// Auxiliar para eliminar IIF() na montagem de _aFilters (CLAUDE.md - IIF() proibido)
+	if SB1->( FieldPos( 'B1_XGPTP' ) ) > 0
+		xGpTpAux := Space(TAMSX3('B1_XGPTP')[1] )
+	else
+		xGpTpAux := Nil
+	endif
+
 	_aFilters := { Space(200),;
 					Space(200),; 
-					Space(TAMSX3('A2_COD')[1]),;
+					Space(nTamA2Cd),;
 					Space(TAMSX3(cFdGroup)[1] ),;
 					Space(TAMSX3('B1_COD')[1] ),;
-					Space( TAMSX3('A2_LOJA')[1] ),;
-					iif( SB1->( FieldPos( 'B1_XGPTP' ) ) > 0, Space(TAMSX3('B1_XGPTP')[1] ), Nil ),;
+					Space( nTamA2Lj ),;
+					xGpTpAux,;
 					.F. /* lCancel */ }
 
 	_aFilters[2] := PADR(aConfig[21],200,' ')					// pré-definições dos tipos de produtos a serem analisados
@@ -5594,6 +5650,51 @@ User Function GMINDPRO( aParam )
 		DBSelectArea( 'SA2' )
 		SA2->( DBSetOrder( 1 ) )	
 
+		// Fase 3 (performance): classifica os produtos entre o caminho em lote (agregacoes calculadas
+		// em bloco, via GROUP BY) e o caminho legado (mantido identico ao original, produto a produto -
+		// B1_CODANT preenchido ou inclusao recente). Ver plano de performance de GMINDPRO.
+		aProdLot := {}
+		aProdLeg := {}
+		hIsLote  := HMNew()
+		fSepLote( aPerAna, aProdLot, aProdLeg, hIsLote )
+
+		hQtdSai  := HMNew()
+		hQtdOp   := HMNew()
+		hVenda   := HMNew()
+		hConsum  := HMNew()
+		hPedido  := HMNew()
+		hOps     := HMNew()
+		hFornLt  := HMNew()
+
+		if Len( aProdLot ) > 0
+
+			fMonLotSD( aProdLot, aPerAna, lTrfFil, lPEPNC08, hQtdSai, hQtdOp, hVenda, hConsum, hPedido, hOps )
+
+			// Fornecedor/preco em lote: so se aplica quando o produto nao e PA e o modo de selecao de
+			// fornecedor nao e "Fabricante" (aConfig[22] == '1' resolve direto por produto, sem custo de
+			// query, dentro do laco principal - ver GMINDPRO)
+			if aConfig[22] != '1'
+
+				aProdFor := {}
+				for nX := 1 to Len( aProdLot )
+					if ! U_JSISPA( aProdLot[nX] )
+						aAdd( aProdFor, aProdLot[nX] )
+					endif
+				next nX
+
+				if Len( aProdFor ) > 0
+					fMonLotFor( aProdFor, cFornSM0, hFornLt )
+					fMonLotPrc( aProdFor, hFornLt )
+					fMonLotFb( aProdFor, hFornLt, aConfig[32], _aFil )
+				endif
+
+			endif
+
+		endif
+
+		nDUteisLt := countDays( aPerAna[01], aPerAna[02] )
+
+
     	While !PRDTMP->( EOF() )
     		
     		nAtu++
@@ -5645,17 +5746,34 @@ User Function GMINDPRO( aParam )
     		SB1->( DbGoTo( PRDTMP->RECSB1 ) )
 
 			lPA := U_JSISPA( PRDTMP->B1_COD )
+			lIsLote := .F.
+			HMGet( hIsLote, PRDTMP->B1_COD, @lIsLote )
 			if ! lPA
-				aAux := {}
-				aAux := betterSupplier( PRDTMP->B1_COD,; 
-										aConfig,;
-										Space( TAMSX3('A2_COD')[1] ),;
-										Space( TAMSX3('A2_LOJA')[1] ) )
-				cFornece := PADR( aAux[1], TAMSX3('A2_COD')[1], ' ' )		// Codigo do fornecedor
-				cLoja    := PADR( aAux[2], TAMSX3('A2_LOJA')[1], ' ' )		// Codigo da loja
+				if lIsLote .and. aConfig[22] != '1'
+					// Caminho em lote (Fase 3): candidatos ja resolvidos em hFornLt (fornecedor/prazo/preco)
+					aFornCand := {}
+					HMGet( hFornLt, PRDTMP->B1_COD, @aFornCand )
+					if ValType( aFornCand ) == 'A' .and. Len( aFornCand ) > 0
+						aAux := fMelhorFor( aFornCand, aConfig )
+						cFornece := PADR( aAux[1], nTamA2Cd, ' ' )
+						cLoja    := PADR( aAux[2], nTamA2Lj, ' ' )
+					else
+						cFornece := Space( nTamA2Cd )
+						cLoja    := Space( nTamA2Lj )
+					endif
+				else
+					// Caminho legado (inclui modo "Fabricante", resolvido direto por betterSupplier sem custo de query)
+					aAux := {}
+					aAux := betterSupplier( PRDTMP->B1_COD,; 
+											aConfig,;
+											Space( nTamA2Cd ),;
+											Space( nTamA2Lj ) )
+					cFornece := PADR( aAux[1], nTamA2Cd, ' ' )		// Codigo do fornecedor
+					cLoja    := PADR( aAux[2], nTamA2Lj, ' ' )		// Codigo da loja
+				endif
 			else
-				cFornece := Space( TAMSX3('A2_COD')[1] )
-				cLoja    := Space( TAMSX3('A2_LOJA')[1] )
+				cFornece := Space( nTamA2Cd )
+				cLoja    := Space( nTamA2Lj )
 			endif
 			
 			// Identifica lead-time conforme regra definida para produto, fornecedor (informado) ou fornecedor (calculado)
@@ -5687,20 +5805,171 @@ User Function GMINDPRO( aParam )
 			nQtdProd := 0
 			nQtdDoc  := 0
 
-			for nX := 1 to len( aPerProd )
+			if lIsLote
+				// Caminho em lote (Fase 3): agregados ja calculados em bloco por fMonLotSD, leitura em memoria
+				HMGet( hQtdSai, PRDTMP->B1_COD, @nQtdProd )
+				nAuxHM := 0
+				HMGet( hQtdOp, PRDTMP->B1_COD, @nAuxHM )
+				nQtdProd += nAuxHM
+				HMGet( hVenda, PRDTMP->B1_COD, @nVenda )
+				HMGet( hConsum, PRDTMP->B1_COD, @nConsumo )
+				HMGet( hPedido, PRDTMP->B1_COD, @nQtdDoc )
+				nAuxHM := 0
+				HMGet( hOps, PRDTMP->B1_COD, @nAuxHM )
+				nQtdDoc += nAuxHM
+				nDUteis := nDUteisLt
+			else
+				// Caminho legado: EXATAMENTE o codigo original, produto a produto (B1_CODANT ou inclusao recente)
+				for nX := 1 to len( aPerProd )
+
+					cQuery := "SELECT "+ CEOL
+					cQuery += "	COUNT(*) QTD_PRODUTO " + CEOL
+					cQuery += "FROM "+ RetSqlName( "SD2" ) +" D2 " + CEOL
+					cQuery += "WHERE D2.D2_FILIAL  = '"+ FWxFilial( 'SD2' ) +"' " + CEOL
+					cQuery += "  AND D2.D2_COD     = '"+ aPerProd[nX][01] +"' " + CEOL
+					cQuery += "  AND D2.D2_TIPO    = 'N' "+ CEOL
+					cQuery += "  AND D2.D2_EMISSAO BETWEEN '"+ DtoS( aPerProd[nX][02] ) +"' AND '"+ DtoS( aPerProd[nX][03] ) +"' " + CEOL
+					if ! lTrfFil
+						cQuery += "  AND D2.D2_CLIENTE <> '"+ PADR( SubStr( SM0->M0_CGC, 01, 08 ), TAMSX3('D2_CLIENTE')[1], ' ' ) +"' " + CEOL
+					endif
+					cQuery += "  AND D2.D_E_L_E_T_ = ' ' " + CEOL
+				
+					if lPEPNC08
+						// Ponto de entrada que permite modificar a query de análise das movimentações de saída para o produto
+						// Parâmetro 1: Indica o local da chamada do PE, sendo 1- contagem dos registros de saída do produto
+						//													   2- contagem dos registros de movimentações internas ou OPs para o produto
+						//													   3- soma das quantidades de saída do produto
+						//													   4- soma das quantidades de movimentações internas ou OPs para o produto
+						//													   5- conta quantos documentos de saída foram emitidos no período
+						//													   6- conta quantas movimentações ou ops foram feitas no período
+						// Parâmetro 2: Indica a query padrão do sistema
+						// Retorno esperado: query completa modificada ou incrementada pronta para execução
+						xPEPNC08 := ExecBlock( 'PEPNC08', .F., .F., { 1, cQuery } )
+						if ValType( xPEPNC08 ) == 'C' .and. ! Empty( xPEPNC08 )
+							cQuery := xPEPNC08
+						endif
+					endif
+
+					DBUseArea( .T., 'TOPCONN', TcGenQry(,,cQuery), 'INDPRO', .F., .T. )
+					if !INDPRO->( EOF() )
+						nQtdProd += INDPRO->QTD_PRODUTO
+					EndIf
+					INDPRO->( DBCloseArea() )
+
+					// Conta quantas vezes a MP apareceu em Ordens de Produção
+					cQuery := "SELECT "
+					cQuery += "  COUNT(*) QTD_PRODUTO "+ CEOL 
+					cQuery += "FROM "+ RetSqlName( 'SD3' ) +" D3 " + CEOL
+					cQuery += "WHERE D3.D3_FILIAL  = '"+ FWxFilial( 'SD3' ) +"' "+ CEOL
+					cQuery += "  AND D3.D3_COD     = '"+ aPerProd[nX][01] +"' " + CEOL
+					cQuery += "  AND D3.D3_EMISSAO BETWEEN '"+ DtoS( aPerProd[nX][02] ) +"' AND '"+ DtoS( aPerProd[nX][03] ) +"' " + CEOL
+					cQuery += "  AND D3.D3_TM     >= '500' " + CEOL
+					cQuery += "  AND ( D3.D3_OP     <> '"+ Space( TAMSX3('D3_OP')[1] ) +"' OR D3.D3_CF = 'RE0' ) " + CEOL
+					cQuery += "  AND D3.D3_ESTORNO = ' ' " + CEOL
+					cQuery += "  AND D3.D_E_L_E_T_ = ' ' "
+				
+					if lPEPNC08
+						// Ponto de entrada que permite modificar a query de análise das movimentações de saída para o produto
+						// Parâmetro 1: Indica o local da chamada do PE, sendo 1- contagem dos registros de saída do produto
+						//													   2- contagem dos registros de movimentações internas ou OPs para o produto
+						//													   3- soma das quantidades de saída do produto
+						//													   4- soma das quantidades de movimentações internas ou OPs para o produto
+						//													   5- conta quantos documentos de saída foram emitidos no período
+						//													   6- conta quantas movimentações ou ops foram feitas no período
+						// Parâmetro 2: Indica a query padrão do sistema
+						// Retorno esperado: query completa modificada ou incrementada pronta para execução
+						xPEPNC08 := ExecBlock( 'PEPNC08', .F., .F., { 2, cQuery } )
+						if ValType( xPEPNC08 ) == 'C' .and. ! Empty( xPEPNC08 )
+							cQuery := xPEPNC08
+						endif
+					endif
+
+					DBUseArea( .T., 'TOPCONN', TcGenQry(,,cQuery), 'INDPRO', .F., .T. )
+					if !INDPRO->( EOF() )
+						nQtdProd += INDPRO->QTD_PRODUTO
+					EndIf
+					INDPRO->( DBCloseArea() )
+				
+					// Verifica se a faixa de data a ser analisada é maior ou igual a data de inclusao do produto no sistema
+					nDUteis += countDays( aPerProd[nX][02], aPerProd[nX][03] )
+				
+					cQuery := "SELECT COALESCE(SUM(D2.D2_QUANT),0) AS QTD_TOTAL FROM "+ RetSqlName( 'SD2' ) +" D2 " + CEOL
+				
+					cQuery += "INNER JOIN "+ RetSqlName( 'SF4' ) +" F4 " + CEOL
+					cQuery += " ON F4.F4_FILIAL  = '"+ FWxFilial( 'SF4' ) +"' "+ CEOL
+					cQuery += "AND F4.F4_CODIGO  = D2.D2_TES "+ CEOL
+					cQuery += "AND F4.F4_ESTOQUE = 'S' "+ CEOL
+					cQuery += "AND F4.D_E_L_E_T_ = ' ' "+ CEOL
+
+					cQuery += "WHERE D2.D2_FILIAL  = '"+ FWxFilial( 'SD2' ) +"' "+ CEOL
+					cQuery += "  AND D2.D2_TIPO    = 'N' "+ CEOL
+					cQuery += "  AND D2.D2_EMISSAO BETWEEN '"+ DtoS( aPerProd[nX][02] ) +"' AND '"+ DtoS( aPerProd[nX][03] ) +"' " + CEOL
+					if ! lTrfFil
+						cQuery += "  AND D2.D2_CLIENTE <> '"+ PADR(SubStr( SM0->M0_CGC, 01, 08 ),TAMSX3('C5_CLIENTE')[1], ' ' ) +"' " + CEOL
+					endif
+					cQuery += "  AND D2.D2_COD     = '"+ aPerProd[nX][01] +"' " + CEOL
+					cQuery += "  AND D2.D_E_L_E_T_ = ' ' " + CEOL
+				
+					if lPEPNC08
+						// Ponto de entrada que permite modificar a query de análise das movimentações de saída para o produto
+						// Parâmetro 1: Indica o local da chamada do PE, sendo 1- contagem dos registros de saída do produto
+						//													   2- contagem dos registros de movimentações internas ou OPs para o produto
+						//													   3- soma das quantidades de saída do produto
+						//													   4- soma das quantidades de movimentações internas ou OPs para o produto
+						//													   5- conta quantos documentos de saída foram emitidos no período
+						//													   6- conta quantas movimentações ou ops foram feitas no período
+						// Parâmetro 2: Indica a query padrão do sistema
+						// Retorno esperado: query completa modificada ou incrementada pronta para execução
+						xPEPNC08 := ExecBlock( 'PEPNC08', .F., .F., { 3, cQuery } )
+						if ValType( xPEPNC08 ) == 'C' .and. ! Empty( xPEPNC08 )
+							cQuery := xPEPNC08
+						endif
+					endif
+					DBUseArea( .T., 'TOPCONN', TcGenQry(,,cQuery), "MEDCON", .F., .T. )
+					nVenda += MEDCON->QTD_TOTAL
+					MEDCON->( DbCloseArea() )
+				
+					cQuery := "SELECT COALESCE(SUM(D3.D3_QUANT),0) AS QTD_TOTAL FROM "+ RetSqlName( 'SD3' ) +" D3 " + CEOL
+					cQuery += "WHERE D3.D3_FILIAL = '"+ FWxFilial( 'SD3' ) +"' "+ CEOL
+					cQuery += "  AND D3.D3_COD    = '"+ aPerProd[nX][01] +"' " + CEOL
+					cQuery += "  AND D3.D3_EMISSAO BETWEEN '"+ DtoS( aPerProd[nX][02] ) +"' AND '"+ DtoS( aPerProd[nX][03] ) +"' " + CEOL
+					cQuery += "  AND D3.D3_TM     >= '500' " + CEOL
+					cQuery += "  AND ( D3.D3_OP     <> '"+ Space( TAMSX3('D3_OP')[1] ) +"' OR D3.D3_CF = 'RE0' ) " + CEOL
+					cQuery += "  AND D3.D3_ESTORNO = ' ' " + CEOL
+					cQuery += "  AND D3.D_E_L_E_T_ = ' ' " 
+
+					if lPEPNC08
+						// Ponto de entrada que permite modificar a query de análise das movimentações de saída para o produto
+						// Parâmetro 1: Indica o local da chamada do PE, sendo 1- contagem dos registros de saída do produto
+						//													   2- contagem dos registros de movimentações internas ou OPs para o produto
+						//													   3- soma das quantidades de saída do produto
+						//													   4- soma das quantidades de movimentações internas ou OPs para o produto
+						//													   5- conta quantos documentos de saída foram emitidos no período
+						//													   6- conta quantas movimentações ou ops foram feitas no período
+						// Parâmetro 2: Indica a query padrão do sistema
+						// Retorno esperado: query completa modificada ou incrementada pronta para execução
+						xPEPNC08 := ExecBlock( 'PEPNC08', .F., .F., { 4, cQuery } )
+						if ValType( xPEPNC08 ) == 'C' .and. ! Empty( xPEPNC08 )
+							cQuery := xPEPNC08
+						endif
+					endif
+					DBUseArea( .T., 'TOPCONN', TcGenQry(,,cQuery), "MEDCON", .F., .T. )
+					nConsumo += MEDCON->QTD_TOTAL
+					MEDCON->( DbCloseArea() )
+
+				next nX
 
 				cQuery := "SELECT "+ CEOL
-				cQuery += "	COUNT(*) QTD_PRODUTO " + CEOL
+				cQuery += "	 COUNT( DISTINCT CONCAT( D2.D2_DOC, D2.D2_SERIE ) ) QTD_PEDIDOS "+ CEOL
 				cQuery += "FROM "+ RetSqlName( "SD2" ) +" D2 " + CEOL
 				cQuery += "WHERE D2.D2_FILIAL  = '"+ FWxFilial( 'SD2' ) +"' " + CEOL
-				cQuery += "  AND D2.D2_COD     = '"+ aPerProd[nX][01] +"' " + CEOL
 				cQuery += "  AND D2.D2_TIPO    = 'N' "+ CEOL
-				cQuery += "  AND D2.D2_EMISSAO BETWEEN '"+ DtoS( aPerProd[nX][02] ) +"' AND '"+ DtoS( aPerProd[nX][03] ) +"' " + CEOL
+				cQuery += "  AND D2.D2_EMISSAO BETWEEN '"+ DtoS( aPerProd[len(aPerProd)][02] ) +"' AND '"+ DtoS( aPerProd[1][03] ) +"' " + CEOL
 				if ! lTrfFil
 					cQuery += "  AND D2.D2_CLIENTE <> '"+ PADR( SubStr( SM0->M0_CGC, 01, 08 ), TAMSX3('D2_CLIENTE')[1], ' ' ) +"' " + CEOL
 				endif
 				cQuery += "  AND D2.D_E_L_E_T_ = ' ' " + CEOL
-				
+			
 				if lPEPNC08
 					// Ponto de entrada que permite modificar a query de análise das movimentações de saída para o produto
 					// Parâmetro 1: Indica o local da chamada do PE, sendo 1- contagem dos registros de saída do produto
@@ -5711,30 +5980,32 @@ User Function GMINDPRO( aParam )
 					//													   6- conta quantas movimentações ou ops foram feitas no período
 					// Parâmetro 2: Indica a query padrão do sistema
 					// Retorno esperado: query completa modificada ou incrementada pronta para execução
-					xPEPNC08 := ExecBlock( 'PEPNC08', .F., .F., { 1, cQuery } )
+					xPEPNC08 := ExecBlock( 'PEPNC08', .F., .F., { 5, cQuery } )
 					if ValType( xPEPNC08 ) == 'C' .and. ! Empty( xPEPNC08 )
 						cQuery := xPEPNC08
 					endif
 				endif
-
 				DBUseArea( .T., 'TOPCONN', TcGenQry(,,cQuery), 'INDPRO', .F., .T. )
 				if !INDPRO->( EOF() )
-					nQtdProd += INDPRO->QTD_PRODUTO
+					nQtdDoc  += INDPRO->QTD_PEDIDOS
 				EndIf
 				INDPRO->( DBCloseArea() )
 
 				// Conta quantas vezes a MP apareceu em Ordens de Produção
 				cQuery := "SELECT "
-				cQuery += "  COUNT(*) QTD_PRODUTO "+ CEOL 
+				if TCGetDB() $ "ORACLE" 
+					cQuery += "  COUNT( DISTINCT SUBSTR( D3.D3_OP,01, 06 ) ) QTD_OP " + CEOL
+				else
+					cQuery += "  COUNT( DISTINCT SUBSTRING( D3.D3_OP,01, 06 ) ) QTD_OP " + CEOL
+				endif
 				cQuery += "FROM "+ RetSqlName( 'SD3' ) +" D3 " + CEOL
 				cQuery += "WHERE D3.D3_FILIAL  = '"+ FWxFilial( 'SD3' ) +"' "+ CEOL
-				cQuery += "  AND D3.D3_COD     = '"+ aPerProd[nX][01] +"' " + CEOL
-				cQuery += "  AND D3.D3_EMISSAO BETWEEN '"+ DtoS( aPerProd[nX][02] ) +"' AND '"+ DtoS( aPerProd[nX][03] ) +"' " + CEOL
+				cQuery += "  AND D3.D3_EMISSAO BETWEEN '"+ DtoS( aPerProd[len(aPerProd)][02] ) +"' AND '"+ DtoS( aPerProd[1][03] ) +"' " + CEOL
 				cQuery += "  AND D3.D3_TM     >= '500' " + CEOL
-				cQuery += "  AND ( D3.D3_OP     <> '"+ Space( TAMSX3('D3_OP')[1] ) +"' OR D3.D3_CF = 'RE0' ) " + CEOL
+				cQuery += "  AND D3.D3_OP     <> '"+ Space( TAMSX3('D3_OP')[1] ) +"' " + CEOL
 				cQuery += "  AND D3.D3_ESTORNO = ' ' " + CEOL
 				cQuery += "  AND D3.D_E_L_E_T_ = ' ' "
-				
+			
 				if lPEPNC08
 					// Ponto de entrada que permite modificar a query de análise das movimentações de saída para o produto
 					// Parâmetro 1: Indica o local da chamada do PE, sendo 1- contagem dos registros de saída do produto
@@ -5745,161 +6016,28 @@ User Function GMINDPRO( aParam )
 					//													   6- conta quantas movimentações ou ops foram feitas no período
 					// Parâmetro 2: Indica a query padrão do sistema
 					// Retorno esperado: query completa modificada ou incrementada pronta para execução
-					xPEPNC08 := ExecBlock( 'PEPNC08', .F., .F., { 2, cQuery } )
+					xPEPNC08 := ExecBlock( 'PEPNC08', .F., .F., { 6, cQuery } )
 					if ValType( xPEPNC08 ) == 'C' .and. ! Empty( xPEPNC08 )
 						cQuery := xPEPNC08
 					endif
 				endif
-
 				DBUseArea( .T., 'TOPCONN', TcGenQry(,,cQuery), 'INDPRO', .F., .T. )
 				if !INDPRO->( EOF() )
-					nQtdProd += INDPRO->QTD_PRODUTO
+					nQtdDoc  += INDPRO->QTD_OP
 				EndIf
 				INDPRO->( DBCloseArea() )
-				
-				// Verifica se a faixa de data a ser analisada é maior ou igual a data de inclusao do produto no sistema
-				nDUteis += countDays( aPerProd[nX][02], aPerProd[nX][03] )
-				
-				cQuery := "SELECT COALESCE(SUM(D2.D2_QUANT),0) AS QTD_TOTAL FROM "+ RetSqlName( 'SD2' ) +" D2 " + CEOL
-				
-				cQuery += "INNER JOIN "+ RetSqlName( 'SF4' ) +" F4 " + CEOL
-				cQuery += " ON F4.F4_FILIAL  = '"+ FWxFilial( 'SF4' ) +"' "+ CEOL
-				cQuery += "AND F4.F4_CODIGO  = D2.D2_TES "+ CEOL
-				cQuery += "AND F4.F4_ESTOQUE = 'S' "+ CEOL
-				cQuery += "AND F4.D_E_L_E_T_ = ' ' "+ CEOL
-
-				cQuery += "WHERE D2.D2_FILIAL  = '"+ FWxFilial( 'SD2' ) +"' "+ CEOL
-				cQuery += "  AND D2.D2_TIPO    = 'N' "+ CEOL
-				cQuery += "  AND D2.D2_EMISSAO BETWEEN '"+ DtoS( aPerProd[nX][02] ) +"' AND '"+ DtoS( aPerProd[nX][03] ) +"' " + CEOL
-				if ! lTrfFil
-					cQuery += "  AND D2.D2_CLIENTE <> '"+ PADR(SubStr( SM0->M0_CGC, 01, 08 ),TAMSX3('C5_CLIENTE')[1], ' ' ) +"' " + CEOL
-				endif
-				cQuery += "  AND D2.D2_COD     = '"+ aPerProd[nX][01] +"' " + CEOL
-				cQuery += "  AND D2.D_E_L_E_T_ = ' ' " + CEOL
-				
-				if lPEPNC08
-					// Ponto de entrada que permite modificar a query de análise das movimentações de saída para o produto
-					// Parâmetro 1: Indica o local da chamada do PE, sendo 1- contagem dos registros de saída do produto
-					//													   2- contagem dos registros de movimentações internas ou OPs para o produto
-					//													   3- soma das quantidades de saída do produto
-					//													   4- soma das quantidades de movimentações internas ou OPs para o produto
-					//													   5- conta quantos documentos de saída foram emitidos no período
-					//													   6- conta quantas movimentações ou ops foram feitas no período
-					// Parâmetro 2: Indica a query padrão do sistema
-					// Retorno esperado: query completa modificada ou incrementada pronta para execução
-					xPEPNC08 := ExecBlock( 'PEPNC08', .F., .F., { 3, cQuery } )
-					if ValType( xPEPNC08 ) == 'C' .and. ! Empty( xPEPNC08 )
-						cQuery := xPEPNC08
-					endif
-				endif
-				DBUseArea( .T., 'TOPCONN', TcGenQry(,,cQuery), "MEDCON", .F., .T. )
-				nVenda += MEDCON->QTD_TOTAL
-				MEDCON->( DbCloseArea() )
-				
-				cQuery := "SELECT COALESCE(SUM(D3.D3_QUANT),0) AS QTD_TOTAL FROM "+ RetSqlName( 'SD3' ) +" D3 " + CEOL
-				cQuery += "WHERE D3.D3_FILIAL = '"+ FWxFilial( 'SD3' ) +"' "+ CEOL
-				cQuery += "  AND D3.D3_COD    = '"+ aPerProd[nX][01] +"' " + CEOL
-				cQuery += "  AND D3.D3_EMISSAO BETWEEN '"+ DtoS( aPerProd[nX][02] ) +"' AND '"+ DtoS( aPerProd[nX][03] ) +"' " + CEOL
-				cQuery += "  AND D3.D3_TM     >= '500' " + CEOL
-				cQuery += "  AND ( D3.D3_OP     <> '"+ Space( TAMSX3('D3_OP')[1] ) +"' OR D3.D3_CF = 'RE0' ) " + CEOL
-				cQuery += "  AND D3.D3_ESTORNO = ' ' " + CEOL
-				cQuery += "  AND D3.D_E_L_E_T_ = ' ' " 
-
-				if lPEPNC08
-					// Ponto de entrada que permite modificar a query de análise das movimentações de saída para o produto
-					// Parâmetro 1: Indica o local da chamada do PE, sendo 1- contagem dos registros de saída do produto
-					//													   2- contagem dos registros de movimentações internas ou OPs para o produto
-					//													   3- soma das quantidades de saída do produto
-					//													   4- soma das quantidades de movimentações internas ou OPs para o produto
-					//													   5- conta quantos documentos de saída foram emitidos no período
-					//													   6- conta quantas movimentações ou ops foram feitas no período
-					// Parâmetro 2: Indica a query padrão do sistema
-					// Retorno esperado: query completa modificada ou incrementada pronta para execução
-					xPEPNC08 := ExecBlock( 'PEPNC08', .F., .F., { 4, cQuery } )
-					if ValType( xPEPNC08 ) == 'C' .and. ! Empty( xPEPNC08 )
-						cQuery := xPEPNC08
-					endif
-				endif
-				DBUseArea( .T., 'TOPCONN', TcGenQry(,,cQuery), "MEDCON", .F., .T. )
-				nConsumo += MEDCON->QTD_TOTAL
-				MEDCON->( DbCloseArea() )
-
-			next nX
-
-			cQuery := "SELECT "+ CEOL
-			cQuery += "	 COUNT( DISTINCT CONCAT( D2.D2_DOC, D2.D2_SERIE ) ) QTD_PEDIDOS "+ CEOL
-			cQuery += "FROM "+ RetSqlName( "SD2" ) +" D2 " + CEOL
-			cQuery += "WHERE D2.D2_FILIAL  = '"+ FWxFilial( 'SD2' ) +"' " + CEOL
-			cQuery += "  AND D2.D2_TIPO    = 'N' "+ CEOL
-			cQuery += "  AND D2.D2_EMISSAO BETWEEN '"+ DtoS( aPerProd[len(aPerProd)][02] ) +"' AND '"+ DtoS( aPerProd[1][03] ) +"' " + CEOL
-			if ! lTrfFil
-				cQuery += "  AND D2.D2_CLIENTE <> '"+ PADR( SubStr( SM0->M0_CGC, 01, 08 ), TAMSX3('D2_CLIENTE')[1], ' ' ) +"' " + CEOL
 			endif
-			cQuery += "  AND D2.D_E_L_E_T_ = ' ' " + CEOL
-			
-			if lPEPNC08
-				// Ponto de entrada que permite modificar a query de análise das movimentações de saída para o produto
-				// Parâmetro 1: Indica o local da chamada do PE, sendo 1- contagem dos registros de saída do produto
-				//													   2- contagem dos registros de movimentações internas ou OPs para o produto
-				//													   3- soma das quantidades de saída do produto
-				//													   4- soma das quantidades de movimentações internas ou OPs para o produto
-				//													   5- conta quantos documentos de saída foram emitidos no período
-				//													   6- conta quantas movimentações ou ops foram feitas no período
-				// Parâmetro 2: Indica a query padrão do sistema
-				// Retorno esperado: query completa modificada ou incrementada pronta para execução
-				xPEPNC08 := ExecBlock( 'PEPNC08', .F., .F., { 5, cQuery } )
-				if ValType( xPEPNC08 ) == 'C' .and. ! Empty( xPEPNC08 )
-					cQuery := xPEPNC08
-				endif
-			endif
-			DBUseArea( .T., 'TOPCONN', TcGenQry(,,cQuery), 'INDPRO', .F., .T. )
-			if !INDPRO->( EOF() )
-				nQtdDoc  += INDPRO->QTD_PEDIDOS
-			EndIf
-			INDPRO->( DBCloseArea() )
-
-			// Conta quantas vezes a MP apareceu em Ordens de Produção
-			cQuery := "SELECT "
-			if TCGetDB() $ "ORACLE" 
-				cQuery += "  COUNT( DISTINCT SUBSTR( D3.D3_OP,01, 06 ) ) QTD_OP " + CEOL
-			else
-				cQuery += "  COUNT( DISTINCT SUBSTRING( D3.D3_OP,01, 06 ) ) QTD_OP " + CEOL
-			endif
-			cQuery += "FROM "+ RetSqlName( 'SD3' ) +" D3 " + CEOL
-			cQuery += "WHERE D3.D3_FILIAL  = '"+ FWxFilial( 'SD3' ) +"' "+ CEOL
-			cQuery += "  AND D3.D3_EMISSAO BETWEEN '"+ DtoS( aPerProd[len(aPerProd)][02] ) +"' AND '"+ DtoS( aPerProd[1][03] ) +"' " + CEOL
-			cQuery += "  AND D3.D3_TM     >= '500' " + CEOL
-			cQuery += "  AND D3.D3_OP     <> '"+ Space( TAMSX3('D3_OP')[1] ) +"' " + CEOL
-			cQuery += "  AND D3.D3_ESTORNO = ' ' " + CEOL
-			cQuery += "  AND D3.D_E_L_E_T_ = ' ' "
-			
-			if lPEPNC08
-				// Ponto de entrada que permite modificar a query de análise das movimentações de saída para o produto
-				// Parâmetro 1: Indica o local da chamada do PE, sendo 1- contagem dos registros de saída do produto
-				//													   2- contagem dos registros de movimentações internas ou OPs para o produto
-				//													   3- soma das quantidades de saída do produto
-				//													   4- soma das quantidades de movimentações internas ou OPs para o produto
-				//													   5- conta quantos documentos de saída foram emitidos no período
-				//													   6- conta quantas movimentações ou ops foram feitas no período
-				// Parâmetro 2: Indica a query padrão do sistema
-				// Retorno esperado: query completa modificada ou incrementada pronta para execução
-				xPEPNC08 := ExecBlock( 'PEPNC08', .F., .F., { 6, cQuery } )
-				if ValType( xPEPNC08 ) == 'C' .and. ! Empty( xPEPNC08 )
-					cQuery := xPEPNC08
-				endif
-			endif
-			DBUseArea( .T., 'TOPCONN', TcGenQry(,,cQuery), 'INDPRO', .F., .T. )
-			if !INDPRO->( EOF() )
-				nQtdDoc  += INDPRO->QTD_OP
-			EndIf
-			INDPRO->( DBCloseArea() )
 			
 			// Calcula o índice de giro do produto
 			nIndGir := Round(((nQtdProd / nQtdDoc)*100),6 )
 
 			// Venda e consumo
 			if (nVenda + nConsumo) != 0
-				nConMed := Round((nVenda+nConsumo) / iif( nDUteis == 0, 1, nDUteis ),4)
+				if nDUteis == 0
+					nConMed := Round((nVenda+nConsumo) / 1,4)
+				else
+					nConMed := Round((nVenda+nConsumo) / nDUteis,4)
+				endif
 			Else
 				nConMed := 0.0001
 			EndIf
@@ -5937,7 +6075,11 @@ User Function GMINDPRO( aParam )
 			endif
 
     		// Calcula duração do estoque do produto baseado nas variáveis: consumo médio, estoque disponível, quantidade já comprada e data de previsão de entrega do fornecedor
-			nQtdAtual := iif( aConfig[24] == "S", nEstoque - PRDTMP->EMPENHO, nEstoque ) 
+			if aConfig[24] == "S"
+				nQtdAtual := nEstoque - PRDTMP->EMPENHO
+			else
+				nQtdAtual := nEstoque
+			endif
     		nPrjEst := Round( ( nQtdAtual + PRDTMP->QTDCOMP )/nConMed, 0 ) 
     		if nPrjEst > 999 
     			nPrjEst := 999
@@ -5976,7 +6118,11 @@ User Function GMINDPRO( aParam )
     		If PRDTMP->QTDCOMP > 0 .and. StoD( PRDTMP->PRVENT ) < dHoje
 	    		
 	    		// Verifica a possibilidade de ruptura de acordo com a configuração (dias úteis ou dias corridos)
-				nQtdAtual := iif( aConfig[24] == "S", nEstoque - PRDTMP->EMPENHO, nEstoque ) 
+				if aConfig[24] == "S"
+					nQtdAtual := nEstoque - PRDTMP->EMPENHO
+				else
+					nQtdAtual := nEstoque
+				endif
 				if Round( nQtdAtual/nConMed, 0 ) < aConfig[01] 
 					if aConfig[15] == "C"
 		    			dPrjAux := dHoje + Round( nQtdAtual/nConMed, 0 )
@@ -5992,13 +6138,17 @@ User Function GMINDPRO( aParam )
 	    		EndIf
 	    		
 	    		lEvento := .T.
-	    		cMsg    := "Compra com atraso na entrega"+; 
-	    		           iif( Round( nQtdAtual/nConMed, 0 ) > aConfig[01],; 
-	    		           ', mas sem risco de ruptura pelos próximos '+ AllTrim( cValToChar( aConfig[01] ) ) +' dias',; 
-	    		           iif( Round( nQtdAtual/nConMed, 0 ) == 0,; 
-	    		           ' e está sem estoque disponível',; 
-	    		           iif( Round( nQtdAtual/nConMed, 0 ) < aConfig[01],; 
-	    		           '. Risco de ruptura em '+ DtoC( dPrjAux ), '' ) ) ) +"."
+	    		nRoundAux := Round( nQtdAtual/nConMed, 0 )
+	    		if nRoundAux > aConfig[01]
+	    			cSufAux := ', mas sem risco de ruptura pelos próximos '+ AllTrim( cValToChar( aConfig[01] ) ) +' dias'
+	    		elseif nRoundAux == 0
+	    			cSufAux := ' e está sem estoque disponível'
+	    		elseif nRoundAux < aConfig[01]
+	    			cSufAux := '. Risco de ruptura em '+ DtoC( dPrjAux )
+	    		else
+	    			cSufAux := ''
+	    		endif
+	    		cMsg    := "Compra com atraso na entrega"+ cSufAux +"."
 				if Round( nQtdAtual/nConMed, 0 ) < aConfig[01]
 					lWF := .T.
 				endif
@@ -6031,7 +6181,7 @@ User Function GMINDPRO( aParam )
 						 PRDTMP->ORDPROD /* nQtdPrd */ }
 
     		// Calcula necessidade de compra do material
-			cPerfil := RetField( 'SB1', 1, FWxFilial( 'SB1' ) + PRDTMP->B1_COD, 'B1_X_PERCA' )
+			cPerfil := SB1->B1_X_PERCA
 			if Empty( cPerfil )		// Quando vazio, usa o perfil default
 				cPerfil := cPerfDef
 			endif
@@ -6059,9 +6209,19 @@ User Function GMINDPRO( aParam )
 			( cZB3 )->( FieldPut( FieldPos( 'QTDCOM' ), PRDTMP->QTDCOMP ) )
 			( cZB3 )->( FieldPut( FieldPos( 'LDTIME' ), nLeadTime ) )
 			( cZB3 )->( FieldPut( FieldPos( 'PRVENT' ), StoD( PRDTMP->PRVENT ) ) )
-			( cZB3 )->( FieldPut( FieldPos( 'AVISO'  ), iif( lEvento, 'S','N' ) ) )
+			if lEvento
+				cAvisoAux := 'S'
+			else
+				cAvisoAux := 'N'
+			endif
+			( cZB3 )->( FieldPut( FieldPos( 'AVISO'  ), cAvisoAux ) )
 			( cZB3 )->( FieldPut( FieldPos( 'MSG'    ), cMsg ) )	
-			( cZB3 )->( FieldPut( FieldPos( 'JUSTIF' ), iif( "IGNORA" $ cMsg, aConfig[18], Space( 3 ) ) ) )
+			if "IGNORA" $ cMsg
+				cJustAux := aConfig[18]
+			else
+				cJustAux := Space( 3 )
+			endif
+			( cZB3 )->( FieldPut( FieldPos( 'JUSTIF' ), cJustAux ) )
 			( cZB3 )->( FieldPut( FieldPos( 'CM12M' ), nCM12M ) )
 			( cZB3 )->( FieldPut( FieldPos( 'CM06M' ), nCM06M ) )
 			( cZB3 )->( FieldPut( FieldPos( 'CM03M' ), nCM03M ) )
@@ -6079,9 +6239,14 @@ User Function GMINDPRO( aParam )
 
 			// Adiciona no vetor de workflow para notificar comprador quanto a necessidade de atenção
 			if lWF .and. ( len( aDataWF ) == 0 .or. aScan( aDataWF, {|x| x[1] == PRDTMP->B1_COD } ) == 0 )
+				if aConfig[15] == 'C'
+					cTpDiaAux := 'Corridos'
+				else
+					cTpDiaAux := 'Úteis'
+				endif
 				aAdd( aDataWF, { PRDTMP->B1_COD,;
 								 nConMed,;
-								 iif( aConfig[15] == 'C', 'Corridos', 'Úteis' ),;
+								 cTpDiaAux,;
 								 nPrjEst,;
 								 nQtdCom,;
 								 nEstoque,; 
@@ -6228,9 +6393,725 @@ User Function GMINDPRO( aParam )
 		RESET ENVIRONMENT
 	EndIf
 	
+	// Contagem de tempo de processamento (fim) - calcula o tempo total decorrido entre inicio e
+	// termino, tratando corretamente a virada de dia caso a execucao ultrapasse a meia-noite
+	dDtFim    := Date()
+	nSegFim   := Seconds()
+	nTotalSeg := ( dDtFim - dDtIni ) * 86400 + ( nSegFim - nSegIni )
+	nHoras    := Int( nTotalSeg / 3600 )
+	nMinutos  := Int( ( nTotalSeg % 3600 ) / 60 )
+	nSegRest  := Int( nTotalSeg % 60 )
+	cTmpProc  := StrZero( nHoras, 2 ) +':'+ StrZero( nMinutos, 2 ) +':'+ StrZero( nSegRest, 2 )
+
+	ConOut( FunName() + ' - ' + DtoC( dHoje ) + ' - ' + Time() + ' - ' + 'TEMPO TOTAL DE PROCESSAMENTO: '+ cTmpProc +' (hh:mm:ss)' )
+
 	ConOut( FunName() + ' - ' + DtoC( dHoje ) + ' - ' + Time() + ' - ' + 'FIM DA ROTINA DE RECALCULO DE INDICES DO PRODUTO!' )
 	
 Return ( Nil )
+
+
+/*/{Protheus.doc} fSepLote
+Classifica os produtos do cursor PRDTMP em dois grupos, antes do laco principal de calculo (Fase 3):
+caminho em lote (agregacoes calculadas via query unica com GROUP BY) e caminho legado (mantido
+identico ao codigo original, produto a produto). Um produto vai para o caminho legado quando tem
+B1_CODANT preenchido (multiplos sub-periodos por codigo anterior) OU quando a data de inclusao
+efetiva do produto (getDatInc) for posterior ao inicio do periodo padrao de analise (aPerAna[01]) -
+ou seja, produto cadastrado recentemente, cuja janela real de analise e menor que a padrao. Nao
+executa nenhuma query contra SD2/SD3 (apenas leitura de campos do SB1 ja posicionado e, quando
+necessario, do log de inclusao via getDatInc), portanto e uma varredura leve em relacao ao volume
+de queries eliminado pelo caminho em lote.
+@type function
+@version 1.0
+@author Jean Carlos Pandolfo Saggin
+@since 16/09/2026
+@param aPerAna, array, periodo padrao de analise (aPerAna[01]=inicio, aPerAna[02]=fim)
+@param aProdLot, array, (saida, por referencia) codigos de produto classificados no caminho em lote
+@param aProdLeg, array, (saida, por referencia) codigos de produto classificados no caminho legado
+@param hIsLote, object, (saida) hash cProduto -> .T. para checagem O(1) dentro do laco principal
+/*/
+static function fSepLote( aPerAna, aProdLot, aProdLeg, hIsLote )
+
+	local cCodAtu  := "" as character
+	local dDatIniPr as date
+
+	PRDTMP->( DbGoTop() )
+	While ! PRDTMP->( EOF() )
+
+		SB1->( DbGoTo( PRDTMP->RECSB1 ) )
+		cCodAtu := AllTrim( PRDTMP->B1_COD )
+
+		if Empty( SB1->B1_CODANT )
+			dDatIniPr := getDatInc( aPerAna[01] )
+			if dDatIniPr == aPerAna[01]
+				aAdd( aProdLot, cCodAtu )
+				HMSet( hIsLote, cCodAtu, .T. )
+			else
+				aAdd( aProdLeg, cCodAtu )
+			endif
+		else
+			aAdd( aProdLeg, cCodAtu )
+		endif
+
+		PRDTMP->( DbSkip() )
+	EndDo
+	PRDTMP->( DbGoTop() )
+
+return Nil
+
+/*/{Protheus.doc} fMonLotSD
+Executa em lote (paginado em blocos de ate 500 produtos - MV_X_PNC* nao se aplica aqui, tamanho fixo
+por design, ver plano de performance de GMINDPRO) as 6 agregacoes de SD2/SD3 (contagem de saidas,
+contagem de OPs/consumo, soma de venda, soma de consumo, pedidos distintos e OPs distintas) para os
+produtos classificados no caminho em lote (Fase 3), substituindo as mesmas 6 queries que antes rodavam
+uma vez por produto/periodo (ate 14-16 queries por produto). Aciona o PEPNC08 (quando implementado)
+uma vez por bloco e por metrica, usando os codigos 11 a 16 (modo lote) - distintos dos codigos 1 a 6
+usados pelo caminho legado - preservando o ponto de entrada para clientes que customizam a analise de
+movimentacoes atipicas/peculiares (ex.: desconsiderar tipos de movimento de inventario na SD3).
+@type function
+@version 1.0
+@author Jean Carlos Pandolfo Saggin
+@since 16/09/2026
+@param aProdLot, array, codigos de produto classificados no caminho em lote
+@param aPerAna, array, periodo padrao de analise (aPerAna[01]=inicio, aPerAna[02]=fim)
+@param lTrfFil, logical, indica se a filial considera movimentacoes intra-grupo no calculo
+@param lPEPNC08, logical, indica se o ponto de entrada PEPNC08 esta implementado
+@param hQtdSai, object, hash de saida - contagem de saidas SD2 por produto
+@param hQtdOp, object, hash de saida - contagem de OPs/consumo SD3 por produto
+@param hVenda, object, hash de saida - soma de venda SD2 por produto
+@param hConsum, object, hash de saida - soma de consumo SD3 por produto
+@param hPedido, object, hash de saida - pedidos distintos SD2 por produto
+@param hOps, object, hash de saida - OPs distintas SD3 por produto
+/*/
+static function fMonLotSD( aProdLot, aPerAna, lTrfFil, lPEPNC08, hQtdSai, hQtdOp, hVenda, hConsum, hPedido, hOps )
+
+	local nTamD2Cl := TAMSX3('D2_CLIENTE')[1]
+	local nTamC5Cl := TAMSX3('C5_CLIENTE')[1]
+	local nTamD3Op := TAMSX3('D3_OP')[1]
+	local cCGCMtz  := SubStr( SM0->M0_CGC, 01, 08 )
+	local cDtIni   := DtoS( aPerAna[01] )
+	local cDtFim   := DtoS( aPerAna[02] )
+	local nBloco   := 500 as numeric
+	local nTotal   := Len( aProdLot ) as numeric
+	local nIni     := 0 as numeric
+	local nFim     := 0 as numeric
+	local aBloco   := {} as array
+	local cInList  := "" as character
+	local cQuery   := "" as character
+	local xPEPNC08 := Nil
+	local nI       := 0 as numeric
+	local cSubOp   := "" as character
+
+	if TCGetDB() $ "ORACLE"
+		cSubOp := "SUBSTR"
+	else
+		cSubOp := "SUBSTRING"
+	endif
+
+	for nIni := 1 to nTotal step nBloco
+
+		nFim := nIni + nBloco - 1
+		if nFim > nTotal
+			nFim := nTotal
+		endif
+
+		aBloco  := {}
+		cInList := ""
+		for nI := nIni to nFim
+			aAdd( aBloco, aProdLot[nI] )
+			if ! Empty( cInList )
+				cInList += ","
+			endif
+			cInList += "'"+ aProdLot[nI] +"'"
+		next nI
+
+		// Metrica 1/6 - contagem de saidas SD2 (equivalente ao codigo PEPNC08 = 1 no caminho legado)
+		cQuery := "SELECT "+ CEOL
+		cQuery += "  D2.D2_COD, COUNT(*) QTD_PRODUTO "+ CEOL
+		cQuery += "FROM "+ RetSqlName( "SD2" ) +" D2 "+ CEOL
+		cQuery += "WHERE D2.D2_FILIAL  = '"+ FWxFilial( 'SD2' ) +"' "+ CEOL
+		cQuery += "  AND D2.D2_TIPO    = 'N' "+ CEOL
+		cQuery += "  AND D2.D2_EMISSAO BETWEEN '"+ cDtIni +"' AND '"+ cDtFim +"' "+ CEOL
+		if ! lTrfFil
+			cQuery += "  AND D2.D2_CLIENTE <> '"+ PADR( cCGCMtz, nTamD2Cl, ' ' ) +"' "+ CEOL
+		endif
+		cQuery += "  AND D2.D2_COD IN ( "+ cInList +" ) "+ CEOL
+		cQuery += "  AND D2.D_E_L_E_T_ = ' ' "+ CEOL
+		cQuery += "GROUP BY D2.D2_COD "
+
+		if lPEPNC08
+			xPEPNC08 := ExecBlock( 'PEPNC08', .F., .F., { 11, cQuery, aBloco } )
+			if ValType( xPEPNC08 ) == 'C' .and. ! Empty( xPEPNC08 )
+				cQuery := xPEPNC08
+			endif
+		endif
+
+		DBUseArea( .T., 'TOPCONN', TcGenQry(,,cQuery), 'LOTQ1', .F., .T. )
+		LOTQ1->( DbGoTop() )
+		While ! LOTQ1->( EOF() )
+			HMSet( hQtdSai, AllTrim( LOTQ1->D2_COD ), LOTQ1->QTD_PRODUTO )
+			LOTQ1->( DbSkip() )
+		EndDo
+		LOTQ1->( DBCloseArea() )
+
+		// Metrica 2/6 - contagem de OPs/consumo SD3 (codigo PEPNC08 = 2 no caminho legado)
+		cQuery := "SELECT "+ CEOL
+		cQuery += "  D3.D3_COD, COUNT(*) QTD_PRODUTO "+ CEOL
+		cQuery += "FROM "+ RetSqlName( 'SD3' ) +" D3 "+ CEOL
+		cQuery += "WHERE D3.D3_FILIAL  = '"+ FWxFilial( 'SD3' ) +"' "+ CEOL
+		cQuery += "  AND D3.D3_EMISSAO BETWEEN '"+ cDtIni +"' AND '"+ cDtFim +"' "+ CEOL
+		cQuery += "  AND D3.D3_TM     >= '500' "+ CEOL
+		cQuery += "  AND ( D3.D3_OP     <> '"+ Space( nTamD3Op ) +"' OR D3.D3_CF = 'RE0' ) "+ CEOL
+		cQuery += "  AND D3.D3_ESTORNO = ' ' "+ CEOL
+		cQuery += "  AND D3.D3_COD IN ( "+ cInList +" ) "+ CEOL
+		cQuery += "  AND D3.D_E_L_E_T_ = ' ' "+ CEOL
+		cQuery += "GROUP BY D3.D3_COD "
+
+		if lPEPNC08
+			xPEPNC08 := ExecBlock( 'PEPNC08', .F., .F., { 12, cQuery, aBloco } )
+			if ValType( xPEPNC08 ) == 'C' .and. ! Empty( xPEPNC08 )
+				cQuery := xPEPNC08
+			endif
+		endif
+
+		DBUseArea( .T., 'TOPCONN', TcGenQry(,,cQuery), 'LOTQ2', .F., .T. )
+		LOTQ2->( DbGoTop() )
+		While ! LOTQ2->( EOF() )
+			HMSet( hQtdOp, AllTrim( LOTQ2->D3_COD ), LOTQ2->QTD_PRODUTO )
+			LOTQ2->( DbSkip() )
+		EndDo
+		LOTQ2->( DBCloseArea() )
+
+		// Metrica 3/6 - soma de venda SD2, com o mesmo INNER JOIN SF4 do caminho legado (codigo PEPNC08 = 3)
+		cQuery := "SELECT "+ CEOL
+		cQuery += "  D2.D2_COD, COALESCE(SUM(D2.D2_QUANT),0) QTD_TOTAL "+ CEOL
+		cQuery += "FROM "+ RetSqlName( 'SD2' ) +" D2 "+ CEOL
+		cQuery += "INNER JOIN "+ RetSqlName( 'SF4' ) +" F4 "+ CEOL
+		cQuery += " ON F4.F4_FILIAL  = '"+ FWxFilial( 'SF4' ) +"' "+ CEOL
+		cQuery += "AND F4.F4_CODIGO  = D2.D2_TES "+ CEOL
+		cQuery += "AND F4.F4_ESTOQUE = 'S' "+ CEOL
+		cQuery += "AND F4.D_E_L_E_T_ = ' ' "+ CEOL
+		cQuery += "WHERE D2.D2_FILIAL  = '"+ FWxFilial( 'SD2' ) +"' "+ CEOL
+		cQuery += "  AND D2.D2_TIPO    = 'N' "+ CEOL
+		cQuery += "  AND D2.D2_EMISSAO BETWEEN '"+ cDtIni +"' AND '"+ cDtFim +"' "+ CEOL
+		if ! lTrfFil
+			cQuery += "  AND D2.D2_CLIENTE <> '"+ PADR( cCGCMtz, nTamC5Cl, ' ' ) +"' "+ CEOL
+		endif
+		cQuery += "  AND D2.D2_COD IN ( "+ cInList +" ) "+ CEOL
+		cQuery += "  AND D2.D_E_L_E_T_ = ' ' "+ CEOL
+		cQuery += "GROUP BY D2.D2_COD "
+
+		if lPEPNC08
+			xPEPNC08 := ExecBlock( 'PEPNC08', .F., .F., { 13, cQuery, aBloco } )
+			if ValType( xPEPNC08 ) == 'C' .and. ! Empty( xPEPNC08 )
+				cQuery := xPEPNC08
+			endif
+		endif
+
+		DBUseArea( .T., 'TOPCONN', TcGenQry(,,cQuery), 'LOTQ3', .F., .T. )
+		LOTQ3->( DbGoTop() )
+		While ! LOTQ3->( EOF() )
+			HMSet( hVenda, AllTrim( LOTQ3->D2_COD ), LOTQ3->QTD_TOTAL )
+			LOTQ3->( DbSkip() )
+		EndDo
+		LOTQ3->( DBCloseArea() )
+
+		// Metrica 4/6 - soma de consumo SD3 (codigo PEPNC08 = 4)
+		cQuery := "SELECT "+ CEOL
+		cQuery += "  D3.D3_COD, COALESCE(SUM(D3.D3_QUANT),0) QTD_TOTAL "+ CEOL
+		cQuery += "FROM "+ RetSqlName( 'SD3' ) +" D3 "+ CEOL
+		cQuery += "WHERE D3.D3_FILIAL = '"+ FWxFilial( 'SD3' ) +"' "+ CEOL
+		cQuery += "  AND D3.D3_COD    IN ( "+ cInList +" ) "+ CEOL
+		cQuery += "  AND D3.D3_EMISSAO BETWEEN '"+ cDtIni +"' AND '"+ cDtFim +"' "+ CEOL
+		cQuery += "  AND D3.D3_TM     >= '500' "+ CEOL
+		cQuery += "  AND ( D3.D3_OP     <> '"+ Space( nTamD3Op ) +"' OR D3.D3_CF = 'RE0' ) "+ CEOL
+		cQuery += "  AND D3.D3_ESTORNO = ' ' "+ CEOL
+		cQuery += "  AND D3.D_E_L_E_T_ = ' ' "
+		cQuery += "GROUP BY D3.D3_COD "
+
+		if lPEPNC08
+			xPEPNC08 := ExecBlock( 'PEPNC08', .F., .F., { 14, cQuery, aBloco } )
+			if ValType( xPEPNC08 ) == 'C' .and. ! Empty( xPEPNC08 )
+				cQuery := xPEPNC08
+			endif
+		endif
+
+		DBUseArea( .T., 'TOPCONN', TcGenQry(,,cQuery), 'LOTQ4', .F., .T. )
+		LOTQ4->( DbGoTop() )
+		While ! LOTQ4->( EOF() )
+			HMSet( hConsum, AllTrim( LOTQ4->D3_COD ), LOTQ4->QTD_TOTAL )
+			LOTQ4->( DbSkip() )
+		EndDo
+		LOTQ4->( DBCloseArea() )
+
+		// Metrica 5/6 - pedidos distintos SD2 (codigo PEPNC08 = 5)
+		cQuery := "SELECT "+ CEOL
+		cQuery += "  D2.D2_COD, COUNT( DISTINCT CONCAT( D2.D2_DOC, D2.D2_SERIE ) ) QTD_PEDIDOS "+ CEOL
+		cQuery += "FROM "+ RetSqlName( "SD2" ) +" D2 "+ CEOL
+		cQuery += "WHERE D2.D2_FILIAL  = '"+ FWxFilial( 'SD2' ) +"' "+ CEOL
+		cQuery += "  AND D2.D2_TIPO    = 'N' "+ CEOL
+		cQuery += "  AND D2.D2_EMISSAO BETWEEN '"+ cDtIni +"' AND '"+ cDtFim +"' "+ CEOL
+		if ! lTrfFil
+			cQuery += "  AND D2.D2_CLIENTE <> '"+ PADR( cCGCMtz, nTamD2Cl, ' ' ) +"' "+ CEOL
+		endif
+		cQuery += "  AND D2.D2_COD IN ( "+ cInList +" ) "+ CEOL
+		cQuery += "  AND D2.D_E_L_E_T_ = ' ' "+ CEOL
+		cQuery += "GROUP BY D2.D2_COD "
+
+		if lPEPNC08
+			xPEPNC08 := ExecBlock( 'PEPNC08', .F., .F., { 15, cQuery, aBloco } )
+			if ValType( xPEPNC08 ) == 'C' .and. ! Empty( xPEPNC08 )
+				cQuery := xPEPNC08
+			endif
+		endif
+
+		DBUseArea( .T., 'TOPCONN', TcGenQry(,,cQuery), 'LOTQ5', .F., .T. )
+		LOTQ5->( DbGoTop() )
+		While ! LOTQ5->( EOF() )
+			HMSet( hPedido, AllTrim( LOTQ5->D2_COD ), LOTQ5->QTD_PEDIDOS )
+			LOTQ5->( DbSkip() )
+		EndDo
+		LOTQ5->( DBCloseArea() )
+
+		// Metrica 6/6 - OPs distintas SD3 (codigo PEPNC08 = 6)
+		cQuery := "SELECT "+ CEOL
+		cQuery += "  D3.D3_COD, COUNT( DISTINCT "+ cSubOp +"(D3.D3_OP,1,6) ) QTD_OP "+ CEOL
+		cQuery += "FROM "+ RetSqlName( 'SD3' ) +" D3 "+ CEOL
+		cQuery += "WHERE D3.D3_FILIAL  = '"+ FWxFilial( 'SD3' ) +"' "+ CEOL
+		cQuery += "  AND D3.D3_COD     IN ( "+ cInList +" ) "+ CEOL
+		cQuery += "  AND D3.D3_EMISSAO BETWEEN '"+ cDtIni +"' AND '"+ cDtFim +"' "+ CEOL
+		cQuery += "  AND D3.D3_TM     >= '500' "+ CEOL
+		cQuery += "  AND D3.D3_OP     <> '"+ Space( nTamD3Op ) +"' "+ CEOL
+		cQuery += "  AND D3.D3_ESTORNO = ' ' "+ CEOL
+		cQuery += "  AND D3.D_E_L_E_T_ = ' ' "
+		cQuery += "GROUP BY D3.D3_COD "
+
+		if lPEPNC08
+			xPEPNC08 := ExecBlock( 'PEPNC08', .F., .F., { 16, cQuery, aBloco } )
+			if ValType( xPEPNC08 ) == 'C' .and. ! Empty( xPEPNC08 )
+				cQuery := xPEPNC08
+			endif
+		endif
+
+		DBUseArea( .T., 'TOPCONN', TcGenQry(,,cQuery), 'LOTQ6', .F., .T. )
+		LOTQ6->( DbGoTop() )
+		While ! LOTQ6->( EOF() )
+			HMSet( hOps, AllTrim( LOTQ6->D3_COD ), LOTQ6->QTD_OP )
+			LOTQ6->( DbSkip() )
+		EndDo
+		LOTQ6->( DBCloseArea() )
+
+	next nIni
+
+return Nil
+
+/*/{Protheus.doc} fMelhorFor
+Aplica, sobre a lista de candidatos de fornecedor ja resolvida em lote (hFornLt - Fase 3, ver
+fMonLotFor/fMonLotPrc/fMonLotFb), o mesmo criterio de ordenacao usado hoje em betterSupplier (aConfig[20]
+== '1' -> menor preco, senao menor prazo medio de entrega), sem nenhuma query adicional.
+@type function
+@version 1.0
+@author Jean Carlos Pandolfo Saggin
+@since 16/09/2026
+@param aCandidat, array, candidatos do produto em hFornLt - cada item { cFornece, cLoja, nPrazo, nPreco }
+@param aConfig, array, vetor de configuracoes da central de compras
+@return array, aRet[ cBetterSupplier, cBetterStore ]
+/*/
+static function fMelhorFor( aCandidat, aConfig )
+
+	local aRet    := {"",""} as array
+	local aRegs   := {} as array
+	local nI      := 0  as numeric
+	local nPrcAux := 0  as numeric
+
+	for nI := 1 to Len( aCandidat )
+		if aCandidat[nI][4] == 0
+			nPrcAux := 999999999.99
+		else
+			nPrcAux := aCandidat[nI][4]
+		endif
+		aAdd( aRegs, { aCandidat[nI][1], aCandidat[nI][2], nPrcAux, aCandidat[nI][3] } )
+	next nI
+
+	if Len( aRegs ) > 0
+		if aConfig[20] == '1'
+			aSort( aRegs,,, { |x, y| x[3] < y[3] } )
+		else
+			aSort( aRegs,,, { |x, y| x[4] < y[4] } )
+		endif
+		aRet := { aRegs[1][1], aRegs[1][2] }
+	endif
+
+return aRet
+
+/*/{Protheus.doc} fMonLotFor
+Executa em lote (paginado em blocos de ate 500 produtos) a query equivalente a qryAvgLt (candidatos de
+fornecedor e prazo medio de entrega), para todos os produtos do caminho em lote que nao sao PA e nao
+estao em modo "Fabricante" (aConfig[22] <> '1' - esse modo continua resolvido direto por produto, sem
+custo de query, ver GMINDPRO). Substitui a chamada de qryAvgLt/REGFOR que antes rodava uma vez por
+produto (Fase 3, ver plano de performance de GMINDPRO).
+@type function
+@version 1.0
+@author Jean Carlos Pandolfo Saggin
+@since 16/09/2026
+@param aProdFor, array, codigos de produto do caminho em lote elegiveis a resolucao de fornecedor
+@param cFornSM0, character, lista de fornecedores do mesmo grupo economico a desconsiderar (montaSM0)
+@param hFornLt, object, hash de saida - cProduto -> array de candidatos { cFornece, cLoja, nPrazo, nPreco }
+/*/
+static function fMonLotFor( aProdFor, cFornSM0, hFornLt )
+
+	local nBloco   := 500 as numeric
+	local nTotal   := Len( aProdFor ) as numeric
+	local nIni     := 0 as numeric
+	local nFim     := 0 as numeric
+	local cInList  := "" as character
+	local cQuery   := "" as character
+	local nI       := 0 as numeric
+	local cProdAux := "" as character
+	local lTemLT   := SA2->( FieldPos( 'A2_X_LTIME' ) ) > 0
+	local aCandAux := {} as array
+
+	for nIni := 1 to nTotal step nBloco
+
+		nFim := nIni + nBloco - 1
+		if nFim > nTotal
+			nFim := nTotal
+		endif
+
+		cInList := ""
+		for nI := nIni to nFim
+			if ! Empty( cInList )
+				cInList += ","
+			endif
+			cInList += "'"+ aProdFor[nI] +"'"
+		next nI
+
+		cQuery := "SELECT DISTINCT "+ CEOL
+		cQuery += "   A5.A5_PRODUTO, A5.A5_FORNECE, A5.A5_LOJA, "+ CEOL
+		if lTemLT
+			cQuery += "   A2.A2_X_LTIME, "+ CEOL
+		endif
+		if TCGetDB() == 'MSSQL'
+			cQuery += "   AVG(DATEDIFF(day,CONVERT(DATETIME,D1.D1_DTDIGIT,112),CONVERT(DATETIME,COALESCE(C7.C7_EMISSAO,D1.D1_DTDIGIT),112))) PRAZOMEDIO "+ CEOL
+		else
+			cQuery += "   AVG(TO_DATE(D1.D1_DTDIGIT,'YYYYMMDD') - TO_DATE(COALESCE(C7.C7_EMISSAO,D1.D1_DTDIGIT),'YYYYMMDD')) PRAZOMEDIO "+ CEOL
+		endif
+		cQuery += "FROM "+ RetSqlName( 'SA5' ) +" A5 "+ CEOL
+		cQuery += "INNER JOIN "+ RetSqlName( 'SA2' ) +" A2 "+ CEOL
+		cQuery += " ON A2.A2_COD     = A5.A5_FORNECE "+ CEOL
+		cQuery += "AND A2.A2_LOJA    = A5.A5_LOJA "+ CEOL
+		cQuery += "AND A2.A2_MSBLQL  <> '1' "+ CEOL
+		cQuery += "AND A2.D_E_L_E_T_ = ' ' "+ CEOL
+		cQuery += "LEFT JOIN "+ RetSqlName( 'SD1' ) +" D1 "+ CEOL
+		cQuery += " ON D1.D1_TIPO    = 'N' "+ CEOL
+		cQuery += "AND D1.D1_COD     = A5.A5_PRODUTO "+ CEOL
+		cQuery += "AND D1.D1_FORNECE = A5.A5_FORNECE "+ CEOL
+		cQuery += "AND D1.D1_LOJA    = A5.A5_LOJA "+ CEOL
+		cQuery += "AND D1.D_E_L_E_T_ = ' ' "+ CEOL
+		cQuery += "LEFT JOIN "+ RetSqlName( 'SC7' ) +" C7 "+ CEOL
+		cQuery += " ON C7.C7_FILIAL  = D1.D1_FILIAL "+ CEOL
+		cQuery += "AND C7.C7_NUM     = D1.D1_PEDIDO "+ CEOL
+		cQuery += "AND C7.C7_ITEM    = D1.D1_ITEMPC "+ CEOL
+		cQuery += "AND C7.D_E_L_E_T_ = ' ' "+ CEOL
+		cQuery += "WHERE A5.A5_PRODUTO IN ( "+ cInList +" ) "+ CEOL
+		if ! Empty( cFornSM0 )
+			cQuery += " AND A5.A5_FORNECE NOT IN ( "+ cFornSM0 +" ) "+ CEOL
+		endif
+		cQuery += "  AND A5.D_E_L_E_T_ = ' ' "+ CEOL
+		cQuery += "GROUP BY A5.A5_PRODUTO, A5.A5_FORNECE, A5.A5_LOJA "
+		if lTemLT
+			cQuery += ", A2.A2_X_LTIME "
+		endif
+
+		DBUseArea( .T., 'TOPCONN', TcGenQry(,,cQuery), 'LOTFOR', .F., .T. )
+		LOTFOR->( DbGoTop() )
+		While ! LOTFOR->( EOF() )
+
+			cProdAux := AllTrim( LOTFOR->A5_PRODUTO )
+			aCandAux := {}
+			HMGet( hFornLt, cProdAux, @aCandAux )
+			if ValType( aCandAux ) != 'A'
+				aCandAux := {}
+			endif
+
+			if lTemLT .and. LOTFOR->A2_X_LTIME > 0
+				aAdd( aCandAux, { AllTrim(LOTFOR->A5_FORNECE), AllTrim(LOTFOR->A5_LOJA), LOTFOR->A2_X_LTIME, 0 } )
+			else
+				aAdd( aCandAux, { AllTrim(LOTFOR->A5_FORNECE), AllTrim(LOTFOR->A5_LOJA), LOTFOR->PRAZOMEDIO, 0 } )
+			endif
+
+			HMSet( hFornLt, cProdAux, aCandAux )
+
+			LOTFOR->( DbSkip() )
+		EndDo
+		LOTFOR->( DBCloseArea() )
+
+	next nIni
+
+return Nil
+
+/*/{Protheus.doc} fMonLotPrc
+Executa em lote (paginado em blocos de ate 500 produtos) a consulta de preco de tabela vigente
+(AIB/AIA), equivalente ao trecho nao-PA de priceSupplier, para todas as tuplas produto+fornecedor+loja
+candidatas em hFornLt (Fase 3). Atualiza o 4o elemento de cada candidato (nPreco) em hFornLt quando
+encontra preco vigente; tuplas sem preco de tabela permanecem com nPreco == 0 para tratamento posterior
+pelo fallback em lote (fMonLotFb).
+@type function
+@version 1.0
+@author Jean Carlos Pandolfo Saggin
+@since 16/09/2026
+@param aProdFor, array, codigos de produto do caminho em lote elegiveis a resolucao de fornecedor
+@param hFornLt, object, hash cProduto -> array de candidatos { cFornece, cLoja, nPrazo, nPreco }, atualizado em lugar
+/*/
+static function fMonLotPrc( aProdFor, hFornLt )
+
+	local nBloco   := 500 as numeric
+	local nTotal   := Len( aProdFor ) as numeric
+	local nIni     := 0 as numeric
+	local nFim     := 0 as numeric
+	local cInList  := "" as character
+	local cQuery   := "" as character
+	local nI       := 0 as numeric
+	local nJ       := 0 as numeric
+	local cChave   := "" as character
+	local hAchado  := HMNew()
+	local aCandAux := {} as array
+	local lAchou   := .F. as logical
+
+	for nIni := 1 to nTotal step nBloco
+
+		nFim := nIni + nBloco - 1
+		if nFim > nTotal
+			nFim := nTotal
+		endif
+
+		cInList := ""
+		for nI := nIni to nFim
+			if ! Empty( cInList )
+				cInList += ","
+			endif
+			cInList += "'"+ aProdFor[nI] +"'"
+		next nI
+
+		cQuery := "SELECT AIB.AIB_CODPRO, AIB.AIB_CODFOR, AIB.AIB_LOJFOR, AIB.AIB_PRCCOM "+ CEOL
+		cQuery += "FROM "+ RetSqlName( "AIB" ) +" AIB "+ CEOL
+		cQuery += "INNER JOIN "+ RetSqlName( 'AIA' ) +" AIA "+ CEOL
+		cQuery += " ON AIA.AIA_FILIAL = '"+ FWxFIlial( 'AIA' ) +"' "+ CEOL
+		cQuery += "AND AIA.AIA_CODFOR = AIB.AIB_CODFOR "+ CEOL
+		cQuery += "AND AIA.AIA_LOJFOR = AIB.AIB_LOJFOR "+ CEOL
+		cQuery += "AND AIA.AIA_CODTAB = AIB.AIB_CODTAB "+ CEOL
+		cQuery += "AND '"+ DtoS(dDataBase) +"' >= AIA.AIA_DATDE "+ CEOL
+		cQuery += "AND '"+ DtoS(dDataBase) +"' <= CASE WHEN AIA.AIA_DATATE = '"+ Space(8) +"' THEN '99999999' ELSE AIA.AIA_DATATE END "+ CEOL
+		cQuery += "AND AIA.D_E_L_E_T_ = ' ' "+ CEOL
+		cQuery += "WHERE AIB.AIB_FILIAL = '"+ FWxFilial( "AIB" ) +"' "+ CEOL
+		cQuery += "  AND AIB.AIB_CODPRO IN ( "+ cInList +" ) "+ CEOL
+		cQuery += "  AND AIB.AIB_DATVIG <= '"+ DtoS( dDataBase ) +"' "+ CEOL
+		cQuery += "  AND AIB.D_E_L_E_T_ = ' ' "
+
+		DBUseArea( .T., 'TOPCONN', TcGenQry(,,cQuery), 'LOTPRC', .F., .T. )
+		LOTPRC->( DbGoTop() )
+		While ! LOTPRC->( EOF() )
+
+			cChave := AllTrim(LOTPRC->AIB_CODPRO) +"|"+ AllTrim(LOTPRC->AIB_CODFOR) +"|"+ AllTrim(LOTPRC->AIB_LOJFOR)
+			lAchou := .F.
+			HMGet( hAchado, cChave, @lAchou )
+
+			if ! lAchou .and. LOTPRC->AIB_PRCCOM > 0
+
+				aCandAux := {}
+				HMGet( hFornLt, AllTrim(LOTPRC->AIB_CODPRO), @aCandAux )
+				if ValType( aCandAux ) == 'A'
+					for nJ := 1 to Len( aCandAux )
+						if aCandAux[nJ][1] == AllTrim(LOTPRC->AIB_CODFOR) .and. aCandAux[nJ][2] == AllTrim(LOTPRC->AIB_LOJFOR)
+							aCandAux[nJ][4] := LOTPRC->AIB_PRCCOM
+							exit
+						endif
+					next nJ
+					HMSet( hFornLt, AllTrim(LOTPRC->AIB_CODPRO), aCandAux )
+				endif
+
+				HMSet( hAchado, cChave, .T. )
+			endif
+
+			LOTPRC->( DbSkip() )
+		EndDo
+		LOTPRC->( DBCloseArea() )
+
+	next nIni
+
+return Nil
+
+/*/{Protheus.doc} fMonLotFb
+Executa em lote (paginado em blocos de ate 500 produtos) o fallback de preco para as tuplas
+produto+fornecedor+loja que ficaram sem preco de tabela vigente apos fMonLotPrc (nPreco == 0 em
+hFornLt) - equivalente a lastPrice/lastOC, escolhido por um unico parametro de configuracao
+(aConfig[32]) lido uma vez antes do laco principal, exatamente como no caminho legado. So uma das
+duas variantes roda por execucao. Este fallback responde pela maioria das tuplas em ambientes reais
+(medido em mais de 80% - ver plano de performance de GMINDPRO), por isso faz parte do escopo
+obrigatorio desta fase, nao um ajuste opcional.
+@type function
+@version 1.0
+@author Jean Carlos Pandolfo Saggin
+@since 16/09/2026
+@param aProdFor, array, codigos de produto do caminho em lote elegiveis a resolucao de fornecedor
+@param hFornLt, object, hash cProduto -> array de candidatos { cFornece, cLoja, nPrazo, nPreco }, atualizado em lugar
+@param cOrigem, character, aConfig[32] - '2' usa lastOC (ultimo pedido de compra), senao usa lastPrice (ultima nota de entrada)
+@param aFil, array, filiais consideradas (_aFil), usado por U_JSFILIAL para o fallback lastPrice
+/*/
+static function fMonLotFb( aProdFor, hFornLt, cOrigem, aFil )
+
+	local nBloco    := 500 as numeric
+	local aPendProd := {} as array
+	local nI        := 0 as numeric
+	local nJ        := 0 as numeric
+	local aCandAux  := {} as array
+	local lPend     := .F. as logical
+	local cProdAux  := "" as character
+	local nIni      := 0 as numeric
+	local nFim      := 0 as numeric
+	local nTotal    := 0 as numeric
+	local cInList   := "" as character
+	local cQuery    := "" as character
+
+	// Identifica produtos com pelo menos uma tupla ainda sem preco resolvido (nPreco == 0)
+	for nI := 1 to Len( aProdFor )
+		cProdAux := aProdFor[nI]
+		aCandAux := {}
+		HMGet( hFornLt, cProdAux, @aCandAux )
+		if ValType( aCandAux ) == 'A' .and. Len( aCandAux ) > 0
+			lPend := .F.
+			for nJ := 1 to Len( aCandAux )
+				if aCandAux[nJ][4] == 0
+					lPend := .T.
+					exit
+				endif
+			next nJ
+			if lPend
+				aAdd( aPendProd, cProdAux )
+			endif
+		endif
+	next nI
+
+	if Len( aPendProd ) == 0
+		return Nil
+	endif
+
+	nTotal := Len( aPendProd )
+
+	if cOrigem == '2'
+
+		// Fallback via ultimo pedido de compra (lastOC) - nao distingue fornecedor/loja, chave e so o produto
+		for nIni := 1 to nTotal step nBloco
+
+			nFim := nIni + nBloco - 1
+			if nFim > nTotal
+				nFim := nTotal
+			endif
+
+			cInList := ""
+			for nI := nIni to nFim
+				if ! Empty( cInList )
+					cInList += ","
+				endif
+				cInList += "'"+ aPendProd[nI] +"'"
+			next nI
+
+			cQuery := "SELECT C7.C7_PRODUTO, C7.C7_TOTAL, C7.C7_QUANT "+ CEOL
+			cQuery += "FROM "+ RetSqlName( 'SC7' ) +" C7 "+ CEOL
+			cQuery += "INNER JOIN ( "+ CEOL
+			cQuery += "    SELECT C7.C7_PRODUTO, MAX(C7.R_E_C_N_O_) R_E_C_N_O_ "+ CEOL
+			cQuery += "    FROM "+ RetSqlName( 'SC7' ) +" C7 "+ CEOL
+			cQuery += "    WHERE C7.C7_FILIAL = '"+ FWxFilial( 'SC7' ) +"' "+ CEOL
+			cQuery += "      AND C7.C7_PRODUTO IN ( "+ cInList +" ) "+ CEOL
+			cQuery += "      AND C7.D_E_L_E_T_ = ' ' "+ CEOL
+			cQuery += "    GROUP BY C7.C7_PRODUTO "+ CEOL
+			cQuery += ") ULT ON ULT.C7_PRODUTO = C7.C7_PRODUTO AND ULT.R_E_C_N_O_ = C7.R_E_C_N_O_ "
+
+			DBUseArea( .T., 'TOPCONN', TcGenQry(,,cQuery), 'LOTFB', .F., .T. )
+			LOTFB->( DbGoTop() )
+			While ! LOTFB->( EOF() )
+
+				cProdAux := AllTrim( LOTFB->C7_PRODUTO )
+				if LOTFB->C7_QUANT != 0
+
+					aCandAux := {}
+					HMGet( hFornLt, cProdAux, @aCandAux )
+					if ValType( aCandAux ) == 'A'
+						for nJ := 1 to Len( aCandAux )
+							if aCandAux[nJ][4] == 0
+								aCandAux[nJ][4] := Round( LOTFB->C7_TOTAL / LOTFB->C7_QUANT, 2 )
+							endif
+						next nJ
+						HMSet( hFornLt, cProdAux, aCandAux )
+					endif
+
+				endif
+
+				LOTFB->( DbSkip() )
+			EndDo
+			LOTFB->( DBCloseArea() )
+
+		next nIni
+
+	else
+
+		// Fallback via ultimo preco de compra (lastPrice) - por tupla produto+fornecedor+loja
+		for nIni := 1 to nTotal step nBloco
+
+			nFim := nIni + nBloco - 1
+			if nFim > nTotal
+				nFim := nTotal
+			endif
+
+			cInList := ""
+			for nI := nIni to nFim
+				if ! Empty( cInList )
+					cInList += ","
+				endif
+				cInList += "'"+ aPendProd[nI] +"'"
+			next nI
+
+			cQuery := "SELECT D1.D1_COD, D1.D1_FORNECE, D1.D1_LOJA, D1.D1_TOTAL, D1.D1_DESC, D1.D1_QUANT "+ CEOL
+			cQuery += "FROM "+ RetSqlName( 'SD1' ) +" D1 "+ CEOL
+			cQuery += "INNER JOIN ( "+ CEOL
+			cQuery += "    SELECT D1.D1_COD, D1.D1_FORNECE, D1.D1_LOJA, MAX(D1.R_E_C_N_O_) R_E_C_N_O_ "+ CEOL
+			cQuery += "    FROM "+ RetSqlName( 'SD1' ) +" D1 "+ CEOL
+			cQuery += "    WHERE D1.D1_FILIAL "+ U_JSFILIAL( 'SD1', aFil ) +" "+ CEOL
+			cQuery += "      AND D1.D1_COD IN ( "+ cInList +" ) "+ CEOL
+			cQuery += "      AND D1.D1_TIPO = 'N' "+ CEOL
+			cQuery += "      AND D1.D_E_L_E_T_ = ' ' "+ CEOL
+			cQuery += "    GROUP BY D1.D1_COD, D1.D1_FORNECE, D1.D1_LOJA "+ CEOL
+			cQuery += ") ULT ON ULT.D1_COD = D1.D1_COD AND ULT.D1_FORNECE = D1.D1_FORNECE "+ CEOL
+			cQuery += "                AND ULT.D1_LOJA = D1.D1_LOJA AND ULT.R_E_C_N_O_ = D1.R_E_C_N_O_ "
+
+			DBUseArea( .T., 'TOPCONN', TcGenQry(,,cQuery), 'LOTFB', .F., .T. )
+			LOTFB->( DbGoTop() )
+			While ! LOTFB->( EOF() )
+
+				cProdAux := AllTrim( LOTFB->D1_COD )
+				if LOTFB->D1_QUANT != 0
+
+					aCandAux := {}
+					HMGet( hFornLt, cProdAux, @aCandAux )
+					if ValType( aCandAux ) == 'A'
+						for nJ := 1 to Len( aCandAux )
+							if aCandAux[nJ][4] == 0 .and. aCandAux[nJ][1] == AllTrim(LOTFB->D1_FORNECE) .and. aCandAux[nJ][2] == AllTrim(LOTFB->D1_LOJA)
+								aCandAux[nJ][4] := Round( ( LOTFB->D1_TOTAL - LOTFB->D1_DESC ) / LOTFB->D1_QUANT, 2 )
+							endif
+						next nJ
+						HMSet( hFornLt, cProdAux, aCandAux )
+					endif
+
+				endif
+
+				LOTFB->( DbSkip() )
+			EndDo
+			LOTFB->( DBCloseArea() )
+
+		next nIni
+
+	endif
+
+return Nil
 
 /*/{Protheus.doc} wfStruct
 Função que valida se a estrutura de workflow está preparada para envio de e-mails
@@ -6274,6 +7155,7 @@ Static Function fCalNec( aInfPrd, cPerfil, lSkipLot )
 
 	local lPriLE    := aConfig[19] == 'S'
 	local cFormula  := "" as character
+	local nCalAux   := 0 as numeric
 	default lSkipLot := .F.
 	Private nQtdCom := 0
 	Private nDias   := 0
@@ -6305,14 +7187,27 @@ Static Function fCalNec( aInfPrd, cPerfil, lSkipLot )
 	nQtdPrd := aInfPrd[13]		// Quantidade em PA (em processo de produção)
 
 	// Valida existência da fórmula
-	cFormula := AllTrim( RetField( cZBM, 1, FWxFilial( cZBM ) + cPerfil, cZBM+'_FORMUL' ) )
+	// Fase 1 (item 2): cache da formula por cPerfil, evitando releitura repetida via RetField
+	if ValType( hFormula ) != 'O'
+		hFormula := HMNew()
+	endif
+	cFormula := ""
+	HMGet( hFormula, cPerfil, @cFormula )
+	if Empty( cFormula )
+		cFormula := AllTrim( RetField( cZBM, 1, FWxFilial( cZBM ) + cPerfil, cZBM+'_FORMUL' ) )
+		HMSet( hFormula, cPerfil, cFormula )
+	endif
 	if Empty( cFormula )
 		nQtdCom := 0
 		Return nQtdCom
 	endif
 
 	// Realiza análise de critérios de compras conforme configurações
-	nQtdCom += iif( Round( &( fLoadCri( cFormula, .T. ) ),0) < 0, 0, Round( &( fLoadCri( cFormula, .T. ) ),0) )	// (( nDias + nLdTime ) - nPrjEst ) * nConMed
+	nCalAux := Round( &( fLoadCri( cFormula, .T. ) ),0)
+	if nCalAux < 0
+		nCalAux := 0
+	endif
+	nQtdCom += nCalAux	// (( nDias + nLdTime ) - nPrjEst ) * nConMed
 
 	// Quando lSkipLot for .T., devolve a necessidade bruta (ja zerada-se-negativa) sem ajuste de lote -
 	// usado por fLoadInf/fGrpCalNec para consolidar multiplas filiais antes de aplicar o lote uma unica vez
