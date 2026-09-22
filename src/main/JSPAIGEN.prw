@@ -235,6 +235,7 @@ user function JSDETVER()
     aAdd( aDetVer, { '23','0012','24/08/2026', 'Melhoria de desempenho na tela do carrinho de compras, reduzindo o tempo de resposta ao editar itens em carrinhos com grande volume de produtos' } )
     aAdd( aDetVer, { '23','0013','04/09/2026', 'Ajuste da regra para alteração de preço de venda direto via grid principal, para que o sistema passe a coniderar também o ponto de entrada PEPNC06' } )
     aAdd( aDetVer, { '23','0014','16/09/2026', 'Otimização de performance no recálculo automático dos índices de produtos (JOB), reduzindo drasticamente o tempo de processamento em bases com grande volume de produtos ao passar a calcular giro, consumo e melhor fornecedor/preço em lote, ao invés de produto a produto' } )
+    aAdd( aDetVer, { '23','0015','22/09/2026', 'Correção na análise de compras multi-filial para considerar corretamente a data do último recálculo de índices concluído em cada filial, evitando inconsistência no consumo médio quando a análise é iniciada enquanto o recálculo automático de alguma filial ainda está em andamento' } )
 
 return aDetVer
 
@@ -685,6 +686,7 @@ user function JSQRYINF( aConf, aFilters, cPedSol, aCustom, aMPs )
     local cFdGroup := AllTrim( SuperGetMv( 'MV_X_PNC13',,'B1_GRUPO' ) )
     local cMPs     := "" as character
     local lRevFil  := .F. as logical
+    local dDtCalc  := StoD("") as date
 
     default aConf    := U_JSGETCFG( .T. /* lAuto */)
     default aFilters := {}
@@ -727,6 +729,14 @@ user function JSQRYINF( aConf, aFilters, cPedSol, aCustom, aMPs )
     cQuery := "SELECT TEMP.* FROM ( "+ CEOL
     for nFil := 1 to len( _aFil )
         cFilAnt := _aFil[nFil]
+
+        // Data do ultimo recalculo CONCLUIDO com sucesso para ESTA filial (MV_X_PNC12 so e atualizado
+        // por GMINDPRO ao terminar o processamento completo da filial) - evita tanto usar uma unica
+        // data para todas as filiais (bug antigo, quando dDtCalc era lido 1x fora do loop) quanto
+        // considerar um recalculo em andamento e ainda incompleto como se fosse o mais recente (bug
+        // do MAX(DTREF) anterior, quando o usuario roda a analise enquanto o JOB de outra filial
+        // ainda esta processando)
+        dDtCalc := CtoD( SubStr( GetMv( 'MV_X_PNC12',,DtoC(Date()) ), 01, 10 ) )
 
         // Indica se a filial utiliza a análise reversa de estruturas (resultado materializado pelo U_JSREVEST)
         lRevFil := ! isInCallStack( 'U_GMINDPRO' ) .and. U_JSANAREV( cFilAnt ) .and. TCCanOpen( "PNC_RVCALC_"+ cEmpAnt )
@@ -897,10 +907,11 @@ user function JSQRYINF( aConf, aFilters, cPedSol, aCustom, aMPs )
             cQuery += "LEFT JOIN "+ cZB3 +" "+ cZB3 +" " + CEOL
             cQuery += " ON "+ cZB3 +".FILIAL = '"+ cFilAnt +"' " + CEOL
             cQuery += "AND "+ cZB3 +".PROD   = B1.B1_COD " + CEOL
-            // DTREF mais recente gravado para ESTA filial (cFilAnt, do loop acima) - nao um valor
-            // unico global (bug anterior: filiais cujo GMINDPRO rodou em dia diferente da filial
-            // "atual" da sessao ficavam de fora do join e o consumo medio saia zerado para elas)
-            cQuery += "AND "+ cZB3 +".DTREF   = ( SELECT MAX(ZBDT.DTREF) FROM "+ cZB3 +" ZBDT WHERE ZBDT.FILIAL = '"+ cFilAnt +"' AND ZBDT.D_E_L_E_T_ = ' ' ) " + CEOL
+            // Data do ultimo recalculo concluido com sucesso para ESTA filial, via MV_X_PNC12 (ver
+            // captura de dDtCalc no inicio do loop acima) - volta a usar o parametro em vez do
+            // MAX(DTREF), que considerava um recalculo ainda em andamento (incompleto) como se fosse
+            // o mais recente, deixando o consumo medio inconsistente enquanto o JOB nao termina
+            cQuery += "AND "+ cZB3 +".DTREF   = '"+ DtoS( dDtCalc ) +"' " + CEOL
             cQuery += "AND "+ cZB3 +".D_E_L_E_T_ = ' ' " + CEOL
         endif
 
