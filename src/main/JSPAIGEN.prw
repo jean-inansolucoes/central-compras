@@ -236,6 +236,7 @@ user function JSDETVER()
     aAdd( aDetVer, { '23','0013','04/09/2026', 'Ajuste da regra para alteração de preço de venda direto via grid principal, para que o sistema passe a coniderar também o ponto de entrada PEPNC06' } )
     aAdd( aDetVer, { '23','0014','16/09/2026', 'Otimização de performance no recálculo automático dos índices de produtos (JOB), reduzindo drasticamente o tempo de processamento em bases com grande volume de produtos ao passar a calcular giro, consumo e melhor fornecedor/preço em lote, ao invés de produto a produto' } )
     aAdd( aDetVer, { '23','0015','22/09/2026', 'Correção na análise de compras multi-filial para considerar corretamente a data do último recálculo de índices concluído em cada filial, evitando inconsistência no consumo médio quando a análise é iniciada enquanto o recálculo automático de alguma filial ainda está em andamento' } )
+    aAdd( aDetVer, { '23','0016','30/09/2026', 'Correção para que o primeiro acesso ao painel em clientes novos leve direto ao cadastro das configurações internas, sem exigir o parâmetro de alias da antiga tabela de configurações' } )
 
 return aDetVer
 
@@ -1566,8 +1567,10 @@ user function JSGETCFG( lAuto )
 		DBUseArea( .T., 'TOPCONN', cTable, cAlias, .F., .F. )
 		( cAlias )->( DBSetIndex( cTable + '_01' ) )
 
-		// Caso não tenha encontrado registro referente a filial corrente, busca registro na tabela anterior
-		if ! ( cAlias )->( DBSeek( cFilAnt ) )
+		// Caso não tenha encontrado registro referente a filial corrente, busca registro na tabela anterior (migração de
+		// ambientes legados). Cliente novo não possui o alias da tabela antiga (MV_X_PNC03): nesse caso não há o que
+		// migrar e o fluxo segue direto para o cadastro das configurações (aviso "Criar configurações?" -> U_JSMANPAR)
+		if ! ( cAlias )->( DBSeek( cFilAnt ) ) .and. ! Empty( cAliCfg ) .and. cAliCfg != "999" .and. FWAliasInDic( cAliCfg )
 			DbSelectArea( cAliCfg )
 			( cAliCfg )->( DbSetOrder( 1 ) )
 			If ( cAliCfg )->( DbSeek( FWxFilial( cAliCfg ) ) )

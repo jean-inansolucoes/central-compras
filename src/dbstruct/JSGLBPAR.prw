@@ -765,14 +765,6 @@ static function getParams()
                     AllTrim(SuperGetMv( "MV_X_PNC02",, "" )) ;              // Conteúdo
                     } )
     aAdd( aParams, {; 
-                    "MV_X_PNC03",;                                          // Parâmetro
-                    "C",;                                                   // Tipo
-                    "Alias da tabela de parâmetros globais da central d",;  // Descrição 1
-                    "e compras                                         ",;  // Descrição 2
-                    "",;                                                    // Descrição 3
-                    AllTrim(SuperGetMv( "MV_X_PNC03",, "" )) ;              // Conteúdo
-                    } )
-    aAdd( aParams, {; 
                     "MV_X_PNC04",;                                          // Parâmetro
                     "C",;                                                   // Tipo
                     "Alias da tabela de controle de produtos descontinu",;  // Descrição 1

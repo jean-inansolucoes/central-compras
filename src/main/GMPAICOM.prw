@@ -202,14 +202,6 @@ User Function GMPAICOM()
 		return nil
 	endif
 
-	// Valida existência de parâmetro interno com alias das configurações globais
-	if ! GetMv( 'MV_X_PNC03', .T. ) .or. Empty( GetMV( 'MV_X_PNC03' ) )
-		Hlp( 'MV_X_PNC03',;
-			 'Parâmetro interno que define alias da tabela de configurações globais da rotina não configurado ou inexistente!',;
-			 'Acesse o módulo configurador e realize a configuração do parâmetro MV_X_PNC03' )
-		return Nil
-	endif
-
 	//Checa configuração do alias da tabela de produtos a serem descontinuados.
 	if ! GetMv( 'MV_X_PNC04', .T. ) .or. Empty( cZB6 )
 		Hlp( 'MV_X_PNC04',;
@@ -357,7 +349,8 @@ User Function GMPAICOM()
 	// Realiza leitura das preferências da rotina
 	Processa( {|| aConfig := U_JSGETCFG(.F. /* lAuto */) }, 'Aguarde!','Lendo configurações da rotina...' )
 	if Len( aConfig ) == 0 
-		MsgStop( 'Não foi possível prosseguir porque as configurações internas da rotina não puderam ser lidas ou ainda não foram cadastradas!','Parâmetro interno MV_X_PNC03' )
+		MsgStop( 'As configurações internas do SmartSupply ainda não foram cadastradas para esta filial ou não puderam ser lidas. '+;
+				 'Acesse novamente a rotina e confirme a criação das configurações quando solicitado.', 'Configurações internas' )
 		Return ( Nil )
 	EndIf
 
