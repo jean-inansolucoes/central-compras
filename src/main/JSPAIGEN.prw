@@ -238,6 +238,8 @@ user function JSDETVER()
     aAdd( aDetVer, { '23','0015','22/09/2026', 'Correção na análise de compras multi-filial para considerar corretamente a data do último recálculo de índices concluído em cada filial, evitando inconsistência no consumo médio quando a análise é iniciada enquanto o recálculo automático de alguma filial ainda está em andamento' } )
     aAdd( aDetVer, { '23','0016','30/09/2026', 'Correção para que o primeiro acesso ao painel em clientes novos leve direto ao cadastro das configurações internas, sem exigir o parâmetro de alias da antiga tabela de configurações' } )
     aAdd( aDetVer, { '23','0017','30/09/2026', 'Correção para permitir o uso do painel e do recálculo automático de índices sem a configuração da tabela de controle de produtos descontinuados (recurso temporariamente desativado) e para assumir o grupo padrão do produto quando o campo de agrupamento não estiver parametrizado' } )
+    aAdd( aDetVer, { '23','0018','14/10/2026', 'Correção na ordenação da grid principal pelo clique no cabeçalho: passa a ordenar pela coluna clicada (e não pela coluna em foco), começa em ordem crescente, desempata pela descrição do produto e mantém a ordenação após filtros e recargas' } )
+    aAdd( aDetVer, { '23','0019','14/10/2026', 'Estoque mínimo e máximo da grid principal e do cálculo passam a vir do indicador de produto da filial, quando cadastrado, e do cadastro geral do produto apenas na ausência do indicador; a alteração desses campos na grid grava no mesmo local de origem' } )
 
 return aDetVer
 
@@ -765,8 +767,16 @@ user function JSQRYINF( aConf, aFilters, cPedSol, aCustom, aMPs )
         cQuery += "  AND B2.B2_LOCAL  IN ( '"+ cLocais +"' ) " + CEOL
         cQuery += "  AND B2.D_E_L_E_T_ = ' ' ),0) EMPENHO, " + CEOL
         cQuery += "B1.B1_PE, " + CEOL
-        cQuery += "B1.B1_EMIN, " + CEOL
-        cQuery += "B1.B1_EMAX, " + CEOL
+        // Estoque mínimo/máximo: indicador de produto (SBZ) da filial quando cadastrado, senão o cadastro geral
+        // (SB1) - mesma regra de getMinMax (GMPAICOM). Mantém os nomes B1_EMIN/B1_EMAX para os consumidores
+        cQuery += "COALESCE((SELECT BZ.BZ_EMIN FROM "+ RetSqlName( 'SBZ' ) +" BZ " + CEOL
+        cQuery += "WHERE BZ.BZ_FILIAL  = '"+ FWxFilial( 'SBZ' ) +"' " + CEOL
+        cQuery += "  AND BZ.BZ_COD     = B1.B1_COD " + CEOL
+        cQuery += "  AND BZ.D_E_L_E_T_ = ' ' ), B1.B1_EMIN) B1_EMIN, " + CEOL
+        cQuery += "COALESCE((SELECT BZ.BZ_EMAX FROM "+ RetSqlName( 'SBZ' ) +" BZ " + CEOL
+        cQuery += "WHERE BZ.BZ_FILIAL  = '"+ FWxFilial( 'SBZ' ) +"' " + CEOL
+        cQuery += "  AND BZ.BZ_COD     = B1.B1_COD " + CEOL
+        cQuery += "  AND BZ.D_E_L_E_T_ = ' ' ), B1.B1_EMAX) B1_EMAX, " + CEOL
         
         cQuery += "COALESCE((SELECT SUM(C7BLOQ.C7_QUANT - C7BLOQ.C7_QUJE) FROM "+ RetSqlName( "SC7" ) +" C7BLOQ " + CEOL
         cQuery += "WHERE C7BLOQ.C7_FILIAL = '"+ FWxFilial( 'SC7' ) +"' " + CEOL

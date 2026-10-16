@@ -516,7 +516,12 @@ static function loadMiss( aFalta, aCfgRev, aPerRev, oSnap, oPais )
     // Posição de estoque, carteiras e dados cadastrais dos produtos faltantes
     for nChunk := 1 to len( aChunks )
 
-        cQuery := "SELECT B1.B1_COD, B1.B1_LM, B1.B1_QE, B1.B1_LE, B1.B1_EMIN, B1.B1_PE, " + CEOL
+        // Estoque mínimo: indicador de produto (SBZ) da filial quando cadastrado, senão o cadastro geral (SB1)
+        cQuery := "SELECT B1.B1_COD, B1.B1_LM, B1.B1_QE, B1.B1_LE, B1.B1_PE, " + CEOL
+        cQuery += "COALESCE((SELECT BZ.BZ_EMIN FROM "+ RetSqlName( 'SBZ' ) +" BZ " + CEOL
+        cQuery += "WHERE BZ.BZ_FILIAL  = '"+ FWxFilial( 'SBZ' ) +"' " + CEOL
+        cQuery += "  AND BZ.BZ_COD     = B1.B1_COD " + CEOL
+        cQuery += "  AND BZ.D_E_L_E_T_ = ' ' ), B1.B1_EMIN) B1_EMIN, " + CEOL
         if lPerca
             cQuery += "B1.B1_X_PERCA, " + CEOL
         endif

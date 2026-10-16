@@ -3910,6 +3910,7 @@ Static Function fLoadInf( aMPs, lAll, lEnd )
 				aColPro[aScan( aColPro, {|x| x[nPosPrd] == _aProdFil[nX][nPosPrd] } )][nPosEmE] += _aProdFil[nX][nPosEmE]		// Quantidade de estoque atual
 				aColPro[aScan( aColPro, {|x| x[nPosPrd] == _aProdFil[nX][nPosPrd] } )][nPosCon] += _aProdFil[nX][nPosCon]		// Consumo médio
 				aColPro[aScan( aColPro, {|x| x[nPosPrd] == _aProdFil[nX][nPosPrd] } )][nPosEMi] += _aProdFil[nX][nPosEMi]		// Estoque mínimo
+				aColPro[aScan( aColPro, {|x| x[nPosPrd] == _aProdFil[nX][nPosPrd] } )][nPosEMx] += _aProdFil[nX][nPosEMx]		// Estoque máximo
 
 				// Cálculo da duração do estoque com os pedidos de compra aprovados
 				nPrjEst   := Round( ( aColPro[aScan( aColPro, {|x| x[nPosPrd] == _aProdFil[nX][nPosPrd] } )][nPosEmE] -; 
@@ -4725,14 +4726,20 @@ User Function PCOMVLD()
 	local nY        := 0 as numeric
 	local cProduto  := "" as character
 	local cField    := AllTrim( oBrwPro:GetColumn(oBrwPro:ColPos()):GetID() )
+	local lGrvInd   := .F. as logical
 	local cPrdAlt   := "" as character
 	
 	Private oBtnSel     := Nil
 	Private lMsErroAuto := .F.
 
 	if oBrwPro:oBrowse != Nil
+		// Estoque mínimo/máximo: grava no indicador de produto (SBZ) da filial quando existir, senão segue para o
+		// cadastro geral (SB1) abaixo - mesma regra da leitura em U_JSQRYINF
+		if cField $ 'B1_EMIN|B1_EMAX'
+			lGrvInd := grvMinMax( cField, aColPro[oBrwPro:nAt][nPosPrd], aColPro[oBrwPro:At()][gtMain(cField)], @lReturn )
+		endif
 		DbSelectArea( 'SB1' )
-		if SB1->( FieldPos( cField ) ) > 0
+		if ! lGrvInd .and. SB1->( FieldPos( cField ) ) > 0
 			SB1->( DbSetOrder( 1 ) )
 			
 			If DbSeek( FWxFilial( 'SB1' ) + aColPro[oBrwPro:nAt][nPosPrd] )
@@ -4951,7 +4958,8 @@ User Function PCOMVLD()
 				endif
 
 				// Estoque de segurança
-				nEstSeg := RetField( "SB1", 1, FWxFilial( 'SB1' )+ aColPro[ oBrwPro:nAt ][ nPosPrd ], "B1_EMIN" )
+				// (valor da grid: indicador de produto SBZ ou cadastro geral SB1, conforme U_JSQRYINF)
+				nEstSeg := aColPro[ oBrwPro:nAt ][ nPosEMi ]
 
 				// Atualiza os dados da linha do produto conforme alterações realizadas no campo do lead-time
 				// Cálculo da duração do estoque com os pedidos de compra aprovados
@@ -10636,7 +10644,7 @@ user function JSCOLPRO( aFields, aAlter, oPrefs )
 							.F.,;                            										// [n][10] Indica se exibe imagem
 							Nil,;                            										// [n][11] Code-Block de execução do duplo clique
 							cVarName +"["+ cBrwName +":At()]["+cValToChar(nX+2)+"]",;               // [n][12] Variável a ser utilizada na edição (ReadVar)
-							{|oBrw| sortCol(oBrw, &(cVarName)) },;              					// [n][13] Code-Block de execução do clique no header
+							&("{|oBrw| sortCol( oBrw, "+ cVarName +", "+ cValToChar(nX+2) +" ) }"),;              					// [n][13] Code-Block de execução do clique no header
 							.F.,;                            										// [n][14] Indica se a coluna está deletada
 							.F.,;                            										// [n][15] Indica se a coluna será exibida nos detalhes do Browse
 							aAux,;                             										// [n][16] Opções de carga dos dados (Ex: 1=Sim, 2=Não)
@@ -10655,7 +10663,7 @@ user function JSCOLPRO( aFields, aAlter, oPrefs )
 							.F.,;                            										// [n][10] Indica se exibe imagem
 							Nil,;                            										// [n][11] Code-Block de execução do duplo clique
 							cVarName +"["+ cBrwName +":At()]["+cValToChar(nX+2)+"]",;               // [n][12] Variável a ser utilizada na edição (ReadVar)
-							{|oBrw| sortCol(oBrw, &(cVarName)) },;              					// [n][13] Code-Block de execução do clique no header
+							&("{|oBrw| sortCol( oBrw, "+ cVarName +", "+ cValToChar(nX+2) +" ) }"),;              					// [n][13] Code-Block de execução do clique no header
 							.F.,;                            										// [n][14] Indica se a coluna está deletada
 							.F.,;                            										// [n][15] Indica se a coluna será exibida nos detalhes do Browse
 							{},;                             										// [n][16] Opções de carga dos dados (Ex: 1=Sim, 2=Não)
@@ -10674,7 +10682,7 @@ user function JSCOLPRO( aFields, aAlter, oPrefs )
 							.F.,;                            										// [n][10] Indica se exibe imagem
 							Nil,;                            										// [n][11] Code-Block de execução do duplo clique
 							cVarName +"["+ cBrwName +":At()]["+cValToChar(nX+2)+"]",;               // [n][12] Variável a ser utilizada na edição (ReadVar)
-							{|oBrw| sortCol(oBrw, &(cVarName)) },;              					// [n][13] Code-Block de execução do clique no header
+							&("{|oBrw| sortCol( oBrw, "+ cVarName +", "+ cValToChar(nX+2) +" ) }"),;              					// [n][13] Code-Block de execução do clique no header
 							.F.,;                            										// [n][14] Indica se a coluna está deletada
 							.F.,;                            										// [n][15] Indica se a coluna será exibida nos detalhes do Browse
 							{},;                             										// [n][16] Opções de carga dos dados (Ex: 1=Sim, 2=Não)
@@ -10693,7 +10701,7 @@ user function JSCOLPRO( aFields, aAlter, oPrefs )
 							.F.,;                            										// [n][10] Indica se exibe imagem
 							Nil,;                            										// [n][11] Code-Block de execução do duplo clique
 							cVarName +"["+ cBrwName +":At()]["+cValToChar(nX+2)+"]",;               // [n][12] Variável a ser utilizada na edição (ReadVar)
-							{|oBrw| sortCol(oBrw, &(cVarName)) },;              					// [n][13] Code-Block de execução do clique no header
+							&("{|oBrw| sortCol( oBrw, "+ cVarName +", "+ cValToChar(nX+2) +" ) }"),;              					// [n][13] Code-Block de execução do clique no header
 							.F.,;                            										// [n][14] Indica se a coluna está deletada
 							.F.,;                            										// [n][15] Indica se a coluna será exibida nos detalhes do Browse
 							{'E=Estrutura','C=Consumo','P=Parcial'},;								// [n][16] Opções de carga dos dados (Ex: 1=Sim, 2=Não)
@@ -10712,7 +10720,7 @@ user function JSCOLPRO( aFields, aAlter, oPrefs )
 							.F.,;                            										// [n][10] Indica se exibe imagem
 							Nil,;                            										// [n][11] Code-Block de execução do duplo clique
 							 cVarName +"["+ cBrwName +":At()]["+cValToChar(nX+2)+"]",;              // [n][12] Variável a ser utilizada na edição (ReadVar)
-							{|oBrw| sortCol(oBrw, &(cVarName)) },;              					// [n][13] Code-Block de execução do clique no header
+							&("{|oBrw| sortCol( oBrw, "+ cVarName +", "+ cValToChar(nX+2) +" ) }"),;              					// [n][13] Code-Block de execução do clique no header
 							.F.,;                            										// [n][14] Indica se a coluna está deletada
 							.F.,;                            										// [n][15] Indica se a coluna será exibida nos detalhes do Browse
 							{},;                             										// [n][16] Opções de carga dos dados (Ex: 1=Sim, 2=Não)
@@ -10731,7 +10739,7 @@ user function JSCOLPRO( aFields, aAlter, oPrefs )
 							.F.,;                            										// [n][10] Indica se exibe imagem
 							Nil,;                            										// [n][11] Code-Block de execução do duplo clique
 							 cVarName +"["+ cBrwName +":At()]["+cValToChar(nX+2)+"]",;              // [n][12] Variável a ser utilizada na edição (ReadVar)
-							{|oBrw| sortCol(oBrw, &(cVarName)) },;              					// [n][13] Code-Block de execução do clique no header
+							&("{|oBrw| sortCol( oBrw, "+ cVarName +", "+ cValToChar(nX+2) +" ) }"),;              					// [n][13] Code-Block de execução do clique no header
 							.F.,;                            										// [n][14] Indica se a coluna está deletada
 							.F.,;                            										// [n][15] Indica se a coluna será exibida nos detalhes do Browse
 							{},;                             										// [n][16] Opções de carga dos dados (Ex: 1=Sim, 2=Não)
@@ -10750,7 +10758,7 @@ user function JSCOLPRO( aFields, aAlter, oPrefs )
 							.F.,;                            										// [n][10] Indica se exibe imagem
 							Nil,;                            										// [n][11] Code-Block de execução do duplo clique
 							cVarName +"["+ cBrwName +":At()]["+cValToChar(nX+2)+"]",;               // [n][12] Variável a ser utilizada na edição (ReadVar)
-							{|oBrw| sortCol(oBrw, &(cVarName)) },;              					// [n][13] Code-Block de execução do clique no header
+							&("{|oBrw| sortCol( oBrw, "+ cVarName +", "+ cValToChar(nX+2) +" ) }"),;              					// [n][13] Code-Block de execução do clique no header
 							.F.,;                            										// [n][14] Indica se a coluna está deletada
 							.F.,;                            										// [n][15] Indica se a coluna será exibida nos detalhes do Browse
 							{},;                             										// [n][16] Opções de carga dos dados (Ex: 1=Sim, 2=Não)
@@ -10769,7 +10777,7 @@ user function JSCOLPRO( aFields, aAlter, oPrefs )
 							.F.,;                            										// [n][10] Indica se exibe imagem
 							Nil,;                            										// [n][11] Code-Block de execução do duplo clique
 							 cVarName +"["+ cBrwName +":At()]["+cValToChar(nX+2)+"]",;				// [n][12] Variável a ser utilizada na edição (ReadVar)
-							{|oBrw| sortCol(oBrw, &(cVarName)) },;              					// [n][13] Code-Block de execução do clique no header
+							&("{|oBrw| sortCol( oBrw, "+ cVarName +", "+ cValToChar(nX+2) +" ) }"),;              					// [n][13] Code-Block de execução do clique no header
 							.F.,;                            										// [n][14] Indica se a coluna está deletada
 							.F.,;                            										// [n][15] Indica se a coluna será exibida nos detalhes do Browse
 							{},;                             										// [n][16] Opções de carga dos dados (Ex: 1=Sim, 2=Não)
@@ -10788,7 +10796,7 @@ user function JSCOLPRO( aFields, aAlter, oPrefs )
 							.F.,;                            										// [n][10] Indica se exibe imagem
 							Nil,;                            										// [n][11] Code-Block de execução do duplo clique
 							 cVarName +"["+ cBrwName +":At()]["+cValToChar(nX+2)+"]",;              // [n][12] Variável a ser utilizada na edição (ReadVar)
-							{|oBrw| sortCol(oBrw, &(cVarName)) },;              					// [n][13] Code-Block de execução do clique no header
+							&("{|oBrw| sortCol( oBrw, "+ cVarName +", "+ cValToChar(nX+2) +" ) }"),;              					// [n][13] Code-Block de execução do clique no header
 							.F.,;                            										// [n][14] Indica se a coluna está deletada
 							.F.,;                            										// [n][15] Indica se a coluna será exibida nos detalhes do Browse
 							{},;                             										// [n][16] Opções de carga dos dados (Ex: 1=Sim, 2=Não)
@@ -10807,7 +10815,7 @@ user function JSCOLPRO( aFields, aAlter, oPrefs )
 							.F.,;                            										// [n][10] Indica se exibe imagem
 							Nil,;                            										// [n][11] Code-Block de execução do duplo clique
 							 cVarName +"["+ cBrwName +":At()]["+cValToChar(nX+2)+"]",;              // [n][12] Variável a ser utilizada na edição (ReadVar)
-							{|oBrw| sortCol(oBrw, &(cVarName)) },;              					// [n][13] Code-Block de execução do clique no header
+							&("{|oBrw| sortCol( oBrw, "+ cVarName +", "+ cValToChar(nX+2) +" ) }"),;              					// [n][13] Code-Block de execução do clique no header
 							.F.,;                            										// [n][14] Indica se a coluna está deletada
 							.F.,;                            										// [n][15] Indica se a coluna será exibida nos detalhes do Browse
 							{},;                             										// [n][16] Opções de carga dos dados (Ex: 1=Sim, 2=Não)
@@ -10827,7 +10835,7 @@ user function JSCOLPRO( aFields, aAlter, oPrefs )
 							.F.,;                            										// [n][10] Indica se exibe imagem
 							Nil,;                            										// [n][11] Code-Block de execução do duplo clique
 							 cVarName +"["+ cBrwName +":At()]["+cValToChar(nX+2)+"]",;                    		// [n][12] Variável a ser utilizada na edição (ReadVar)
-							{|oBrw| sortCol(oBrw, &(cVarName)) },;              					// [n][13] Code-Block de execução do clique no header
+							&("{|oBrw| sortCol( oBrw, "+ cVarName +", "+ cValToChar(nX+2) +" ) }"),;              					// [n][13] Code-Block de execução do clique no header
 							.F.,;                            										// [n][14] Indica se a coluna está deletada
 							.F.,;                            										// [n][15] Indica se a coluna será exibida nos detalhes do Browse
 							{},;                             										// [n][16] Opções de carga dos dados (Ex: 1=Sim, 2=Não)
@@ -10846,7 +10854,7 @@ user function JSCOLPRO( aFields, aAlter, oPrefs )
 							.F.,;                            										// [n][10] Indica se exibe imagem
 							Nil,;                            										// [n][11] Code-Block de execução do duplo clique
 							cVarName +"["+ cBrwName +":At()]["+cValToChar(nX+2)+"]",;                    		// [n][12] Variável a ser utilizada na edição (ReadVar)
-							{|oBrw| sortCol(oBrw, &(cVarName)) },;              					// [n][13] Code-Block de execução do clique no header
+							&("{|oBrw| sortCol( oBrw, "+ cVarName +", "+ cValToChar(nX+2) +" ) }"),;              					// [n][13] Code-Block de execução do clique no header
 							.F.,;                            										// [n][14] Indica se a coluna está deletada
 							.F.,;                            										// [n][15] Indica se a coluna será exibida nos detalhes do Browse
 							{},;                             										// [n][16] Opções de carga dos dados (Ex: 1=Sim, 2=Não)
@@ -10865,7 +10873,7 @@ user function JSCOLPRO( aFields, aAlter, oPrefs )
 							.F.,;                            										// [n][10] Indica se exibe imagem
 							Nil,;                            										// [n][11] Code-Block de execução do duplo clique
 							cVarName +"["+ cBrwName +":At()]["+cValToChar(nX+2)+"]",;                    		// [n][12] Variável a ser utilizada na edição (ReadVar)
-							{|oBrw| sortCol(oBrw, &(cVarName)) },;              					// [n][13] Code-Block de execução do clique no header
+							&("{|oBrw| sortCol( oBrw, "+ cVarName +", "+ cValToChar(nX+2) +" ) }"),;              					// [n][13] Code-Block de execução do clique no header
 							.F.,;                            										// [n][14] Indica se a coluna está deletada
 							.F.,;                            										// [n][15] Indica se a coluna será exibida nos detalhes do Browse
 							{},;                             										// [n][16] Opções de carga dos dados (Ex: 1=Sim, 2=Não)
@@ -10884,7 +10892,7 @@ user function JSCOLPRO( aFields, aAlter, oPrefs )
 							.F.,;                            										// [n][10] Indica se exibe imagem
 							Nil,;                            										// [n][11] Code-Block de execução do duplo clique
 							cVarName +"["+ cBrwName +":At()]["+cValToChar(nX+2)+"]",;                    		// [n][12] Variável a ser utilizada na edição (ReadVar)
-							{|oBrw| sortCol(oBrw, &(cVarName)) },;              					// [n][13] Code-Block de execução do clique no header
+							&("{|oBrw| sortCol( oBrw, "+ cVarName +", "+ cValToChar(nX+2) +" ) }"),;              					// [n][13] Code-Block de execução do clique no header
 							.F.,;                            										// [n][14] Indica se a coluna está deletada
 							.F.,;                            										// [n][15] Indica se a coluna será exibida nos detalhes do Browse
 							{},;                             										// [n][16] Opções de carga dos dados (Ex: 1=Sim, 2=Não)
@@ -10903,7 +10911,7 @@ user function JSCOLPRO( aFields, aAlter, oPrefs )
 							.F.,;                            										// [n][10] Indica se exibe imagem
 							Nil,;                            										// [n][11] Code-Block de execução do duplo clique
 							cVarName +"["+ cBrwName +":At()]["+cValToChar(nX+2)+"]",;                    		// [n][12] Variável a ser utilizada na edição (ReadVar)
-							{|oBrw| sortCol(oBrw, &(cVarName)) },;              					// [n][13] Code-Block de execução do clique no header
+							&("{|oBrw| sortCol( oBrw, "+ cVarName +", "+ cValToChar(nX+2) +" ) }"),;              					// [n][13] Code-Block de execução do clique no header
 							.F.,;                            										// [n][14] Indica se a coluna está deletada
 							.F.,;                            										// [n][15] Indica se a coluna será exibida nos detalhes do Browse
 							{},;                             										// [n][16] Opções de carga dos dados (Ex: 1=Sim, 2=Não)
@@ -10922,7 +10930,7 @@ user function JSCOLPRO( aFields, aAlter, oPrefs )
 							.F.,;                            										// [n][10] Indica se exibe imagem
 							Nil,;                            										// [n][11] Code-Block de execução do duplo clique
 							cVarName +"["+ cBrwName +":At()]["+cValToChar(nX+2)+"]",;                    		// [n][12] Variável a ser utilizada na edição (ReadVar)
-							{|oBrw| sortCol(oBrw, &(cVarName)) },;              					// [n][13] Code-Block de execução do clique no header
+							&("{|oBrw| sortCol( oBrw, "+ cVarName +", "+ cValToChar(nX+2) +" ) }"),;              					// [n][13] Code-Block de execução do clique no header
 							.F.,;                            										// [n][14] Indica se a coluna está deletada
 							.F.,;                            										// [n][15] Indica se a coluna será exibida nos detalhes do Browse
 							{},;                             										// [n][16] Opções de carga dos dados (Ex: 1=Sim, 2=Não)
@@ -10941,7 +10949,7 @@ user function JSCOLPRO( aFields, aAlter, oPrefs )
 							.F.,;                            										// [n][10] Indica se exibe imagem
 							Nil,;                            										// [n][11] Code-Block de execução do duplo clique
 							cVarName +"["+ cBrwName +":At()]["+cValToChar(nX+2)+"]",;                    		// [n][12] Variável a ser utilizada na edição (ReadVar)
-							{|oBrw| sortCol(oBrw, &(cVarName)) },;              					// [n][13] Code-Block de execução do clique no header
+							&("{|oBrw| sortCol( oBrw, "+ cVarName +", "+ cValToChar(nX+2) +" ) }"),;              					// [n][13] Code-Block de execução do clique no header
 							.F.,;                            										// [n][14] Indica se a coluna está deletada
 							.F.,;                            										// [n][15] Indica se a coluna será exibida nos detalhes do Browse
 							{"C=Calculado","F=Fornecedor","P=Produto"},;                            // [n][16] Opções de carga dos dados (Ex: 1=Sim, 2=Não)
@@ -10960,7 +10968,7 @@ user function JSCOLPRO( aFields, aAlter, oPrefs )
 							.F.,;                            										// [n][10] Indica se exibe imagem
 							Nil,;                            										// [n][11] Code-Block de execução do duplo clique
 							cVarName +"["+ cBrwName +":At()]["+cValToChar(nX+2)+"]",;               // [n][12] Variável a ser utilizada na edição (ReadVar)
-							{|oBrw| sortCol(oBrw, &(cVarName)) },;              					// [n][13] Code-Block de execução do clique no header
+							&("{|oBrw| sortCol( oBrw, "+ cVarName +", "+ cValToChar(nX+2) +" ) }"),;              					// [n][13] Code-Block de execução do clique no header
 							.F.,;                            										// [n][14] Indica se a coluna está deletada
 							.F.,;                            										// [n][15] Indica se a coluna será exibida nos detalhes do Browse
 							{},; 										                            // [n][16] Opções de carga dos dados (Ex: 1=Sim, 2=Não)
@@ -11177,12 +11185,14 @@ Função para ordenar grid conforme coluna que for clicada
 @since 11/22/2024
 @param oBrw, object, Objeto do Browse
 /*/
-static function sortCol( oBrw, aData )
-	
-	local nCol := oBrw:ColPos() 
-	
-	default aData := aColPro
+static function sortCol( oBrw, aData, nCol )
 
+	default aData := aColPro
+	// nCol: posição do dado da coluna clicada no vetor da grid, informada por cada coluna em JSCOLPRO.
+	// oBrw:ColPos() devolve a coluna da célula em foco (não a do cabeçalho clicado) e fica só como fallback
+	default nCol  := oBrw:ColPos()
+
+	// Clique repetido na mesma coluna inverte o sentido; numa nova coluna, começa em ordem crescente
 	if nLastCol == nCol
 		lCrescente := ! lCrescente
 	else
@@ -11190,9 +11200,148 @@ static function sortCol( oBrw, aData )
 	endif
 
 	nLastCol := nCol
-	aSort( aData,,, {|x,y| &('x[nCol] '+ iif( lCrescente, '>','<' ) +' y[nCol]') } )
+	aplSort( aData )
 	oBrw:UpdateBrowse()
 return Nil
+
+/*/{Protheus.doc} aplSort
+Aplica a ordenação escolhida pelo usuário no cabeçalho da grid (coluna nLastCol e sentido lCrescente).
+Também é chamada após cada filtro/recarga (chgFilter), para a ordenação não se perder
+@type function
+@version 23.0018
+@author Jean Carlos Pandolfo Saggin
+@since 14/10/2026
+@param aData, array, vetor de dados da grid (ordenado por referência)
+/*/
+static function aplSort( aData )
+	if nLastCol > 0 .and. len( aData ) > 0 .and. nLastCol <= len( aData[1] )
+		aSort( aData,,, {|x,y| cmpLin( x, y ) } )
+	endif
+return Nil
+
+/*/{Protheus.doc} cmpLin
+Compara duas linhas da grid para a ordenação: chave principal na coluna escolhida (no sentido escolhido) e
+desempate, sempre crescente, pela descrição e depois pelo código do produto (aSort não é estável)
+@type function
+@version 23.0018
+@author Jean Carlos Pandolfo Saggin
+@since 14/10/2026
+@param x, array, primeira linha
+@param y, array, segunda linha
+@return logical, lAntes - .T. quando x deve vir antes de y
+/*/
+static function cmpLin( x, y )
+
+	local nRet := cmpVal( x[nLastCol], y[nLastCol] ) as numeric
+
+	if ! lCrescente
+		nRet := -nRet
+	endif
+	if nRet == 0 .and. nPosDes > 0
+		nRet := cmpVal( x[nPosDes], y[nPosDes] )
+	endif
+	if nRet == 0 .and. nPosPrd > 0
+		nRet := cmpVal( x[nPosPrd], y[nPosPrd] )
+	endif
+
+return nRet < 0
+
+/*/{Protheus.doc} cmpVal
+Compara dois valores de uma mesma coluna, tolerando tipos diferentes (Nil, lógico ou mistura de tipos)
+@type function
+@version 23.0018
+@author Jean Carlos Pandolfo Saggin
+@since 14/10/2026
+@param xA, variant, primeiro valor
+@param xB, variant, segundo valor
+@return numeric, nRet - -1 (xA antes), 0 (iguais) ou 1 (xA depois)
+/*/
+static function cmpVal( xA, xB )
+
+	local nRet := 0 as numeric
+
+	// Lógicos não suportam comparação por < e >: .F. vem antes de .T.
+	if ValType( xA ) == 'L'
+		if xA
+			xA := 1
+		else
+			xA := 0
+		endif
+	endif
+	if ValType( xB ) == 'L'
+		if xB
+			xB := 1
+		else
+			xB := 0
+		endif
+	endif
+	if ValType( xA ) != ValType( xB )
+		xA := cValToChar( xA )
+		xB := cValToChar( xB )
+	endif
+
+	if xA == xB
+		nRet := 0
+	elseif xA < xB
+		nRet := -1
+	else
+		nRet := 1
+	endif
+
+return nRet
+
+/*/{Protheus.doc} grvMinMax
+Grava a alteração de estoque mínimo/máximo feita na grid seguindo a mesma regra da leitura (U_JSQRYINF):
+indicador de produto (SBZ) da filial quando existir; sem indicador, devolve .F. para o chamador gravar no
+cadastro geral (SB1). Com mais de uma filial selecionada, a coluna exibe a soma das filiais e a alteração é
+bloqueada (não há como saber em qual filial gravar)
+@type function
+@version 23.0019
+@author Jean Carlos Pandolfo Saggin
+@since 14/10/2026
+@param cField, character, campo editado (B1_EMIN ou B1_EMAX)
+@param cProd, character, código do produto
+@param nValue, numeric, novo valor
+@param lReturn, logical, (referência) retorno da validação da edição
+@return logical, lTratado - .T. quando a alteração já foi tratada aqui (gravada na SBZ ou bloqueada)
+/*/
+static function grvMinMax( cField, cProd, nValue, lReturn )
+
+	local lTratado := .F. as logical
+	local cCpoBZ   := 'BZ_'+ SubStr( cField, 4 ) as character	// B1_EMIN -> BZ_EMIN | B1_EMAX -> BZ_EMAX
+	local cFilBkp  := cFilAnt as character
+	local nPosFul  := aScan( aFullPro, {|x| x[nPosPrd] == cProd } ) as numeric
+
+	if len( _aFil ) > 1
+		hlp( 'MINMAX_FILIAL',;
+			 'O estoque mínimo/máximo é definido por filial e não pode ser alterado com mais de uma filial selecionada.',;
+			 'Selecione apenas a filial desejada no filtro (botão Filiais) e faça a alteração novamente.' )
+		// Desfaz a edição na grid, voltando ao valor carregado
+		if nPosFul > 0
+			aColPro[oBrwPro:nAt][gtMain(cField)] := aFullPro[nPosFul][gtMain(cField)]
+		endif
+		lReturn  := .F.
+		lTratado := .T.
+	else
+		// Indicador de produto da filial analisada (pode ser diferente da filial logada)
+		cFilAnt := _aFil[1]
+		DBSelectArea( 'SBZ' )
+		SBZ->( DBSetOrder( 1 ) )		// BZ_FILIAL + BZ_COD
+		if SBZ->( FieldPos( cCpoBZ ) ) > 0 .and. SBZ->( DBSeek( FWxFilial( 'SBZ' ) + cProd ) )
+			if SBZ->( FieldGet( FieldPos( cCpoBZ ) ) ) != nValue
+				RecLock( 'SBZ', .F. )
+				SBZ->( FieldPut( FieldPos( cCpoBZ ), nValue ) )
+				SBZ->( MsUnlock() )
+			endif
+			if nPosFul > 0
+				aFullPro[nPosFul] := aClone( aColPro[oBrwPro:nAt] )
+			endif
+			lTratado := .T.
+		endif
+		cFilAnt := cFilBkp
+	endif
+
+return lTratado
 
 /*/{Protheus.doc} PCOMPRE
 Função de pré-validação para edição de colunas do browse
@@ -13576,6 +13725,9 @@ static function chgFilter( nLocal )
 			endif
 		next nX
 	endif
+
+	// Mantém a ordenação escolhida pelo usuário no cabeçalho da grid após filtros e recargas
+	aplSort( aColPro )
 
 return aColPro
 
