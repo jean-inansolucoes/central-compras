@@ -237,6 +237,7 @@ user function JSDETVER()
     aAdd( aDetVer, { '23','0014','16/09/2026', 'Otimização de performance no recálculo automático dos índices de produtos (JOB), reduzindo drasticamente o tempo de processamento em bases com grande volume de produtos ao passar a calcular giro, consumo e melhor fornecedor/preço em lote, ao invés de produto a produto' } )
     aAdd( aDetVer, { '23','0015','22/09/2026', 'Correção na análise de compras multi-filial para considerar corretamente a data do último recálculo de índices concluído em cada filial, evitando inconsistência no consumo médio quando a análise é iniciada enquanto o recálculo automático de alguma filial ainda está em andamento' } )
     aAdd( aDetVer, { '23','0016','30/09/2026', 'Correção para que o primeiro acesso ao painel em clientes novos leve direto ao cadastro das configurações internas, sem exigir o parâmetro de alias da antiga tabela de configurações' } )
+    aAdd( aDetVer, { '23','0017','30/09/2026', 'Correção para permitir o uso do painel e do recálculo automático de índices sem a configuração da tabela de controle de produtos descontinuados (recurso temporariamente desativado) e para assumir o grupo padrão do produto quando o campo de agrupamento não estiver parametrizado' } )
 
 return aDetVer
 

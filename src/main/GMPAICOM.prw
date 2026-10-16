@@ -160,7 +160,7 @@ User Function GMPAICOM()
 	Private nMVPNC11  := SuperGetMv( 'MV_X_PNC11',,1 )					// Tipo de Análise (1=Pelo Fornecedor Padrão ou 2=Pelo Produto)
 	Private _aFil     := { cFilAnt } as array
 	Private _aProdFil := {} as array
-	Private cFdGroup  := AllTrim( SuperGetMv( 'MV_X_PNC13' ) )
+	Private cFdGroup  := AllTrim( SuperGetMv( 'MV_X_PNC13',, 'B1_GRUPO' ) )
 	Private _aFilters := { Space(200),;
 						   Space(200),; 
 						   Space(TAMSX3('A2_COD')[1]),;
@@ -203,12 +203,12 @@ User Function GMPAICOM()
 	endif
 
 	//Checa configuração do alias da tabela de produtos a serem descontinuados.
-	if ! GetMv( 'MV_X_PNC04', .T. ) .or. Empty( cZB6 )
-		Hlp( 'MV_X_PNC04',;
-			'Parâmetro interno que define alias da tabela de produtos descontinuados inexistente ou não configurado',;
-			'Verifique e configure o parâmetro MV_X_PNC04 através do módulo configurador do sistema.')
-		return Nil
-	endif
+	// if ! GetMv( 'MV_X_PNC04', .T. ) .or. Empty( cZB6 )
+	// 	Hlp( 'MV_X_PNC04',;
+	// 		'Parâmetro interno que define alias da tabela de produtos descontinuados inexistente ou não configurado',;
+	// 		'Verifique e configure o parâmetro MV_X_PNC04 através do módulo configurador do sistema.')
+	// 	return Nil
+	// endif
 
 	// Checa existencia do parâmetro e da configuração do alias da tabelas de perfis de cálculo
 	if ! GetMv( 'MV_X_PNC16', .T. ) .or. Empty( cZBM )
@@ -5411,7 +5411,7 @@ User Function GMINDPRO( aParam )
 	Local aInfPrd   := {}
 	Local aPerAna   := {}
 	Local nDUteis   := 0
-	Local lFunIna   := .F.
+	// Local lFunIna   := .F.
 	local nLeadTime := 0  as numeric
 	local cLeadTime := "" as character
  	local lMVPNC12  := .F. as logical
@@ -5596,10 +5596,10 @@ User Function GMINDPRO( aParam )
 	cDtTime := FWTimeStamp(2)
 	
 	// Valida existência da função que analisa produtos pendentes de inativação
-	lFunIna := ExistBlock( "GMPRDDES" )
-	IF lFunIna
-		ExecBlock( "GMPRDDES", .F., .F., Nil )
-	EndIf
+	// lFunIna := ExistBlock( "GMPRDDES" )
+	// IF lFunIna
+	// 	ExecBlock( "GMPRDDES", .F., .F., Nil )
+	// EndIf
 
 	// Realiza chamada da rotina que analisa pedidos de compras com quantidade a classificar e sem pré-nota de entrada
 	if ExistBlock( 'GMPCACLA' )
@@ -6148,16 +6148,16 @@ User Function GMINDPRO( aParam )
 			EndIf
     		
     		// Trata exceções dos eventos para os produtos sinalizados manualmente pelo operador
-    		if lEvento
-    			DBSelectArea( cZB6 )
-    			(cZB6)->( DBSetOrder( 1 ) )
-    			If DBSeek( xFilial( cZB6 ) + PRDTMP->B1_COD )
-    				if (cZB6)->( FieldGet( FieldPos( cZB6 +'_DTLIM' ) ) ) >= dHoje
-    					cMsg    := "IGNORA AUTO: "+ cMsg
-						lWF     := .F.
-    				EndIf
-    			EndIf
-    		EndIf
+    		// if lEvento
+    		// 	DBSelectArea( cZB6 )
+    		// 	(cZB6)->( DBSetOrder( 1 ) )
+    		// 	If DBSeek( xFilial( cZB6 ) + PRDTMP->B1_COD )
+    		// 		if (cZB6)->( FieldGet( FieldPos( cZB6 +'_DTLIM' ) ) ) >= dHoje
+    		// 			cMsg    := "IGNORA AUTO: "+ cMsg
+			// 			lWF     := .F.
+    		// 		EndIf
+    		// 	EndIf
+    		// EndIf
     		
     		aInfPrd := { aConfig[01] /*nDias*/,;
     		             nLeadTime /*nLdTime*/,;
