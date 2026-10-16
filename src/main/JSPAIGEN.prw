@@ -240,6 +240,7 @@ user function JSDETVER()
     aAdd( aDetVer, { '23','0017','30/09/2026', 'Correção para permitir o uso do painel e do recálculo automático de índices sem a configuração da tabela de controle de produtos descontinuados (recurso temporariamente desativado) e para assumir o grupo padrão do produto quando o campo de agrupamento não estiver parametrizado' } )
     aAdd( aDetVer, { '23','0018','14/10/2026', 'Correção na ordenação da grid principal pelo clique no cabeçalho: passa a ordenar pela coluna clicada (e não pela coluna em foco), começa em ordem crescente, desempata pela descrição do produto e mantém a ordenação após filtros e recargas' } )
     aAdd( aDetVer, { '23','0019','14/10/2026', 'Estoque mínimo e máximo da grid principal e do cálculo passam a vir do indicador de produto da filial, quando cadastrado, e do cadastro geral do produto apenas na ausência do indicador; a alteração desses campos na grid grava no mesmo local de origem' } )
+    aAdd( aDetVer, { '24','0001','16/10/2026', 'Novo filtro de produtos por IA: quando habilitado, a tela de filtro do painel permite descrever em texto livre quais produtos analisar e a IA converte a descrição em filtro, mantendo o cálculo normal da necessidade de compra' } )
 
 return aDetVer
 
@@ -670,9 +671,12 @@ para usar a mesma sugestão materializada (NECREV/ISCOMP) já usada pela grid prin
 JOIN com fornecedor (SA5/SA2) passa a ser LEFT JOIN, e o filtro B1_MRP='S' deixa de ser aplicado,
 para que todo componente da estrutura seja exibido, mesmo sem fornecedor cadastrado ou sem a
 flag de MRP habilitada.
+@param cAIWhere, character, expressão de filtro gerada pela IA e validada por U_JSAIVLD (opcional). Quando
+informada, é aplicada somente sobre as colunas da tabela derivada TEMP (query externa) e a query interna passa
+a devolver as colunas descritivas GRUPO, GRPTAB (quando existir B1_XGPTP), FORNOME e FORFANT
 @return character, cQuery
 /*/
-user function JSQRYINF( aConf, aFilters, cPedSol, aCustom, aMPs )
+user function JSQRYINF( aConf, aFilters, cPedSol, aCustom, aMPs, cAIWhere )
     
     Local cTmp     := ""
 	Local aTmp     := {}
@@ -691,12 +695,22 @@ user function JSQRYINF( aConf, aFilters, cPedSol, aCustom, aMPs )
     local cMPs     := "" as character
     local lRevFil  := .F. as logical
     local dDtCalc  := StoD("") as date
+    local lModoIA  := .F. as logical
 
     default aConf    := U_JSGETCFG( .T. /* lAuto */)
     default aFilters := {}
     default cPedSol  := '1'
     default aCustom  := {}
     default aMPs     := {} 
+    default cAIWhere := ""
+
+    // Filtro por IA não se aplica à consulta de MPs específicas. A expressão é revalidada aqui (defesa em
+    // profundidade): se, por qualquer motivo, chegar uma expressão fora da lista permitida, nada é devolvido
+    lModoIA := len( aMPs ) == 0 .and. ! Empty( cAIWhere )
+    if lModoIA .and. ! U_JSAIVLD( cAIWhere )
+        FWLogMsg( 'WARN', /*cTransactionId*/, 'SMARTSUPPLY', 'JSQRYINF', '', '02', 'Expressão de filtro por IA rejeitada na revalidação: '+ cAIWhere )
+        cAIWhere := "0=1"
+    endif
 
     lLike := iif( len( aMPs ) == 0, At( '*', aFilters[5] ) > 0, .F. )
     
@@ -754,6 +768,25 @@ user function JSQRYINF( aConf, aFilters, cPedSol, aCustom, aMPs )
             cQuery += "'"+ Space( TAMSX3('A5_LOJA')[1] ) +"' AS A5_LOJA, " + CEOL
         endif
         cQuery += "B1.R_E_C_N_O_ RECSB1, " + CEOL
+
+        // Colunas descritivas usadas apenas pelo filtro por IA (U_JSAIFLT), para que a expressão gerada possa
+        // filtrar por grupo, grupo de tabela de preço e nome/fantasia do fornecedor padrão do produto
+        if lModoIA
+            cQuery += "B1."+ cFdGroup +" GRUPO, " + CEOL
+            if SB1->( FieldPos( 'B1_XGPTP' ) ) > 0
+                cQuery += "B1.B1_XGPTP GRPTAB, " + CEOL
+            endif
+            cQuery += "COALESCE((SELECT MAX(A2N.A2_NOME) FROM "+ RetSqlName( 'SA2' ) +" A2N " + CEOL
+            cQuery += "WHERE A2N.A2_FILIAL  = '"+ FWxFilial( 'SA2' ) +"' " + CEOL
+            cQuery += "  AND A2N.A2_COD     = B1.B1_PROC " + CEOL
+            cQuery += "  AND A2N.A2_LOJA    = B1.B1_LOJPROC " + CEOL
+            cQuery += "  AND A2N.D_E_L_E_T_ = ' ' ),' ') FORNOME, " + CEOL
+            cQuery += "COALESCE((SELECT MAX(A2F.A2_NREDUZ) FROM "+ RetSqlName( 'SA2' ) +" A2F " + CEOL
+            cQuery += "WHERE A2F.A2_FILIAL  = '"+ FWxFilial( 'SA2' ) +"' " + CEOL
+            cQuery += "  AND A2F.A2_COD     = B1.B1_PROC " + CEOL
+            cQuery += "  AND A2F.A2_LOJA    = B1.B1_LOJPROC " + CEOL
+            cQuery += "  AND A2F.D_E_L_E_T_ = ' ' ),' ') FORFANT, " + CEOL
+        endif
 
         cQuery += "COALESCE((SELECT SUM(B2.B2_QATU) FROM "+ RetSqlName( 'SB2' ) +" B2 " + CEOL
         cQuery += "WHERE B2.B2_FILIAL = '"+ FWxFilial( 'SB2' ) +"' " + CEOL
@@ -953,7 +986,8 @@ user function JSQRYINF( aConf, aFilters, cPedSol, aCustom, aMPs )
         endif
 
         cQuery += "  AND B1.B1_MSBLQL  <> '1' " + CEOL				// Faz leitura apenas dos itens ativos
-        if len( aMPs ) == 0
+        // No filtro por IA os tipos são opcionais (a IA pode não restringir tipos): evita gerar "IN ()"
+        if len( aMPs ) == 0 .and. ( ! lModoIA .or. ! Empty( cTypes ) )
             cQuery += "  AND B1.B1_TIPO IN ( "+ cTypes +" ) " + CEOL	// Considera apenas tipos de produtos informados pelo usuário
         endif
         if len( aMPs ) == 0
@@ -988,12 +1022,17 @@ user function JSQRYINF( aConf, aFilters, cPedSol, aCustom, aMPs )
     else
         cQuery += ") AS TEMP " + CEOL
     endif
+    // Filtro por IA: aplicado somente sobre as colunas da tabela derivada TEMP; filial, D_E_L_E_T_ e os demais
+    // filtros obrigatórios continuam na query interna
+    if lModoIA
+        cQuery += "WHERE ( "+ cAIWhere +" ) " + CEOL
+    endif
     cQuery += "ORDER BY TEMP.B1_COD, TEMP.B1_DESC, TEMP.FILIAL "	+ CEOL
 
     // Devolve posicionamento na filial de origem
     cFilAnt := cFilHist
 
-    ConOut( cQuery )
+    FWLogMsg( 'INFO', /*cTransactionId*/, 'SMARTSUPPLY', 'JSQRYINF', '', '01', cQuery )
 return cQuery
 
 /*/{Protheus.doc} hlp

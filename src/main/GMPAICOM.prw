@@ -170,6 +170,8 @@ User Function GMPAICOM()
 						   iif( SB1->( FieldPos( 'B1_XGPTP' ) ) > 0, Space(TAMSX3('B1_XGPTP')[1]), Nil ),;
 						   .F. /* lCancel */ }
 
+	Private cAIWhere   := "" as character			// Expressão de filtro gerada pela IA (U_JSAIFLT), aplicada por U_JSQRYINF
+	Private cAITexto   := "" as character			// Descrição do filtro digitada pelo usuário no modo IA (MV_X_PNC21)
 	Private lCrescente := .T. as logical
 	Private nLastCol   := 0 as numeric 
 	Private aFullPro   := {} as array
@@ -3648,6 +3650,10 @@ Static Function fLoadInf( aMPs, lAll, lEnd )
 	local aBkpFil   := {}
 	local aReturn   := {} as array
 	local lPA       := .F. as logical
+	local cWhereIA  := "" as character	// Filtro por IA (MV_X_PNC21) aplicado na leitura dos produtos
+	local bErroAnt  as codeblock
+	local cErroSQL  := "" as character
+	local aFilVaz   := {} as array
 	
 	default aMPs := {} 
 	default lAll := .T. 
@@ -3674,13 +3680,39 @@ Static Function fLoadInf( aMPs, lAll, lEnd )
 	// Processa os dados de análise apena quando o usuário selecionou alguma filial
 	if len( _aFil ) > 0
 			
+		// Filtro por IA (MV_X_PNC21) só se aplica à análise principal, não à consulta de MPs específicas, e só com o
+		// recurso ligado: com o parâmetro desligado, qualquer expressão remanescente (ex.: processo restaurado) é ignorada
+		if len( aMPs ) == 0 .and. Type( 'cAIWhere' ) == 'C' .and. iaAtiva()
+			cWhereIA := cAIWhere
+		endif
+
 		// Consulta todos os produtos para exibí-los no grid
-		cQuery := U_JSQRYINF( aConfig, _aFilters, _cPedSol, aPEPNC05, aMPs )	
+		cQuery := U_JSQRYINF( aConfig, _aFilters, _cPedSol, aPEPNC05, aMPs, cWhereIA )	
 		
 		// CopyToClipBoard( cQuery )
 		// MsgInfo( 'Query copiada!', 'SQL' )
 
-		DBUseArea( .T., "TOPCONN", TcGenQry(,,cQuery), "PRDTMP", .F., .T. )
+		if Empty( cWhereIA )
+			DBUseArea( .T., "TOPCONN", TcGenQry(,,cQuery), "PRDTMP", .F., .T. )
+		else
+			// A expressão da IA já foi validada (U_JSAIVLD), mas ainda pode conter erro de sintaxe para o banco em
+			// uso: captura a falha, avisa o usuário e segue com o resultado vazio, sem derrubar a tela
+			bErroAnt := ErrorBlock( {|oErr| cErroSQL := oErr:Description, Break( oErr ) } )
+			BEGIN SEQUENCE
+				DBUseArea( .T., "TOPCONN", TcGenQry(,,cQuery), "PRDTMP", .F., .T. )
+			END SEQUENCE
+			ErrorBlock( bErroAnt )
+			if Select( 'PRDTMP' ) == 0
+				hlp( 'FILTRO_IA',;
+					 'O filtro gerado pela IA não pôde ser executado no banco de dados: '+ AllTrim( cErroSQL ) +' '+ AllTrim( TCSQLError() ),;
+					 'Ajuste a descrição do filtro (botão Filtro) e tente novamente.' )
+				cAIWhere := ""
+				aFilVaz  := aClone( _aFilters )
+				aFilVaz[len(aFilVaz)] := .T.		// lCancel: mesma estrutura de colunas, sem registros
+				cQuery   := U_JSQRYINF( aConfig, aFilVaz, _cPedSol, aPEPNC05, aMPs )
+				DBUseArea( .T., "TOPCONN", TcGenQry(,,cQuery), "PRDTMP", .F., .T. )
+			endif
+		endif
 		Count to nQtd
 		
 		// Define o tamanho da régua para seguir com o processamento
@@ -9576,7 +9608,7 @@ Função para abertura de caixa de pesquisa
 @param aFiltros, array, filtros atuais
 @return character, cText
 /*/
-static function prodFilter( aFiltros, lManual )
+static function prodFilter( aFiltros, lManual, lTrad )
 	
 	local oLookDlg      as object
 	local oContainer    as object
@@ -9591,8 +9623,10 @@ static function prodFilter( aFiltros, lManual )
 	local oGetGpTp      as object
 	local oBtnFil       as object
 	local nLinFil       := 135 as numeric
+	local aIASav        := {} as array
 
 	default lManual := .F.
+	default lTrad   := .F.
 
 	_aFilters := aClone( aFiltros )
 	_cTypes   := _aFilters[2]
@@ -9604,6 +9638,11 @@ static function prodFilter( aFiltros, lManual )
 			if MsgYesNo( 'Foi identificado que existe processo de compra em andamento, deseja restaurá-lo? Se disser que "não", o processo será eliminado.',;
 				'A T E N Ç Ã O ! ' )
 				_aFilters := loadSaved( 'filters' )
+				aIASav    := loadSaved( 'filtro_ia' )
+				if len( aIASav ) == 2 .and. Type( 'cAIWhere' ) == 'C' .and. iaAtiva()
+					cAITexto := aIASav[1]
+					cAIWhere := aIASav[2]
+				endif
 				_aFil     := loadSaved( 'filiais' )
 				aCarCom   := loadSaved( 'carrinho' )
 				// Atualiza grid de fornecedores após restaurar carrinho de compras
@@ -9620,6 +9659,12 @@ static function prodFilter( aFiltros, lManual )
 		endif
 	endif
 	
+	// Filtro por IA (MV_X_PNC21): campo de texto livre no lugar dos campos tradicionais. Não se aplica ao
+	// recálculo de índices (GMINDPRO), que não utiliza a expressão gerada pela IA
+	if ! lTrad .and. iaAtiva() .and. ! isInCallStack( 'U_GMINDPRO' ) .and. Type( 'cAIWhere' ) == 'C'
+		return aiFilDlg( aFiltros )
+	endif
+
 	oLookDlg := FWDialogModal():New()
 	oLookDlg:SetEscClose( .F. )
 	oLookDlg:SetTitle( 'Filtro de Seleção de Produtos' )
@@ -9661,7 +9706,170 @@ static function prodFilter( aFiltros, lManual )
 
 	oLookDlg:Activate()
 
+	// Filtro tradicional confirmado: descarta o filtro por IA aplicado anteriormente
+	if ! _aFilters[len(_aFilters)] .and. Type( 'cAIWhere' ) == 'C' .and. ! Empty( cAIWhere )
+		cAIWhere := ""
+		saveData( 'filtro_ia' )
+	endif
+
 return _aFilters
+
+/*/{Protheus.doc} aiFilDlg
+Tela do filtro de produtos por IA (MV_X_PNC21): campo de texto livre, no lugar dos campos tradicionais, em que o
+usuário descreve com suas palavras quais produtos deseja analisar. A IA converte a descrição em filtro SQL
+(U_JSAIFLT) e o motor de cálculo do painel calcula normalmente a necessidade de compra dos produtos filtrados
+@type function
+@version 1.0
+@author Jean Carlos Pandolfo Saggin
+@since 26/09/2026
+@param aFiltros, array, filtros atuais (restaurados em caso de cancelamento)
+@return array, _aFilters
+/*/
+static function aiFilDlg( aFiltros )
+
+	local oDlgIA    as object
+	local oPanIA    as object
+	local oSayIA    as object
+	local oMemo     as object
+	local oBtnFil   as object
+	local oBtnTrad  as object
+	local lIrTrad   := .F. as logical
+	local cLblIA    := 'Descreva, com suas palavras, quais produtos deseja analisar. Ex.: "chapas MDF 15mm da Fibraplac '+;
+					   'com estoque abaixo do mínimo" ou "matérias-primas de giro crítico".' as character
+
+	oDlgIA := FWDialogModal():New()
+	oDlgIA:SetEscClose( .F. )
+	oDlgIA:SetTitle( 'Filtro de Seleção de Produtos' )
+	oDlgIA:SetSubTitle( 'Descreva o filtro desejado e a IA fará a seleção dos produtos...' )
+	oDlgIA:SetSize( 300, 200 )
+	oDlgIA:CreateDialog()
+	oDlgIA:AddCloseButton( {|| _aFilters := aClone( aFiltros ), _aFilters[len(_aFilters)] := .T., oDlgIA:DeActivate() }, "Cancelar" )
+	oDlgIA:AddOkButton( {|| aiFilOk( oDlgIA ) }, "Ok" )
+	oPanIA := TPanel():New( ,,, oDlgIA:getPanelMain() )
+	oPanIA:Align := CONTROL_ALIGN_ALLCLIENT
+
+	oSayIA   := TSay():New( 04, 04, {|| cLblIA }, oPanIA,,,,,,.T.,,,190,30 )
+	oMemo    := TMultiGet():New( 36, 04, {|u| txtIA( u, PCount() ) }, oPanIA, 190, 100,,,,,, .T. /* lPixel */ )
+	oBtnFil  := TButton():New( 142, 04, "Filiais (Multi-filial)", oPanIA, {|| _aFil := userFil( _aFil ) }, 80, 20,,,.F.,.T.,.F.,,.F.,,,.F. )
+	oBtnTrad := TButton():New( 142, 90, "Usar filtro tradicional", oPanIA, {|| lIrTrad := .T., _aFilters := aClone( aFiltros ), oDlgIA:DeActivate() }, 90, 20,,,.F.,.T.,.F.,,.F.,,,.F. )
+
+	oDlgIA:Activate()
+
+	// Usuário preferiu os campos tradicionais de filtro
+	if lIrTrad
+		_aFilters := prodFilter( aFiltros, .F., .T. )
+	endif
+
+return _aFilters
+
+/*/{Protheus.doc} txtIA
+Bloco de leitura/gravação do campo de texto do filtro por IA
+@type function
+@version 1.0
+@author Jean Carlos Pandolfo Saggin
+@since 26/09/2026
+@param xValue, variant, conteúdo digitado
+@param nParams, numeric, quantidade de parâmetros recebidos pelo bloco (0 = leitura)
+@return character, cAITexto
+/*/
+static function txtIA( xValue, nParams )
+	if nParams > 0
+		cAITexto := xValue
+	endif
+return cAITexto
+
+/*/{Protheus.doc} iaAtiva
+Indica se o filtro de produtos por IA está ligado no ambiente (parâmetro MV_X_PNC21)
+@type function
+@version 1.0
+@author Jean Carlos Pandolfo Saggin
+@since 16/10/2026
+@return logical, lAtiva
+/*/
+static function iaAtiva()
+
+	local xMVIA := SuperGetMv( 'MV_X_PNC21',, .F. )
+
+return ValType( xMVIA ) == 'L' .and. xMVIA
+
+/*/{Protheus.doc} aiFilOk
+Confirmação do filtro por IA: interpreta a descrição (U_JSAIFLT), apresenta ao usuário como a IA entendeu o
+pedido (com opção de ver a expressão SQL) e, ao aplicar, atualiza os filtros do painel e a expressão cAIWhere
+@type function
+@version 1.0
+@author Jean Carlos Pandolfo Saggin
+@since 26/09/2026
+@param oDlg, object, janela do filtro por IA (fechada quando o filtro é aplicado)
+@return logical, lAplica
+/*/
+static function aiFilOk( oDlg )
+
+	local oFiltro   as object
+	local nOpc      := 0  as numeric
+	local cMsg      := "" as character
+	local cSQL      := "" as character
+	local cTipos    := "" as character
+	local lAplica   := .F. as logical
+
+	if Empty( AllTrim( cAITexto ) )
+		hlp( 'FILTRO_IA', 'Descreva o filtro desejado antes de confirmar.',;
+			 'Exemplo: "chapas MDF 15mm da Fibraplac com estoque abaixo do mínimo".' )
+	else
+		oFiltro := U_JSAIFLT( cAITexto )
+		if ValType( oFiltro ) == 'J'
+
+			// Sem tipos na descrição: utiliza a pré-definição de tipos das configurações do painel
+			cTipos := oFiltro['tipos']
+			if Empty( cTipos )
+				cTipos := AllTrim( aConfig[21] )
+			endif
+
+			cMsg := 'Entendi assim: '+ oFiltro['explicacao'] + CEOL + CEOL
+			if ! Empty( oFiltro['fornome'] )
+				cMsg += 'Fornecedor: '+ oFiltro['fornome'] + CEOL
+			endif
+			if Empty( cTipos )
+				cMsg += 'Tipos de produto: todos'
+			else
+				cMsg += 'Tipos de produto: '+ cTipos
+			endif
+
+			if Empty( oFiltro['where'] )
+				cSQL := 'Nenhuma condição adicional: o filtro utiliza apenas fornecedor e/ou tipos de produto.'
+			else
+				cSQL := 'WHERE '+ oFiltro['where']
+			endif
+
+			nOpc := 2
+			while nOpc == 2
+				nOpc := Aviso( 'Filtro por IA', cMsg, { 'Aplicar', 'Ver SQL', 'Ajustar' }, 3 )
+				if nOpc == 2
+					Aviso( 'Filtro por IA - expressão SQL', cSQL, { 'Voltar' }, 3 )
+				endif
+			enddo
+
+			if nOpc == 1
+				lAplica := .T.
+				_aFilters[1] := Space( 200 )
+				_aFilters[2] := PadR( cTipos, 200, ' ' )
+				_aFilters[3] := PadR( oFiltro['fornecedor'], TAMSX3('A2_COD')[1], ' ' )
+				_aFilters[4] := Space( TAMSX3(cFdGroup)[1] )
+				_aFilters[5] := Space( TAMSX3('B1_COD')[1] )
+				_aFilters[6] := PadR( oFiltro['loja'], TAMSX3('A2_LOJA')[1], ' ' )
+				if SB1->( FieldPos( 'B1_XGPTP' ) ) > 0
+					_aFilters[7] := Space( TAMSX3('B1_XGPTP')[1] )
+				endif
+				_aFilters[len(_aFilters)] := .F.
+				cAIWhere := oFiltro['where']
+				saveData( 'filters', _aFilters )
+				saveData( 'filtro_ia' )
+				oDlg:DeActivate()
+			endif
+			FreeObj( oFiltro )
+		endif
+	endif
+
+return lAplica
 
 /*/{Protheus.doc} valFilPro
 Valida o conteúdo informado no filtro de pesquisa de produtos
@@ -13306,6 +13514,11 @@ static function loadSaved( cPart )
 					aAdd( aSaved[len(aSaved)], restData(oRestore['carrinho_filial'][nX]['FILIAL'], 'C', len(cFilAnt) ) ) // Adiciona filial ao final do vetor
 				next nX
 			endif
+		elseif cPart == 'filtro_ia'		// Texto e expressão do filtro por IA (MV_X_PNC21)
+			if oRestore:hasProperty( 'filtro_ia' )
+				aAdd( aSaved, txtRest( oRestore['filtro_ia']['texto'] ) )
+				aAdd( aSaved, txtRest( oRestore['filtro_ia']['where'] ) )
+			endif
 		elseif cPart == 'filiais'
 			if oRestore:hasProperty( 'filiais' )
 				for nX := 1 to len( oRestore['filiais'] )
@@ -13353,6 +13566,31 @@ static function restData( xData, cType, nSize )
 	endif
 return xRet
 
+/*/{Protheus.doc} txtRest
+Restaura um texto gravado no Json de restauração (UTF-8 -> padrão do sistema), sem ajuste de tamanho
+@type function
+@version 1.0
+@author Jean Carlos Pandolfo Saggin
+@since 26/09/2026
+@param xData, variant, conteúdo lido do Json
+@return character, cRet
+/*/
+static function txtRest( xData )
+
+	local cRet := "" as character
+	local xDec
+
+	if ValType( xData ) == 'C'
+		xDec := DecodeUTF8( xData )
+		if ValType( xDec ) == 'C'
+			cRet := xDec
+		else
+			cRet := xData
+		endif
+	endif
+
+return cRet
+
 /*/{Protheus.doc} saveData
 Função responsável pelo salvamento dos dados no Json de restauração do processo
 @type function
@@ -13372,6 +13610,7 @@ static function saveData( cPart, aData, aHeader, lFlush )
 	local aLines   := {} as array
 	local cResult  as character
 	local oFilters as object
+	local oFilIA   as object
 
 	default cPart   := ""
 	default aHeader := {}
@@ -13395,6 +13634,11 @@ static function saveData( cPart, aData, aHeader, lFlush )
 		aEval( aData, {|x| nPar++ , oFilters['nPar'+cValToChar(nPar)] := convData(x) } )
 		oRestore['filters'] := oFilters
 		FreeObj( oFilters )
+	elseif cPart == 'filtro_ia' .and. Type( 'cAIWhere' ) == 'C'	// Texto e expressão do filtro por IA (MV_X_PNC21)
+		oFilIA := JsonObject():New()
+		oFilIA['texto'] := convData( cAITexto )
+		oFilIA['where'] := convData( cAIWhere )
+		oRestore['filtro_ia'] := oFilIA
 	elseif cPart == 'carrinho' .or. cPart == 'carrinho_filial'	// Adiciona produtos do carrinho ao Json
 		if len( aData ) > 0
 			aLines := {}

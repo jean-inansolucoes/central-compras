@@ -900,4 +900,12 @@ static function getParams()
                     "",;                                                    // Descrição 3
                     AllTrim(SuperGetMv( "MV_X_PNC20",, "00" ));             // Conteúdo
                     } )
+    aAdd( aParams, {; 
+                    "MV_X_PNC21",;                                          // Parâmetro
+                    "L",;                                                   // Tipo
+                    "Habilita filtro de produtos por IA (texto livre) ",;   // Descrição 1
+                    "na tela de filtro do SmartSupply",;                    // Descrição 2
+                    "",;                                                    // Descrição 3
+                    SuperGetMv( "MV_X_PNC21",, .F. );                       // Conteúdo
+                    } )
 return aParams
