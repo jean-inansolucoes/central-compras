@@ -113,6 +113,24 @@ user function JSGETSTR( cTable )
         aAdd( aStruct, { "JUSTIF" , "C", 3, 0 } )
         aAdd( aStruct, { "COMPL"  , "M", 10, 0 } )
 
+    elseif cTable == "PNC_LABEL_"+ cEmpAnt
+
+        // Cadastro de rótulos de produtos (JSROTULO) - único para a empresa, sem filial
+        aAdd( aStruct, { "ID"     , "N", 6, 0 } )
+        aAdd( aStruct, { "DESCRI" , "C", 30, 0 } )
+        aAdd( aStruct, { "COR"    , "C", 20, 0 } )		// Imagem da legenda (ex.: BR_VERDE)
+        aAdd( aStruct, { "USRINC" , "C", 6, 0 } )
+        aAdd( aStruct, { "DTINC"  , "D", 8, 0 } )
+
+    elseif cTable == "PNC_LABEL_PROD_"+ cEmpAnt
+
+        // Vínculo produto x rótulo - FILIAL segue o compartilhamento do SB1 (FWxFilial('SB1'))
+        aAdd( aStruct, { "FILIAL" , "C", len( cFilAnt ), 0 } )
+        aAdd( aStruct, { "PROD"   , "C", TAMSX3('B1_COD')[1], 0 } )
+        aAdd( aStruct, { "LABELID", "N", 6, 0 } )
+        aAdd( aStruct, { "USRINC" , "C", 6, 0 } )
+        aAdd( aStruct, { "DTINC"  , "D", 8, 0 } )
+
     endif
 
 return aStruct
@@ -237,6 +255,10 @@ user function JSTBLIDX( cTable )
         aAdd( aIndex, { "PNC_RVTRC_"+ cEmpAnt+'_01', 'FILIAL+MP+DTCALC+SEQ', {|| 'FILIAL+MP+DTCALC+SEQ' } } )
     elseif cTable == "PNC_PROD_"+ cEmpAnt
         aAdd( aIndex, { "PNC_PROD_"+ cEmpAnt+'_01', 'FILIAL+PROD+DTOS(DTREF)', {|| 'FILIAL+PROD+DTOS(DTREF)' } } )
+    elseif cTable == "PNC_LABEL_"+ cEmpAnt
+        aAdd( aIndex, { "PNC_LABEL_"+ cEmpAnt+'_01', 'ID', {|| 'ID' } } )
+    elseif cTable == "PNC_LABEL_PROD_"+ cEmpAnt
+        aAdd( aIndex, { "PNC_LABEL_PROD_"+ cEmpAnt+'_01', 'FILIAL+PROD', {|| 'FILIAL+PROD' } } )
     endif
 return aIndex
 

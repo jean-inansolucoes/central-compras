@@ -241,6 +241,7 @@ user function JSDETVER()
     aAdd( aDetVer, { '23','0018','14/10/2026', 'Correção na ordenação da grid principal pelo clique no cabeçalho: passa a ordenar pela coluna clicada (e não pela coluna em foco), começa em ordem crescente, desempata pela descrição do produto e mantém a ordenação após filtros e recargas' } )
     aAdd( aDetVer, { '23','0019','14/10/2026', 'Estoque mínimo e máximo da grid principal e do cálculo passam a vir do indicador de produto da filial, quando cadastrado, e do cadastro geral do produto apenas na ausência do indicador; a alteração desses campos na grid grava no mesmo local de origem' } )
     aAdd( aDetVer, { '24','0001','16/10/2026', 'Novo filtro de produtos por IA: quando habilitado, a tela de filtro do painel permite descrever em texto livre quais produtos analisar e a IA converte a descrição em filtro, mantendo o cálculo normal da necessidade de compra' } )
+    aAdd( aDetVer, { '25','0001','16/10/2026', 'Novo cadastro de rótulos de produtos, que substitui o antigo cadastro de tags: a mesma tela (Outras Ações ou F7) cria, edita, exclui e atribui rótulos coloridos ao produto, que aparecem como legendas em colunas ao lado da legenda de criticidade (quantidade definida por parâmetro), e a tela de filtro ganha a seleção dos rótulos a considerar' } )
 
 return aDetVer
 
@@ -674,9 +675,11 @@ flag de MRP habilitada.
 @param cAIWhere, character, expressão de filtro gerada pela IA e validada por U_JSAIVLD (opcional). Quando
 informada, é aplicada somente sobre as colunas da tabela derivada TEMP (query externa) e a query interna passa
 a devolver as colunas descritivas GRUPO, GRPTAB (quando existir B1_XGPTP), FORNOME e FORFANT
+@param aFilRot, array, filtro por rótulos dos produtos { lTodos, aIDs, lSemRotulo } (opcional). Com lTodos = .F.,
+mantém apenas os produtos com algum dos rótulos de aIDs e, se lSemRotulo, também os produtos sem rótulo
 @return character, cQuery
 /*/
-user function JSQRYINF( aConf, aFilters, cPedSol, aCustom, aMPs, cAIWhere )
+user function JSQRYINF( aConf, aFilters, cPedSol, aCustom, aMPs, cAIWhere, aFilRot )
     
     Local cTmp     := ""
 	Local aTmp     := {}
@@ -696,6 +699,10 @@ user function JSQRYINF( aConf, aFilters, cPedSol, aCustom, aMPs, cAIWhere )
     local lRevFil  := .F. as logical
     local dDtCalc  := StoD("") as date
     local lModoIA  := .F. as logical
+    local lRotFil  := .F. as logical
+    local lRotSem  := .F. as logical
+    local cRotIds  := "" as character
+    local cRotCond := "" as character
 
     default aConf    := U_JSGETCFG( .T. /* lAuto */)
     default aFilters := {}
@@ -703,6 +710,7 @@ user function JSQRYINF( aConf, aFilters, cPedSol, aCustom, aMPs, cAIWhere )
     default aCustom  := {}
     default aMPs     := {} 
     default cAIWhere := ""
+    default aFilRot  := {}
 
     // Filtro por IA não se aplica à consulta de MPs específicas. A expressão é revalidada aqui (defesa em
     // profundidade): se, por qualquer motivo, chegar uma expressão fora da lista permitida, nada é devolvido
@@ -710,6 +718,23 @@ user function JSQRYINF( aConf, aFilters, cPedSol, aCustom, aMPs, cAIWhere )
     if lModoIA .and. ! U_JSAIVLD( cAIWhere )
         FWLogMsg( 'WARN', /*cTransactionId*/, 'SMARTSUPPLY', 'JSQRYINF', '', '02', 'Expressão de filtro por IA rejeitada na revalidação: '+ cAIWhere )
         cAIWhere := "0=1"
+    endif
+
+    // Filtro por rótulos (aFilRot = { lTodos, aIDs, lSemRotulo }): só quando o usuário desmarcou algum rótulo.
+    // Os IDs são numéricos (convertidos com Int), nunca texto livre do usuário
+    lRotFil := len( aMPs ) == 0 .and. ValType( aFilRot ) == 'A' .and. len( aFilRot ) >= 3 .and.;
+               ValType( aFilRot[1] ) == 'L' .and. ! aFilRot[1] .and. ValType( aFilRot[2] ) == 'A' .and.;
+               TCCanOpen( "PNC_LABEL_"+ cEmpAnt ) .and. TCCanOpen( "PNC_LABEL_PROD_"+ cEmpAnt )
+    if lRotFil
+        lRotSem := ValType( aFilRot[3] ) == 'L' .and. aFilRot[3]
+        for nX := 1 to len( aFilRot[2] )
+            if ValType( aFilRot[2][nX] ) == 'N'
+                if ! Empty( cRotIds )
+                    cRotIds += ","
+                endif
+                cRotIds += cValToChar( Int( aFilRot[2][nX] ) )
+            endif
+        next nX
     endif
 
     lLike := iif( len( aMPs ) == 0, At( '*', aFilters[5] ) > 0, .F. )
@@ -994,6 +1019,30 @@ user function JSQRYINF( aConf, aFilters, cPedSol, aCustom, aMPs, cAIWhere )
             cQuery += "  AND B1.B1_MRP     = 'S' " + CEOL				// Apenas os produtos que devem entrar no MRP (não se aplica à consulta de MPs específicas)
         endif
         
+        // Filtro por rótulos dos produtos (vínculos na filial do SB1 desta filial)
+        if lRotFil
+            cRotCond := ""
+            if ! Empty( cRotIds )
+                cRotCond += "EXISTS ( SELECT 1 FROM PNC_LABEL_PROD_"+ cEmpAnt +" LP " +;
+                            "INNER JOIN PNC_LABEL_"+ cEmpAnt +" LB ON LB.ID = LP.LABELID AND LB.D_E_L_E_T_ = ' ' " +;
+                            "WHERE LP.FILIAL = '"+ FWxFilial( 'SB1' ) +"' AND LP.PROD = B1.B1_COD " +;
+                            "AND LP.LABELID IN ( "+ cRotIds +" ) AND LP.D_E_L_E_T_ = ' ' ) "
+            endif
+            if lRotSem
+                if ! Empty( cRotCond )
+                    cRotCond += "OR "
+                endif
+                cRotCond += "NOT EXISTS ( SELECT 1 FROM PNC_LABEL_PROD_"+ cEmpAnt +" LP " +;
+                            "INNER JOIN PNC_LABEL_"+ cEmpAnt +" LB ON LB.ID = LP.LABELID AND LB.D_E_L_E_T_ = ' ' " +;
+                            "WHERE LP.FILIAL = '"+ FWxFilial( 'SB1' ) +"' AND LP.PROD = B1.B1_COD " +;
+                            "AND LP.D_E_L_E_T_ = ' ' ) "
+            endif
+            if Empty( cRotCond )
+                cRotCond := "0=1 "
+            endif
+            cQuery += "  AND ( "+ cRotCond +") " + CEOL
+        endif
+
         if ValType( aTmp ) == 'A' .and. Len( aTmp ) > 0 .and. len( aMPs ) == 0
             For nX := 1 to Len( aTmp )
                 cQuery += "  AND B1.B1_DESC LIKE '%"+ aTmp[nX] +"%' " + CEOL

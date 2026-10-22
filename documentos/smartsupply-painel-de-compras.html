@@ -328,7 +328,7 @@
   .sumario-lista .pag{ font-size:12px; color:var(--pink-escuro); font-weight:800; flex:0 0 auto; }
 
   /* Glossário */
-  .glossario dt{ font-weight:800; color:var(--roxo); margin-top:12px; font-size:13.5px; }
+  .glossario dt{ font-weight:800; color:var(--roxo); margin-top:9px; font-size:13.5px; }
   .glossario dd{ margin:3px 0 0 0; color:var(--texto); font-size:13px; }
 
   .capa-final{
@@ -370,7 +370,7 @@
   </div>
   <div class="rodape-capa">
     <div class="marca">INAN Soluções · SmartSupply</div>
-    <div class="info">Documentação de referência para usuários de negócio<br>Versão 1.1 — Agosto de 2026</div>
+    <div class="info">Documentação de referência para usuários de negócio<br>Versão 1.2 — Outubro de 2026</div>
   </div>
 </section>
 
@@ -430,25 +430,25 @@
     <li>
       <div class="idx">9</div>
       <div class="nome">Radar de sazonalidade</div>
-      <div class="pag">16</div>
+      <div class="pag">17</div>
       <div class="desc">Enxergando picos e vales de consumo antes que eles surpreendam.</div>
     </li>
     <li>
       <div class="idx">10</div>
       <div class="nome">Alertas automáticos de ruptura</div>
-      <div class="pag">17</div>
+      <div class="pag">18</div>
       <div class="desc">Como a equipe é avisada antes de faltar produto na prateleira.</div>
     </li>
     <li>
       <div class="idx">11</div>
       <div class="nome">Pedido de compra sob medida</div>
-      <div class="pag">18</div>
+      <div class="pag">19</div>
       <div class="desc">Um relatório de pedido com o layout que a empresa quiser.</div>
     </li>
     <li>
       <div class="idx">12</div>
       <div class="nome">Glossário</div>
-      <div class="pag">19</div>
+      <div class="pag">20</div>
       <div class="desc">Os termos deste documento, em uma frase cada.</div>
     </li>
   </ul>
@@ -743,11 +743,16 @@
     <p style="margin:0"><strong>Individual</strong> é mais indicado quando cada loja compra de fornecedores diferentes ou tem operação totalmente independente. <strong>Pool</strong> é mais indicado quando a empresa negocia como rede (um pedido único, melhor preço por volume) e depois faz a distribuição física entre os pontos de estoque.</p>
   </div>
 
-  <p>Independentemente do modo escolhido, a tela do comprador sempre mostra a quantidade final já dividida por filial — quem opera no dia a dia não precisa entender qual conta foi feita por trás, apenas confirmar ou ajustar o número final de cada loja antes de fechar o pedido. Para quem quer o detalhe completo, existe também a tela <strong>Quantidades por Filial</strong>, que mostra, produto a produto, o consumo médio, o estoque disponível e o estoque mínimo/máximo cadastrado de cada loja lado a lado — incluindo o quanto já foi consumido no <strong>mês atual</strong>, para acompanhar a tendência sem esperar o mês fechar.</p>
+  <p>Independentemente do modo escolhido, a tela do comprador sempre mostra a quantidade final já dividida por filial — quem opera no dia a dia não precisa entender qual conta foi feita por trás, apenas confirmar ou ajustar o número final de cada loja antes de fechar o pedido. Para quem quer o detalhe completo, existe também a tela <strong>Quantidades por Filial</strong>, que mostra, produto a produto, o consumo médio, o estoque disponível e o estoque mínimo/máximo de cada loja lado a lado (vindo do indicador do produto da própria filial, quando a empresa o cadastra, ou do cadastro geral do produto) — incluindo o quanto já foi consumido no <strong>mês atual</strong>, para acompanhar a tendência sem esperar o mês fechar.</p>
 
   <div class="caixa caixa-atencao">
     <div class="titulo-caixa">Zero é zero, mesmo no modo Pool</div>
     <p style="margin:0">No modo Pool, quando uma filial não teve nenhum consumo no período analisado, a parte dela na necessidade consolidada é sempre <strong>zero</strong> — o sistema não distribui para essa loja nenhuma fração residual do arredondamento, evitando sugerir compra para quem não vende ou não consome aquele produto.</p>
+  </div>
+
+  <div class="caixa caixa-conceito">
+    <div class="titulo-caixa"><span class="badge-icone">i</span> Cada filial com o seu último recálculo completo</div>
+    <p style="margin:0">O consumo médio de cada filial vem sempre do <strong>último recálculo diário concluído naquela filial</strong>. Se o recálculo de uma loja ainda estiver em andamento quando o comprador abrir a análise, o sistema usa o resultado completo anterior dessa loja — nunca mistura números de um cálculo pela metade com os das demais.</p>
   </div>
 
   <div class="rodape-pagina"><span>SmartSupply — Painel de Compras</span><span>10</span></div>
@@ -867,7 +872,7 @@
     <div class="linha"></div>
   </div>
 
-  <p>Tudo o que foi explicado nas seções anteriores acontece "por baixo dos panos", automaticamente, todos os dias. O que o comprador vê é uma tela única, organizada em blocos:</p>
+  <p>Tudo o que foi explicado nas seções anteriores acontece "por baixo dos panos", automaticamente, todos os dias — num recálculo que processa os produtos em lote (giro, consumo médio e melhor fornecedor/preço de muitos itens de uma só vez), bem mais rápido em bases com milhares de produtos. O que o comprador vê é uma tela única, organizada em blocos:</p>
 
   <h3>A tela principal, em quatro áreas</h3>
   <table>
@@ -880,7 +885,7 @@
     </tbody>
   </table>
 
-  <p>Abaixo desses quatro blocos fica a <strong>grade de produtos</strong> — a lista completa, colorida conforme a faixa de giro, mostrando lado a lado o estoque, o consumo médio, a necessidade sugerida, o fornecedor e o preço de cada item. Alguns desses campos podem ser editados direto na grade, sem abrir outra tela: o <strong>código do produto no fornecedor</strong> (que se atualiza sozinho sempre que o fornecedor do item é trocado) e o <strong>estoque mínimo e máximo</strong> do produto, já gravando direto no cadastro.</p>
+  <p>Abaixo desses quatro blocos fica a <strong>grade de produtos</strong> — a lista completa, colorida conforme a faixa de giro, mostrando lado a lado o estoque, o consumo médio, a necessidade sugerida, o fornecedor e o preço de cada item. Alguns desses campos podem ser editados direto na grade, sem abrir outra tela: o <strong>código do produto no fornecedor</strong> (que se atualiza sozinho sempre que o fornecedor do item é trocado) e o <strong>estoque mínimo e máximo</strong> do produto. Quando a empresa usa o indicador do produto por filial, o mínimo e o máximo vêm dele — na tela e no cálculo — e a alteração feita na grade é gravada nele; sem indicador, vale o cadastro geral do produto.</p>
 
   <h3>Principais ações do comprador</h3>
   <ul>
@@ -941,6 +946,54 @@
   <div class="rodape-pagina"><span>SmartSupply — Painel de Compras</span><span>15</span></div>
 </section>
 
+<section class="pagina conteudo">
+  <div class="cab-secao">
+    <div class="numero">8</div>
+    <h2>O painel no dia a dia <span style="font-size:14px;color:var(--texto-suave);font-weight:400">(continuação)</span></h2>
+    <div class="linha"></div>
+  </div>
+
+  <h3>Rótulos: marcações visuais do jeito da sua equipe</h3>
+  <p>Além das cores automáticas de giro, o comprador pode marcar produtos com <strong>rótulos</strong> criados pela própria equipe — como "FORA DE LINHA", "ESTOQUE ERRADO" ou "NEGOCIAR PREÇO". Cada rótulo tem um nome e uma cor, e aparece como uma pequena faixa colorida logo ao lado da legenda de giro, na grade de produtos.</p>
+
+  <div class="legenda-giro">
+    <span class="chip" style="background:#e53935">FORA DE LINHA</span>
+    <span class="chip" style="background:#fb8c00">ESTOQUE ERRADO</span>
+    <span class="chip" style="background:#1e88e5">NEGOCIAR PREÇO</span>
+  </div>
+
+  <div class="passo">
+    <div class="bola">1</div>
+    <div class="texto">Com o produto selecionado na grade, o comprador abre a tela de rótulos pela opção <strong>Rótulos do Produto</strong> (em Outras Ações), pela tecla <strong>F7</strong> ou com um duplo clique numa coluna de rótulo.</div>
+  </div>
+  <div class="passo">
+    <div class="bola">2</div>
+    <div class="texto">Na mesma tela, marca ou desmarca os rótulos do produto, busca pelo nome, cria um rótulo novo (nome e uma das 11 cores disponíveis) ou edita e exclui os existentes — cada ação é gravada na hora.</div>
+  </div>
+  <div class="passo">
+    <div class="bola">3</div>
+    <div class="texto">Os rótulos são da equipe toda: um rótulo criado por um comprador fica disponível e visível para todos.</div>
+  </div>
+
+  <h3>Filtrar a análise por rótulos</h3>
+  <p>Na tela de filtro, o botão <strong>Rótulos</strong> lista todos os rótulos cadastrados e a opção "Produtos sem rótulo", todos marcados por padrão — ou seja, nada é filtrado. Ao desmarcar algum, a análise passa a considerar apenas os produtos que têm ao menos um dos rótulos ainda marcados (e, se "Produtos sem rótulo" continuar marcado, também os que não têm rótulo nenhum). Como o filtro é aplicado antes do cálculo, os produtos que ficam de fora nem chegam a ser calculados.</p>
+
+  <div class="caixa caixa-exemplo">
+    <div class="titulo-caixa"><span class="badge-icone">$</span> Exemplo: tirando da frente o que saiu de linha</div>
+    <p style="margin:0">O fabricante descontinuou a <strong>Tinta Acrílica Branca 18L</strong>. O comprador marca o produto com o rótulo "FORA DE LINHA" e, no filtro, desmarca esse rótulo: a partir daí, o item deixa de aparecer na análise de compra, sem precisar ser alterado no cadastro — e volta a aparecer assim que o rótulo for removido ou marcado de novo no filtro.</p>
+  </div>
+
+  <div class="caixa caixa-atencao">
+    <div class="titulo-caixa">Quantos rótulos aparecem na grade</div>
+    <p style="margin:0">A empresa define quantas colunas de rótulo a grade exibe (padrão: 3). Se um produto tiver mais rótulos do que colunas, aparecem os primeiros que couberem, na ordem em que os rótulos foram criados — todos continuam visíveis na tela de rótulos do produto.</p>
+  </div>
+
+  <h3>Ordenar a grade com um clique</h3>
+  <p>Clicando no cabeçalho de qualquer coluna, a grade é ordenada por ela — crescente no primeiro clique, decrescente no segundo. Produtos empatados ficam em ordem de descrição, e a ordem escolhida se mantém mesmo depois de filtros e recargas da tela.</p>
+
+  <div class="rodape-pagina"><span>SmartSupply — Painel de Compras</span><span>16</span></div>
+</section>
+
 <!-- ======================= 9. SAZONALIDADE ======================= -->
 <section class="pagina conteudo">
   <div class="cab-secao">
@@ -983,7 +1036,7 @@
     <p style="margin:0">A média de 12 meses (42,0/dia) é muito mais baixa que a do mês atual (110,0/dia) — um sinal claro de que estamos entrando na temporada de alta do produto (verão, no caso de tinta para piscina). Se o comprador usasse apenas a média anual "achatada" para calcular a compra, sub-dimensionaria a necessidade justamente na época de maior consumo. O radar de sazonalidade existe para que essa decisão de ajustar o número de dias de cobertura (ou o perfil de cálculo) na época certa seja tomada conscientemente pelo comprador.</p>
   </div>
 
-  <div class="rodape-pagina"><span>SmartSupply — Painel de Compras</span><span>16</span></div>
+  <div class="rodape-pagina"><span>SmartSupply — Painel de Compras</span><span>17</span></div>
 </section>
 
 <!-- ======================= 10. ALERTAS DE RUPTURA ======================= -->
@@ -1013,7 +1066,7 @@
 
   <p>Dentro do próprio painel, existe ainda uma tela de "eventos pendentes de análise", onde cada alerta pode receber uma tratativa registrada — por exemplo, marcar que a compra será feita sob demanda, reprogramar a data em que o sistema deve voltar a avisar, ou simplesmente ignorar aquele alerta específico — mantendo um histórico de decisões tomadas item a item.</p>
 
-  <div class="rodape-pagina"><span>SmartSupply — Painel de Compras</span><span>17</span></div>
+  <div class="rodape-pagina"><span>SmartSupply — Painel de Compras</span><span>18</span></div>
 </section>
 
 <!-- ======================= 11. RELATÓRIO DE PEDIDO ======================= -->
@@ -1033,7 +1086,7 @@
     <p style="margin:0">Se um layout foi configurado usando um campo que existe no cadastro de uma empresa mas não em outra, o sistema simplesmente remove aquele campo automaticamente do relatório impresso e redistribui o espaço entre os campos restantes — evitando que a impressão "quebre" visualmente quando o mesmo modelo de layout é usado em diferentes bases de clientes.</p>
   </div>
 
-  <div class="rodape-pagina"><span>SmartSupply — Painel de Compras</span><span>18</span></div>
+  <div class="rodape-pagina"><span>SmartSupply — Painel de Compras</span><span>19</span></div>
 </section>
 
 <!-- ======================= 12. GLOSSÁRIO ======================= -->
@@ -1080,9 +1133,15 @@
 
     <dt>Carrinho de compras</dt>
     <dd>Agrupamento dos itens marcados para compra de um mesmo fornecedor, antes de virarem um pedido de compra formal.</dd>
+
+    <dt>Rótulo de produto</dt>
+    <dd>Marcação com nome e cor criada pela equipe e atribuída aos produtos; aparece na grade e filtra a análise.</dd>
+
+    <dt>Indicador de produto por filial</dt>
+    <dd>Cadastro complementar do produto em cada filial (como estoque mínimo e máximo); quando existe, o SmartSupply usa os valores dele no lugar do cadastro geral do produto.</dd>
   </dl>
 
-  <div class="rodape-pagina"><span>SmartSupply — Painel de Compras</span><span>19</span></div>
+  <div class="rodape-pagina"><span>SmartSupply — Painel de Compras</span><span>20</span></div>
 </section>
 
 <!-- ======================= ENCERRAMENTO ======================= -->
@@ -1091,7 +1150,7 @@
   <h2>Da conta manual ao clique de confirmar.</h2>
   <p>O SmartSupply não substitui o julgamento do comprador — ele elimina o trabalho repetitivo de refazer a mesma conta, produto a produto, filial a filial, todos os dias, para que esse julgamento seja aplicado onde realmente importa.</p>
   <div class="linha-fina" style="margin:24px auto"></div>
-  <p style="font-size:12px; color:var(--roxo-claro)">INAN Soluções · Documentação Funcional do SmartSupply — Painel de Compras · Versão 1.1 · Agosto de 2026</p>
+  <p style="font-size:12px; color:var(--roxo-claro)">INAN Soluções · Documentação Funcional do SmartSupply — Painel de Compras · Versão 1.2 · Outubro de 2026</p>
 </section>
 
 </body>

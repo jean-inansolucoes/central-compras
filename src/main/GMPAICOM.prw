@@ -19,6 +19,7 @@
 #define LBL_TOP	   .T.							// Posição do label de topo
 #define LG_OBS     "notificacao.png"			// Legenda para itens com observação preenchida
 #define LG_NO_OBS  "white.bmp" 					// Legenda para itens sem observação preenchida
+#define ROT_LARG   5								// Largura das colunas de rótulo (imagens rotulo_<cor>.png de 32 x 15 pixels)
 #define SIZE_FIELD 0.5							// Proporção em relação ao tamanho real dos campos em relação ao espaço que deve utilizar na tela da grid de produtos
  
 // Cache da formula do perfil de calculo (fCalNec), por cPerfil - static de escopo de arquivo
@@ -86,6 +87,8 @@ User Function GMPAICOM()
 	local oPAs      as object
 	local nPAs      := 0 as numeric
 	local oUsrPref  := JsonObject():New()
+	local nRot      := 0 as numeric
+	local nRotCol   := 0 as numeric
 	local oTahoma   := TFont():New( "Tahoma",,-10,,.F.,,,,,.F.,.F. )
 	
 	Private aHeaPro   := {}
@@ -172,6 +175,8 @@ User Function GMPAICOM()
 
 	Private cAIWhere   := "" as character			// Expressão de filtro gerada pela IA (U_JSAIFLT), aplicada por U_JSQRYINF
 	Private cAITexto   := "" as character			// Descrição do filtro digitada pelo usuário no modo IA (MV_X_PNC21)
+	Private aFilRot    := { .T., {}, .T. } as array	// Filtro por rótulos: { lTodos, aIDs, lSemRotulo } (rotFiltro)
+	Private oRotMap    := JsonObject():New() as object	// Cores dos rótulos por produto, exibidas nas colunas de status da grid (rotLoad)
 	Private lCrescente := .T. as logical
 	Private nLastCol   := 0 as numeric 
 	Private aFullPro   := {} as array
@@ -270,6 +275,7 @@ User Function GMPAICOM()
 	SetKey( VK_F4, {|| Processa( {|| U_JSSUPPLY( /* lForce */ ) }, 'Aguarde!','Analisando dados do MRP...' ) } )
 	SetKey( VK_F5, {|| Processa( {|lEnd| fLoadInf(,,@lEnd) }, 'Aguarde!','Analisando dados do MRP...', .T. ) } )
 	SetKey( VK_F12, {|| fManPar(), aConfig := U_JSGETCFG( .F. /*lAuto*/ ) } )
+	SetKey( VK_F7, {|| rotProd() } )								// Rótulos do produto posicionado (JSROTULO)
 	SetKey( K_CTRL_F11, {|| U_JSNOTREG() } )
 	SetKey( VK_F6, {|| iif( len( aColPro ) > 0, entryDocs( aColPro[ oBrwPro:nAt ][nPosPrd] ), Nil ),;
 					   priceCheck( aColPro[ oBrwPro:nAt ][nPosPrd] ),;
@@ -398,6 +404,7 @@ User Function GMPAICOM()
 	aAdd( aButtons, { "BMPMANUT" , {|| iif( !Empty(U_JSDoFrml( cPerfil )),;
 										Processa( {|lEnd| fLoadInf(,,@lEnd) }, 'Aguarde!','Analisando dados do MRP...', .T. ), Nil ) }, "Formula de Cálculo" } ) 
 	aAdd( aButtons, { "BTNEMPEN" , {|| iif( len( aColPro ) > 0, fShowEm( aColPro[ oBrwPro:nAt][nPosPrd] ), Nil ) }, "Empenhos do Produto" } )
+	aAdd( aButtons, { "BTNROTULO", {|| rotProd() }, "Rótulos do Produto (F7)" } )
 	aAdd( aButtons, { "BTNPEDIDO", {|| iif( len( aColPro ) > 0, fSolPend(), Nil ) }, "Solicitações de Compra" } )
 	aAdd( aButtons, { "BTNPEDIDO", {|| iif( len( aColPro ) > 0, fPedFor(), Nil ) }, "Pedidos em Aberto" } )
 	aAdd( aButtons, { "BTNPEDIDO", {|| iif( len( aColPro ) > 0, U_JSSHOWOP(), Nil ) }, "OPs em Aberto" } )
@@ -514,8 +521,20 @@ User Function GMPAICOM()
 					   "aColPro[oBrwPro:nAt]["+ cValToChar( nPosInc ) +"] >= "+ cValToChar( aConfig[13] ), LG_BAIXO, "Baixo Giro" )  
 	oBrwPro:AddLegend( "aColPro[oBrwPro:nAt]["+ cValToChar( nPosInc ) +"] < "+ cValToChar( aConfig[13] ), LG_SEMGIRO, "Sem Giro" )
 	oBrwPro:AddMarkColumn( {|| iif( aColPro[oBrwPro:nAt][nPosChk], "LBOK", "LBNO" ) }, {|| fMarkPro() }, {|| Processa( {||fMarkAll() }, 'Aguarde...', 'Providenciando marcação...' ) } )
+	// Colunas de rótulos do produto (JSROTULO) ao lado da legenda de criticidade e da marcação, na quantidade
+	// definida em MV_X_PNC22 (0 = não exibe; máximo 10). São colunas de status, fora da configuração de colunas
+	// salva pelo usuário, e o duplo clique abre a tela de rótulos do produto
+	nRotCol := rotQtdCol()
+	for nRot := 1 to nRotCol
+		oBrwPro:AddStatusColumn( &("{|| rotCor( "+ cValToChar( nRot ) +" ) }"), {|| rotProd() } )
+	next nRot
 	oBrwPro:SetColumns( aHeaPro )
-	oBrwPro:GetColumn(nPosFor):xF3 := "SA2"
+	// Largura das colunas de rótulo (logo após a legenda e a marcação) para a imagem do rótulo
+	for nRot := 1 to nRotCol
+		oBrwPro:GetColumn( 2 + nRot ):SetSize( ROT_LARG )
+	next nRot
+	// Índice da coluna na grid = posição do dado (legenda e marcação à frente) + colunas de rótulo inseridas antes
+	oBrwPro:GetColumn(nPosFor + nRotCol):xF3 := "SA2"
 	oBrwPro:SetEditCell( .T., {|| U_PCOMVLD() } )
 	oBrwPro:SetPreEditCell( {|oBrw,oCol,cPre| U_PCOMPRE(oBrw, oCol, cPre) } )
 	oBrwPro:SetChange( {|| Processa( {|| iif( ValType( oDash ) == 'O', fLoadAna(), Nil ) }, 'Aguarde!', 'Analisando sazonalidade do produto...' ) } )
@@ -2840,6 +2859,7 @@ Static Function fPedFor( nOpc )
 	SetKey( VK_F4, {|| Processa( {|| U_JSSUPPLY( /* lForce */ ) }, 'Aguarde!','Analisando dados do MRP...' ) } )
 	SetKey( VK_F5, {|| Processa( {|lEnd| fLoadInf(,,@lEnd) }, 'Aguarde!','Analisando dados do MRP...', .T. ) } )
 	SetKey( VK_F12, {|| fManPar() } )
+	SetKey( VK_F7, {|| rotProd() } )
 
 Return ( Nil )
 
@@ -2932,6 +2952,7 @@ Static Function fSolPend()
 	SetKey( VK_F4, {|| Processa( {|| U_JSSUPPLY( /* lForce */ ) }, 'Aguarde!','Analisando dados do MRP...' ) } )
 	SetKey( VK_F5, {|| Processa( {|lEnd| fLoadInf(,,@lEnd) }, 'Aguarde!','Analisando dados do MRP...', .T. ) } )
 	SetKey( VK_F12, {|| fManPar() } )
+	SetKey( VK_F7, {|| rotProd() } )
 
 Return ( Nil )
 
@@ -3654,6 +3675,7 @@ Static Function fLoadInf( aMPs, lAll, lEnd )
 	local bErroAnt  as codeblock
 	local cErroSQL  := "" as character
 	local aFilVaz   := {} as array
+	local aRotQry   := {} as array	// Filtro por rótulos (aFilRot) aplicado na leitura dos produtos
 	
 	default aMPs := {} 
 	default lAll := .T. 
@@ -3686,8 +3708,13 @@ Static Function fLoadInf( aMPs, lAll, lEnd )
 			cWhereIA := cAIWhere
 		endif
 
+		// Filtro por rótulos dos produtos: só na análise principal (não na consulta de MPs específicas)
+		if len( aMPs ) == 0 .and. Type( 'aFilRot' ) == 'A'
+			aRotQry := aFilRot
+		endif
+
 		// Consulta todos os produtos para exibí-los no grid
-		cQuery := U_JSQRYINF( aConfig, _aFilters, _cPedSol, aPEPNC05, aMPs, cWhereIA )	
+		cQuery := U_JSQRYINF( aConfig, _aFilters, _cPedSol, aPEPNC05, aMPs, cWhereIA, aRotQry )	
 		
 		// CopyToClipBoard( cQuery )
 		// MsgInfo( 'Query copiada!', 'SQL' )
@@ -3981,6 +4008,11 @@ Static Function fLoadInf( aMPs, lAll, lEnd )
 
 	// Ordena o array pela descrição dos produtos que estão sendo exibidos
 	aSort( aColPro,,,{|x,y| x[nPosDes] < y[nPosDes] } )
+
+	// Rótulos vinculados aos produtos (colunas de status da grid principal)
+	if len( aMPs ) == 0
+		rotLoad()
+	endif
 
 	if len( aMPs ) > 0
 		if ! lAll
@@ -5310,6 +5342,7 @@ User Function PCOMVLD()
 
 	SetKey( VK_F5, {|| Processa( {|lEnd| fLoadInf(,,@lEnd) }, 'Aguarde!','Analisando dados do MRP...', .T. ) } )
 	SetKey( VK_F12, {|| fManPar() } )
+	SetKey( VK_F7, {|| rotProd() } )
 	
 Return ( lReturn )
 
@@ -7981,6 +8014,7 @@ Static Function fCarCom( cFor, cLoj, lRecalc )
 	SetKey( K_CTRL_R, {|| Nil } )
 	SetKey( VK_F5, {|| Processa( {|lEnd| fLoadInf(,,@lEnd) }, 'Aguarde!','Analisando dados do MRP...', .T. ) } )
 	SetKey( VK_F12, {|| fManPar() } )
+	SetKey( VK_F7, {|| rotProd() } )
 	
 Return ( Nil )
 
@@ -9624,6 +9658,8 @@ static function prodFilter( aFiltros, lManual, lTrad )
 	local oBtnFil       as object
 	local nLinFil       := 135 as numeric
 	local aIASav        := {} as array
+	local aRotSav       := {} as array
+	local oBtnRot       as object
 
 	default lManual := .F.
 	default lTrad   := .F.
@@ -9642,6 +9678,11 @@ static function prodFilter( aFiltros, lManual, lTrad )
 				if len( aIASav ) == 2 .and. Type( 'cAIWhere' ) == 'C' .and. iaAtiva()
 					cAITexto := aIASav[1]
 					cAIWhere := aIASav[2]
+				endif
+				aRotSav   := loadSaved( 'rotulos' )
+				if len( aRotSav ) == 3 .and. Type( 'aFilRot' ) == 'A' .and. ValType( aRotSav[1] ) == 'L' .and.;
+				   ValType( aRotSav[2] ) == 'A' .and. ValType( aRotSav[3] ) == 'L'
+					aFilRot := aRotSav
 				endif
 				_aFil     := loadSaved( 'filiais' )
 				aCarCom   := loadSaved( 'carrinho' )
@@ -9704,6 +9745,11 @@ static function prodFilter( aFiltros, lManual, lTrad )
 	// Botão para seleção de filiais, logo abaixo do último campo de filtro
 	oBtnFil := TButton():New( nLinFil, 04, "Filiais (Multi-filial)", oContainer, {|| _aFil := userFil( _aFil ) }, 80, 20,,,.F.,.T.,.F.,,.F.,,,.F. )
 
+	// Seleção dos rótulos a considerar (não existe no recálculo de índices - GMINDPRO)
+	if Type( 'aFilRot' ) == 'A'
+		oBtnRot := TButton():New( nLinFil + 25, 04, "Rótulos", oContainer, {|| aFilRot := rotFiltro( aFilRot ), saveData( 'rotulos' ) }, 80, 20,,,.F.,.T.,.F.,,.F.,,,.F. )
+	endif
+
 	oLookDlg:Activate()
 
 	// Filtro tradicional confirmado: descarta o filtro por IA aplicado anteriormente
@@ -9734,6 +9780,7 @@ static function aiFilDlg( aFiltros )
 	local oBtnFil   as object
 	local oBtnTrad  as object
 	local lIrTrad   := .F. as logical
+	local oBtnRot   as object
 	local cLblIA    := 'Descreva, com suas palavras, quais produtos deseja analisar. Ex.: "chapas MDF 15mm da Fibraplac '+;
 					   'com estoque abaixo do mínimo" ou "matérias-primas de giro crítico".' as character
 
@@ -9752,6 +9799,7 @@ static function aiFilDlg( aFiltros )
 	oMemo    := TMultiGet():New( 36, 04, {|u| txtIA( u, PCount() ) }, oPanIA, 190, 100,,,,,, .T. /* lPixel */ )
 	oBtnFil  := TButton():New( 142, 04, "Filiais (Multi-filial)", oPanIA, {|| _aFil := userFil( _aFil ) }, 80, 20,,,.F.,.T.,.F.,,.F.,,,.F. )
 	oBtnTrad := TButton():New( 142, 90, "Usar filtro tradicional", oPanIA, {|| lIrTrad := .T., _aFilters := aClone( aFiltros ), oDlgIA:DeActivate() }, 90, 20,,,.F.,.T.,.F.,,.F.,,,.F. )
+	oBtnRot  := TButton():New( 166, 04, "Rótulos", oPanIA, {|| aFilRot := rotFiltro( aFilRot ), saveData( 'rotulos' ) }, 80, 20,,,.F.,.T.,.F.,,.F.,,,.F. )
 
 	oDlgIA:Activate()
 
@@ -13519,6 +13567,10 @@ static function loadSaved( cPart )
 				aAdd( aSaved, txtRest( oRestore['filtro_ia']['texto'] ) )
 				aAdd( aSaved, txtRest( oRestore['filtro_ia']['where'] ) )
 			endif
+		elseif cPart == 'rotulos'		// Filtro por rótulos { lTodos, aIDs, lSemRotulo }
+			if oRestore:hasProperty( 'rotulos' )
+				aSaved := { oRestore['rotulos']['todos'], oRestore['rotulos']['ids'], oRestore['rotulos']['sem'] }
+			endif
 		elseif cPart == 'filiais'
 			if oRestore:hasProperty( 'filiais' )
 				for nX := 1 to len( oRestore['filiais'] )
@@ -13566,6 +13618,230 @@ static function restData( xData, cType, nSize )
 	endif
 return xRet
 
+/*/{Protheus.doc} rotProd
+Abre a tela de rótulos (U_JSROTULO) para o produto posicionado na grid (Outras Ações, F7 ou duplo clique numa
+coluna de rótulo) e, ao fechar, recarrega os rótulos de toda a grid - nomes e cores podem ter mudado para
+outros produtos também
+@type function
+@version 25.0001
+@author Jean Carlos Pandolfo Saggin
+@since 16/10/2026
+/*/
+static function rotProd()
+
+	local cFilBkp  := cFilAnt as character
+	local cFilVinc := "" as character
+	local nLinha   := 0  as numeric
+
+	if len( aColPro ) > 0 .and. oBrwPro:nAt > 0
+		// Evita reabrir a tela pelo atalho enquanto ela estiver aberta
+		SetKey( VK_F7, {|| Nil } )
+		nLinha := oBrwPro:nAt
+
+		// Filial do vínculo: compartilhamento do SB1 da filial analisada (com várias filiais, a filial logada)
+		if len( _aFil ) == 1
+			cFilAnt := _aFil[1]
+		endif
+		cFilVinc := FWxFilial( 'SB1' )
+		cFilAnt  := cFilBkp
+
+		U_JSROTULO( aColPro[nLinha][nPosPrd], aColPro[nLinha][nPosDes], cFilVinc )
+
+		rotLoad()
+		oBrwPro:UpdateBrowse()
+		oBrwPro:GoTo( nLinha, .T. /* lRefresh */ )
+		SetKey( VK_F7, {|| rotProd() } )
+	endif
+
+return Nil
+
+/*/{Protheus.doc} rotLoad
+Carrega o mapa de rótulos por produto (cores, na ordem de criação dos rótulos) das filiais analisadas, usado
+pelas colunas de status de rótulo da grid principal
+@type function
+@version 25.0001
+@author Jean Carlos Pandolfo Saggin
+@since 21/10/2026
+/*/
+static function rotLoad()
+
+	if rotQtdCol() > 0
+		if ValType( oRotMap ) == 'J'
+			FreeObj( oRotMap )
+		endif
+		oRotMap := U_JSROTPRD( rotFilSB1() )
+	endif
+
+return Nil
+
+/*/{Protheus.doc} rotCor
+Imagem da legenda do N-ésimo rótulo do produto da linha em exibição na grid principal. Se o produto tiver
+menos rótulos que colunas, a posição recebe uma imagem em branco (exibe apenas o que couber)
+@type function
+@version 25.0001
+@author Jean Carlos Pandolfo Saggin
+@since 21/10/2026
+@param nIdx, numeric, posição do rótulo (coluna de rótulo 1..N)
+@return character, cCor
+/*/
+static function rotCor( nIdx )
+
+	local cCor   := "white.bmp" as character
+	local cProd  := "" as character
+	local aCores := {} as array
+
+	if ValType( oRotMap ) == 'J' .and. oBrwPro:nAt > 0 .and. oBrwPro:nAt <= len( aColPro )
+		cProd := AllTrim( aColPro[oBrwPro:nAt][nPosPrd] )
+		if oRotMap:hasProperty( cProd )
+			aCores := oRotMap[cProd]
+			if nIdx <= len( aCores )
+				cCor := aCores[nIdx]
+			endif
+		endif
+	endif
+
+return cCor
+
+/*/{Protheus.doc} rotQtdCol
+Quantidade de colunas de rótulos da grid principal (MV_X_PNC22: 0 = não exibe; máximo 10), apenas quando as
+tabelas de rótulos já existem no ambiente
+@type function
+@version 25.0001
+@author Jean Carlos Pandolfo Saggin
+@since 21/10/2026
+@return numeric, nQtd
+/*/
+static function rotQtdCol()
+
+	local nQtd := SuperGetMv( 'MV_X_PNC22',, 3 )
+
+	if ValType( nQtd ) != 'N' .or. ! TCCanOpen( "PNC_LABEL_PROD_"+ cEmpAnt )
+		nQtd := 0
+	endif
+
+return Min( Max( Int( nQtd ), 0 ), 10 )
+
+/*/{Protheus.doc} rotFilSB1
+Filiais do SB1 (FWxFilial('SB1')) das filiais selecionadas na análise, sem repetição - os vínculos de
+rótulos seguem o compartilhamento do cadastro de produtos
+@type function
+@version 25.0001
+@author Jean Carlos Pandolfo Saggin
+@since 16/10/2026
+@return array, aFilSB1
+/*/
+static function rotFilSB1()
+
+	local aFilSB1 := {} as array
+	local cFilBkp := cFilAnt as character
+	local nX      := 0  as numeric
+
+	for nX := 1 to len( _aFil )
+		cFilAnt := _aFil[nX]
+		if aScan( aFilSB1, {|x| x == FWxFilial( 'SB1' ) } ) == 0
+			aAdd( aFilSB1, FWxFilial( 'SB1' ) )
+		endif
+	next nX
+	cFilAnt := cFilBkp
+
+	if len( aFilSB1 ) == 0
+		aAdd( aFilSB1, FWxFilial( 'SB1' ) )
+	endif
+
+return aFilSB1
+
+/*/{Protheus.doc} rotFiltro
+Seleção dos rótulos a considerar na análise (botão Rótulos da tela de filtro). A primeira linha representa os
+produtos sem nenhum rótulo; com tudo marcado (padrão) não há filtro, inclusive para rótulos criados depois
+@type function
+@version 25.0001
+@author Jean Carlos Pandolfo Saggin
+@since 16/10/2026
+@param aSel, array, filtro atual { lTodos, aIDs, lSemRotulo }
+@return array, aNovo - filtro escolhido (o atual, quando cancelado)
+/*/
+static function rotFiltro( aSel )
+
+	local aRotulos := U_JSROTLIS() as array
+	local aBrwRot  := {} as array
+	local aNovo    := aClone( aSel ) as array
+	local aColumns := {} as array
+	local aButtons := {} as array
+	local oDlgRot  as object
+	local oBrwRot  as object
+	local lOk      := .F. as logical
+	local lMarca   := .F. as logical
+	local nX       := 0  as numeric
+	local bOk      := {|| lOk := .T., oDlgRot:End() }
+	local bCancel  := {|| oDlgRot:End() }
+	local bInit    := {|| EnchoiceBar( oDlgRot, bOk, bCancel,, @aButtons ) }
+
+	if len( aRotulos ) == 0
+		hlp( 'ROTULOS', 'Nenhum rótulo cadastrado.', 'Cadastre rótulos pela opção "Rótulos do Produto (F7)" em Outras Ações.' )
+		return aSel
+	endif
+
+	aAdd( aBrwRot, { aSel[1] .or. aSel[3], 0, '(Produtos sem rótulo)', "white.bmp" } )
+	for nX := 1 to len( aRotulos )
+		aAdd( aBrwRot, { aSel[1] .or. aScan( aSel[2], aRotulos[nX][1] ) > 0, aRotulos[nX][1], aRotulos[nX][2], aRotulos[nX][4] } )
+	next nX
+
+	aAdd( aColumns, FWBrwColumn():New() )
+	aColumns[len(aColumns)]:SetTitle( 'Rótulo' )
+	aColumns[len(aColumns)]:SetSize( 30 )
+	aColumns[len(aColumns)]:SetType( 'C' )
+	aColumns[len(aColumns)]:SetPicture( '@x' )
+	aColumns[len(aColumns)]:SetData( {|| aBrwRot[oBrwRot:nAt][3] } )
+
+	oDlgRot := TDialog():New( 0, 0, 400, 450, 'Filtro por Rótulos',,,,,CLR_BLACK,CLR_WHITE,,,.T.)
+	oDlgRot:lEscClose := .T.
+	oBrwRot := FWBrowse():New( oDlgRot )
+	oBrwRot:SetDataArray()
+	oBrwRot:SetArray( aBrwRot )
+	oBrwRot:DisableConfig()
+	oBrwRot:DisableReport()
+	oBrwRot:AddMarkColumns( {|oBrw| rotMarca( aBrwRot[oBrw:nAt][1] ) },;
+							 {|oBrw| aBrwRot[oBrw:nAt][1] := ! aBrwRot[oBrw:nAt][1] },;
+							 {|oBrw| lMarca := ! aBrwRot[1][1], aEval( aBrwRot, {|x| x[1] := lMarca } ), oBrw:UpdateBrowse() } )
+	oBrwRot:AddStatusColumn( {|| aBrwRot[oBrwRot:nAt][4] }, Nil )
+	oBrwRot:SetColumns( aColumns )
+	oBrwRot:GetColumn( 2 ):SetSize( ROT_LARG )		// Coluna da imagem do rótulo (após a marcação)
+	oBrwRot:Activate()
+
+	oDlgRot:Activate(,,,.T., {|| .T. },, bInit )
+
+	if lOk
+		aNovo := { .F., {}, aBrwRot[1][1] }
+		for nX := 2 to len( aBrwRot )
+			if aBrwRot[nX][1]
+				aAdd( aNovo[2], aBrwRot[nX][2] )
+			endif
+		next nX
+		// Tudo marcado = sem filtro (inclui rótulos que venham a ser criados depois)
+		aNovo[1] := aNovo[3] .and. len( aNovo[2] ) == len( aBrwRot ) - 1
+	endif
+
+return aNovo
+
+/*/{Protheus.doc} rotMarca
+Imagem da coluna de marcação da seleção de rótulos
+@type function
+@version 25.0001
+@author Jean Carlos Pandolfo Saggin
+@since 16/10/2026
+@param lMarcado, logical, indica se a linha está marcada
+@return character, cImagem
+/*/
+static function rotMarca( lMarcado )
+
+	local cImagem := 'LBNO' as character
+
+	if lMarcado
+		cImagem := 'LBOK'
+	endif
+
+return cImagem
+
 /*/{Protheus.doc} txtRest
 Restaura um texto gravado no Json de restauração (UTF-8 -> padrão do sistema), sem ajuste de tamanho
 @type function
@@ -13611,6 +13887,7 @@ static function saveData( cPart, aData, aHeader, lFlush )
 	local cResult  as character
 	local oFilters as object
 	local oFilIA   as object
+	local oFilRot  as object
 
 	default cPart   := ""
 	default aHeader := {}
@@ -13639,6 +13916,12 @@ static function saveData( cPart, aData, aHeader, lFlush )
 		oFilIA['texto'] := convData( cAITexto )
 		oFilIA['where'] := convData( cAIWhere )
 		oRestore['filtro_ia'] := oFilIA
+	elseif cPart == 'rotulos' .and. Type( 'aFilRot' ) == 'A'	// Filtro por rótulos { lTodos, aIDs, lSemRotulo }
+		oFilRot := JsonObject():New()
+		oFilRot['todos'] := aFilRot[1]
+		oFilRot['ids']   := aFilRot[2]
+		oFilRot['sem']   := aFilRot[3]
+		oRestore['rotulos'] := oFilRot
 	elseif cPart == 'carrinho' .or. cPart == 'carrinho_filial'	// Adiciona produtos do carrinho ao Json
 		if len( aData ) > 0
 			aLines := {}

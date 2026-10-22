@@ -41,6 +41,8 @@ User Function JSGLBPAR( lCheck )
     aAdd( aTab, { "02", "PNC_RVCALC_"+ cEmpAnt, "" } )
     aAdd( aTab, { "03", "PNC_RVTRC_"+ cEmpAnt, "" } )
     aAdd( aTab, { "04", "PNC_PROD_"+ cEmpAnt, "" } )
+    aAdd( aTab, { "05", "PNC_LABEL_"+ cEmpAnt, "" } )          // Cadastro de rótulos de produtos (JSROTULO)
+    aAdd( aTab, { "06", "PNC_LABEL_PROD_"+ cEmpAnt, "" } )     // Vínculo produto x rótulo
 
     // Checagem das estruturas definidas no fonte (parâmetros internos, tabelas próprias e índices)
     lStruct := chkStruct()
@@ -845,14 +847,6 @@ static function getParams()
                     AllTrim(SuperGetMv( "MV_X_PNC13",, "B1_GRUPO" ));       // Conteúdo
                     } )
     aAdd( aParams, {; 
-                    "MV_X_PNC14",;                                          // Parâmetro
-                    "C",;                                                   // Tipo
-                    "Alias da tabela de cadastro de tags               ",;  // Descrição 1
-                    "",;                                                    // Descrição 2
-                    "",;                                                    // Descrição 3
-                    AllTrim(SuperGetMv( "MV_X_PNC14",, "" ));               // Conteúdo
-                    } )
-    aAdd( aParams, {; 
                     "MV_X_PNC15",;                                          // Parâmetro
                     "C",;                                                   // Tipo
                     "Usuários com permissão para gravar preço de tabela",;  // Descrição 1
@@ -907,5 +901,13 @@ static function getParams()
                     "na tela de filtro do SmartSupply",;                    // Descrição 2
                     "",;                                                    // Descrição 3
                     SuperGetMv( "MV_X_PNC21",, .F. );                       // Conteúdo
+                    } )
+    aAdd( aParams, {; 
+                    "MV_X_PNC22",;                                          // Parâmetro
+                    "N",;                                                   // Tipo
+                    "Qtde. de colunas de rótulos na grid de produtos",;     // Descrição 1
+                    "(0 = não exibe; máximo 10)",;                          // Descrição 2
+                    "",;                                                    // Descrição 3
+                    SuperGetMv( "MV_X_PNC22",, 3 );                         // Conteúdo
                     } )
 return aParams

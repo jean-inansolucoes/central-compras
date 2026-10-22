@@ -756,7 +756,7 @@ static function sincDadIte()
 return .T.
 
 /*/{Protheus.doc} escCampo
-Abre uma lista de selecao (mesmo padrao ja usado em JSMANTAG.prw/getRes) com os campos existentes
+Abre uma lista de selecao com os campos existentes
 no dicionario da tabela informada (SA2/SC7/SB1/SB5), lidos dinamicamente via DBStruct()+SX3 - nao
 depende de uma lista fixa por tabela, entao se adapta ao dicionario real de cada ambiente.
 @type function
