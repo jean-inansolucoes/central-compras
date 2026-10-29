@@ -242,6 +242,8 @@ user function JSDETVER()
     aAdd( aDetVer, { '23','0019','14/10/2026', 'Estoque mínimo e máximo da grid principal e do cálculo passam a vir do indicador de produto da filial, quando cadastrado, e do cadastro geral do produto apenas na ausência do indicador; a alteração desses campos na grid grava no mesmo local de origem' } )
     aAdd( aDetVer, { '24','0001','16/10/2026', 'Novo filtro de produtos por IA: quando habilitado, a tela de filtro do painel permite descrever em texto livre quais produtos analisar e a IA converte a descrição em filtro, mantendo o cálculo normal da necessidade de compra' } )
     aAdd( aDetVer, { '25','0001','16/10/2026', 'Novo cadastro de rótulos de produtos, que substitui o antigo cadastro de tags: a mesma tela (Outras Ações ou F7) cria, edita, exclui e atribui rótulos coloridos ao produto, que aparecem como legendas em colunas ao lado da legenda de criticidade (quantidade definida por parâmetro), e a tela de filtro ganha a seleção dos rótulos a considerar' } )
+    aAdd( aDetVer, { '25','0002','22/10/2026', 'Nova coluna com a data da última entrada de compra do produto na grid principal (data de digitação da nota mais recente do tipo normal, respeitando a configuração de transferências entre empresas do grupo) e correção de falha na tela de entradas do produto quando essas transferências são consideradas' } )
+    aAdd( aDetVer, { '25','0003','29/10/2026', 'Nova coluna com a quantidade da última entrada de compra do produto na grid principal (soma das quantidades das notas de compra do tipo normal digitadas na data da última entrada, com os mesmos critérios da coluna de data; na análise com várias filiais, prevalece a data mais recente e, havendo empate, as quantidades são somadas)' } )
 
 return aDetVer
 
@@ -350,7 +352,9 @@ user function JSDEFSIZ( cField, oPrefs )
                 { "QTDCOMP" , GetSX3Cache("C7_QUANT", "X3_TAMANHO"), GetSX3Cache("C7_QUANT", "X3_DECIMAL") },;
                 { "LEADTIME", GetSX3Cache("B1_PE", "X3_TAMANHO"), GetSX3Cache("B1_PE", "X3_DECIMAL") },;
                 { "TPLDTIME", 01, 0, .F. /* lCanChange */ },;
-                { "PREVENT" , 08, 0 } }
+                { "PREVENT" , 08, 0 },;
+                { "ULTENT"  , 08, 0 },;
+                { "QTDULT"  , GetSX3Cache("D1_QUANT", "X3_TAMANHO"), GetSX3Cache("D1_QUANT", "X3_DECIMAL") } }
 
     if ValType(oPrefs) == 'J' .and. oPrefs:hasProperty( cField )
         // Se o campo estiver com conteúdo definido nas preferências do usuário, prevalece a configuração do usuário
@@ -2080,6 +2084,8 @@ user function JSMAINFD()
                       "LEADTIME",;
                       "TPLDTIME",;
                       "PREVENT",;
+                      "ULTENT",;
+                      "QTDULT",;
                       "B1_LM",;
                       "B1_QE",;
                       "B1_LE",;

@@ -20,6 +20,7 @@
 #define LG_OBS     "notificacao.png"			// Legenda para itens com observação preenchida
 #define LG_NO_OBS  "white.bmp" 					// Legenda para itens sem observação preenchida
 #define ROT_LARG   5								// Largura das colunas de rótulo (imagens rotulo_<cor>.png de 32 x 15 pixels)
+#define ULT_LOTE   500								// Códigos de produto por consulta na leitura da data da última entrada (ultEntPrd)
 #define SIZE_FIELD 0.5							// Proporção em relação ao tamanho real dos campos em relação ao espaço que deve utilizar na tela da grid de produtos
  
 // Cache da formula do perfil de calculo (fCalNec), por cPerfil - static de escopo de arquivo
@@ -151,6 +152,8 @@ User Function GMPAICOM()
 	Private nPosLdT   := 0 
 	Private nPosTLT   := 0 as numeric
 	Private nPosPrv   := 0
+	Private nPosUEn   := 0														// Data da última entrada de compra (ULTENT)
+	Private nPosQUE   := 0														// Quantidade da última entrada de compra (QTDULT)
 	Private aConfig   := {}															// Guarda configurações da rotina para uso durante a execução
 	Private nSpinBx   := 0
 	Private nPosInc   := 0 as numeric
@@ -342,6 +345,8 @@ User Function GMPAICOM()
 	nPosSol := gtMain("QTDSOL")
 	nPosQtd := gtMain("QTDCOMP")
 	nPosPrv := gtMain("PREVENT")
+	nPosUEn := gtMain("ULTENT")
+	nPosQUE := gtMain("QTDULT")
 	nPosLdT := gtMain("LEADTIME")
 	nPosTLT := gtMain("TPLDTIME")		// Tipo do Lead-Time (C=Calculado P=Produto ou F=Fornecedor)
 	nPosBlq := gtMain("QTDBLOQ")
@@ -1045,8 +1050,10 @@ static function entryDocs( cProduto, cDoc, cSerie, cFornece, cLoja, cTipo )
 				cQuery += "  AND D1.D1_TIPO    = 'N' " + CEOL
 			endif
 
-			// Desconsidera empresas do grupo
-			cQuery += "  AND D1.D1_FORNECE NOT IN ( "+ cFornSM0 +" ) "	
+			// Desconsidera empresas do grupo (lista vazia quando a filial considera transferências entre elas)
+			if ! Empty( cFornSM0 )
+				cQuery += "  AND D1.D1_FORNECE NOT IN ( "+ cFornSM0 +" ) " + CEOL
+			endif
 			cQuery += "  AND D1.D1_TES     <> '"+ Space( TAMSX3('D1_TES')[1] ) +"' " + CEOL	// Apenas notas já classificadas
 			cQuery += "  AND D1.D_E_L_E_T_ = ' ' " + CEOL
 			
@@ -3900,6 +3907,8 @@ Static Function fLoadInf( aMPs, lAll, lEnd )
 					aLinPro[nPosLdT] := nLeadTime
 					aLinPro[nPosTLT] := cLeadTime
 					aLinPro[nPosPrv] := StoD( PRDTMP->PRVENT )
+					aLinPro[nPosUEn] := StoD( "" )			// Data da última entrada: preenchida em lote por ultEntPrd, após a leitura
+					aLinPro[nPosQUE] := 0					// Quantidade da última entrada: idem
 					aLinPro[nPosLtM] := PRDTMP->B1_LM
 					aLinPro[nPosQtE] := PRDTMP->B1_QE
 					aLinPro[nPosLtE] := PRDTMP->B1_LE
@@ -3924,6 +3933,9 @@ Static Function fLoadInf( aMPs, lAll, lEnd )
 		EndIf
 		
 		PRDTMP->( DbCloseArea() )
+
+		// Data e quantidade da última entrada de compra de cada produto/filial: consulta separada da query principal, em lote
+		ultEntPrd( _aProdFil )
 
 		// Calcula a necessidade de compra consolidada de cada produto entre as filiais selecionadas
 		// (modo Individual ou Pool, conforme aConfig[33]/MODNEC) - uma unica vez por produto, antes
@@ -3970,6 +3982,18 @@ Static Function fLoadInf( aMPs, lAll, lEnd )
 				aColPro[aScan( aColPro, {|x| x[nPosPrd] == _aProdFil[nX][nPosPrd] } )][nPosCon] += _aProdFil[nX][nPosCon]		// Consumo médio
 				aColPro[aScan( aColPro, {|x| x[nPosPrd] == _aProdFil[nX][nPosPrd] } )][nPosEMi] += _aProdFil[nX][nPosEMi]		// Estoque mínimo
 				aColPro[aScan( aColPro, {|x| x[nPosPrd] == _aProdFil[nX][nPosPrd] } )][nPosEMx] += _aProdFil[nX][nPosEMx]		// Estoque máximo
+				// Última entrada de compra: a mais recente entre as filiais. A quantidade acompanha a data e, quando
+				// mais de uma filial teve a última entrada na mesma data, as quantidades são somadas
+				if nPosUEn > 2 .and. ! Empty( _aProdFil[nX][nPosUEn] )
+					if _aProdFil[nX][nPosUEn] > aColPro[aScan( aColPro, {|x| x[nPosPrd] == _aProdFil[nX][nPosPrd] } )][nPosUEn]
+						aColPro[aScan( aColPro, {|x| x[nPosPrd] == _aProdFil[nX][nPosPrd] } )][nPosUEn] := _aProdFil[nX][nPosUEn]
+						if nPosQUE > 2
+							aColPro[aScan( aColPro, {|x| x[nPosPrd] == _aProdFil[nX][nPosPrd] } )][nPosQUE] := _aProdFil[nX][nPosQUE]
+						endif
+					elseif nPosQUE > 2 .and. _aProdFil[nX][nPosUEn] == aColPro[aScan( aColPro, {|x| x[nPosPrd] == _aProdFil[nX][nPosPrd] } )][nPosUEn]
+						aColPro[aScan( aColPro, {|x| x[nPosPrd] == _aProdFil[nX][nPosPrd] } )][nPosQUE] += _aProdFil[nX][nPosQUE]
+					endif
+				endif
 
 				// Cálculo da duração do estoque com os pedidos de compra aprovados
 				nPrjEst   := Round( ( aColPro[aScan( aColPro, {|x| x[nPosPrd] == _aProdFil[nX][nPosPrd] } )][nPosEmE] -; 
@@ -10614,6 +10638,167 @@ static function someChange( lReset )
 
 return nil
 
+/*/{Protheus.doc} ultEntPrd
+Preenche, nas linhas por filial da grid, a data e a quantidade da última entrada de compra de cada produto: data
+de digitação (F1_DTDIGIT) da nota mais recente do tipo Normal, já classificada e com TES que gera duplicata - mesmo
+critério da "Última Entrada" da tela de entradas (getLastDoc) - e a soma das quantidades (D1_QUANT) do produto nas
+notas com esse mesmo critério digitadas nessa data. Notas de fornecedores que são empresas do grupo econômico só
+entram quando a filial considera transferências entre empresas do grupo (configuração Transferência de Filial).
+Por desempenho, é uma consulta separada da query principal (que também é usada pelo recálculo de índices),
+agrupada por produto, feita por filial em lotes de códigos e apenas para os produtos carregados
+@type function
+@version 25.0003
+@author Jean Carlos Pandolfo Saggin
+@since 22/10/2026
+@param aLinhas, array, linhas por filial (_aProdFil, com a filial na última posição), alteradas por referência
+/*/
+static function ultEntPrd( aLinhas )
+
+	local aFils    := {} as array					// { filial, { códigos distintos } }
+	local oVistos  := JsonObject():New() as object
+	local oDatas   := JsonObject():New() as object	// filial|código -> { data (AAAAMMDD), quantidade }
+	local cFilBkp  := cFilAnt as character
+	local cQuery   := "" as character
+	local cAlias   := "" as character
+	local cCodigos := "" as character
+	local cGrupo   := "" as character
+	local cChave   := "" as character
+	local cFilLin  := "" as character
+	local cTesVaz  := Space( TAMSX3( 'D1_TES' )[1] ) as character
+	local aGrupo   := {} as array
+	local aInfo    := {} as array
+	local lExclui  := .F. as logical
+	local nFil     := 0  as numeric
+	local nX       := 0  as numeric
+	local nIni     := 0  as numeric
+	local nPos     := 0  as numeric
+	local xData
+
+	if ( nPosUEn <= 2 .and. nPosQUE <= 2 ) .or. len( aLinhas ) == 0
+		return Nil
+	endif
+
+	// Códigos distintos por filial (filial na última posição de cada linha)
+	for nX := 1 to len( aLinhas )
+		cFilLin := aLinhas[nX][len( aLinhas[nX] )]
+		cChave  := cFilLin +'|'+ AllTrim( aLinhas[nX][nPosPrd] )
+		if ! oVistos:hasProperty( cChave )
+			oVistos[cChave] := .T.
+			nPos := aScan( aFils, {|x| x[1] == cFilLin } )
+			if nPos == 0
+				aAdd( aFils, { cFilLin, {} } )
+				nPos := len( aFils )
+			endif
+			aAdd( aFils[nPos][2], aLinhas[nX][nPosPrd] )
+		endif
+	next nX
+
+	// Fornecedores que são empresas do grupo econômico (lidos uma única vez)
+	aGrupo := U_JSSUPSM0()
+	for nX := 1 to len( aGrupo )
+		if ! Empty( cGrupo )
+			cGrupo += ","
+		endif
+		cGrupo += "'"+ aGrupo[nX] +"'"
+	next nX
+
+	for nFil := 1 to len( aFils )
+		cFilAnt := aFils[nFil][1]
+		lExclui := ! Empty( cGrupo ) .and. ! U_JSTRFFIL( cFilAnt )
+		for nIni := 1 to len( aFils[nFil][2] ) step ULT_LOTE
+			cCodigos := ""
+			for nX := nIni to Min( nIni + ULT_LOTE - 1, len( aFils[nFil][2] ) )
+				if ! Empty( cCodigos )
+					cCodigos += ","
+				endif
+				cCodigos += "'"+ StrTran( aFils[nFil][2][nX], "'", "''" ) +"'"
+			next nX
+
+			// U: data da última entrada de compra de cada produto do lote
+			cQuery := "SELECT U.D1_COD, U.ULTENT, SUM( UD1.D1_QUANT ) QTDULT " + CEOL
+			cQuery += "FROM ( " + CEOL
+			cQuery += "SELECT D1.D1_COD, MAX( F1.F1_DTDIGIT ) ULTENT " + CEOL
+			cQuery += "FROM "+ RetSqlName( 'SD1' ) +" D1 " + CEOL
+			cQuery += "INNER JOIN "+ RetSqlName( 'SF1' ) +" F1 " + CEOL
+			cQuery += " ON F1.F1_FILIAL  = D1.D1_FILIAL "+ CEOL
+			cQuery += "AND F1.F1_DOC     = D1.D1_DOC "+ CEOL
+			cQuery += "AND F1.F1_SERIE   = D1.D1_SERIE "+ CEOL
+			cQuery += "AND F1.F1_FORNECE = D1.D1_FORNECE "+ CEOL
+			cQuery += "AND F1.F1_LOJA    = D1.D1_LOJA "+ CEOL
+			cQuery += "AND F1.F1_TIPO    = D1.D1_TIPO "+ CEOL
+			cQuery += "AND F1.D_E_L_E_T_ = ' ' "+ CEOL
+			cQuery += "INNER JOIN "+ RetSqlName( 'SF4' ) +" F4 " + CEOL
+			cQuery += " ON F4.F4_FILIAL  = '"+ FWxFilial( 'SF4' ) +"' "+ CEOL
+			cQuery += "AND F4.F4_CODIGO  = D1.D1_TES "+ CEOL
+			cQuery += "AND F4.F4_DUPLIC  = 'S' "+ CEOL									// Apenas compras (TES que gera duplicata)
+			cQuery += "AND F4.D_E_L_E_T_ = ' ' "+ CEOL
+			cQuery += "WHERE D1.D1_FILIAL  = '"+ FWxFilial( 'SD1' ) +"' "+ CEOL
+			cQuery += "  AND D1.D1_COD     IN ( "+ cCodigos +" ) "+ CEOL
+			cQuery += "  AND D1.D1_TIPO    = 'N' "+ CEOL									// Apenas notas do tipo Normal
+			cQuery += "  AND D1.D1_TES     <> '"+ cTesVaz +"' "+ CEOL						// Apenas notas já classificadas
+			if lExclui
+				cQuery += "  AND D1.D1_FORNECE NOT IN ( "+ cGrupo +" ) "+ CEOL		// Desconsidera empresas do grupo econômico
+			endif
+			cQuery += "  AND D1.D_E_L_E_T_ = ' ' "+ CEOL
+			cQuery += "GROUP BY D1.D1_COD ) U " + CEOL
+			// UD1/UF1/UF4: itens do produto nas notas de compra digitadas na data da última entrada (mesmos critérios)
+			cQuery += "INNER JOIN "+ RetSqlName( 'SD1' ) +" UD1 " + CEOL
+			cQuery += " ON UD1.D1_FILIAL  = '"+ FWxFilial( 'SD1' ) +"' "+ CEOL
+			cQuery += "AND UD1.D1_COD     = U.D1_COD "+ CEOL
+			cQuery += "AND UD1.D1_TIPO    = 'N' "+ CEOL
+			cQuery += "AND UD1.D1_TES     <> '"+ cTesVaz +"' "+ CEOL
+			if lExclui
+				cQuery += "AND UD1.D1_FORNECE NOT IN ( "+ cGrupo +" ) "+ CEOL
+			endif
+			cQuery += "AND UD1.D_E_L_E_T_ = ' ' "+ CEOL
+			cQuery += "INNER JOIN "+ RetSqlName( 'SF1' ) +" UF1 " + CEOL
+			cQuery += " ON UF1.F1_FILIAL  = UD1.D1_FILIAL "+ CEOL
+			cQuery += "AND UF1.F1_DOC     = UD1.D1_DOC "+ CEOL
+			cQuery += "AND UF1.F1_SERIE   = UD1.D1_SERIE "+ CEOL
+			cQuery += "AND UF1.F1_FORNECE = UD1.D1_FORNECE "+ CEOL
+			cQuery += "AND UF1.F1_LOJA    = UD1.D1_LOJA "+ CEOL
+			cQuery += "AND UF1.F1_TIPO    = UD1.D1_TIPO "+ CEOL
+			cQuery += "AND UF1.F1_DTDIGIT = U.ULTENT "+ CEOL
+			cQuery += "AND UF1.D_E_L_E_T_ = ' ' "+ CEOL
+			cQuery += "INNER JOIN "+ RetSqlName( 'SF4' ) +" UF4 " + CEOL
+			cQuery += " ON UF4.F4_FILIAL  = '"+ FWxFilial( 'SF4' ) +"' "+ CEOL
+			cQuery += "AND UF4.F4_CODIGO  = UD1.D1_TES "+ CEOL
+			cQuery += "AND UF4.F4_DUPLIC  = 'S' "+ CEOL
+			cQuery += "AND UF4.D_E_L_E_T_ = ' ' "+ CEOL
+			cQuery += "GROUP BY U.D1_COD, U.ULTENT "
+
+			cAlias := MPSysOpenQuery( cQuery )
+			while ! ( cAlias )->( EOF() )
+				oDatas[ cFilAnt +'|'+ AllTrim( ( cAlias )->D1_COD ) ] := { ( cAlias )->ULTENT, ( cAlias )->QTDULT }
+				( cAlias )->( DBSkip() )
+			end
+			( cAlias )->( DBCloseArea() )
+		next nIni
+	next nFil
+	cFilAnt := cFilBkp
+
+	for nX := 1 to len( aLinhas )
+		cChave := aLinhas[nX][len( aLinhas[nX] )] +'|'+ AllTrim( aLinhas[nX][nPosPrd] )
+		if oDatas:hasProperty( cChave )
+			aInfo := oDatas[cChave]
+			xData := aInfo[1]
+			if ValType( xData ) == 'C'
+				xData := StoD( xData )
+			endif
+			if nPosUEn > 2 .and. ValType( xData ) == 'D'
+				aLinhas[nX][nPosUEn] := xData
+			endif
+			if nPosQUE > 2 .and. ValType( aInfo[2] ) == 'N'
+				aLinhas[nX][nPosQUE] := aInfo[2]
+			endif
+		endif
+	next nX
+
+	FreeObj( oVistos )
+	FreeObj( oDatas )
+
+return Nil
+
 /*/{Protheus.doc} getLastDoc
 Função para identificar a ultima nota de entrada do cliente
 @type function
@@ -10634,7 +10819,10 @@ static function getLastDoc( cProduto )
 	cQuery += "INNER JOIN "+ RetSqlName( 'SF4' ) +" F4 ON F4.F4_FILIAL = '"+ FWxFilial( 'SF4' ) +"' AND F4.F4_CODIGO = D1.D1_TES AND F4.D_E_L_E_T_ = ' ' "
 	cQuery += "WHERE D1.D1_COD     = '"+ cProduto +"' "
 	cQuery += "  AND D1.D1_TIPO    = 'N' "			// Somente notas do tipo normal
-	cQuery += "  AND D1.D1_FORNECE NOT IN ( "+ cFornSM0 +" ) "	
+	// Desconsidera empresas do grupo (lista vazia quando a filial considera transferências entre elas)
+	if ! Empty( cFornSM0 )
+		cQuery += "  AND D1.D1_FORNECE NOT IN ( "+ cFornSM0 +" ) "
+	endif
 	cQuery += "  AND D1.D1_TES     <> '"+ Space( TAMSX3( 'D1_TES' )[1] ) +"' "
 	cQuery += "  AND F4.F4_DUPLIC  = 'S' "
 	cQuery += "  AND D1.D_E_L_E_T_ = ' ' "
@@ -11225,6 +11413,44 @@ user function JSCOLPRO( aFields, aAlter, oPrefs )
 							Nil,;                            										// [n][11] Code-Block de execução do duplo clique
 							cVarName +"["+ cBrwName +":At()]["+cValToChar(nX+2)+"]",;               // [n][12] Variável a ser utilizada na edição (ReadVar)
 							&("{|oBrw| sortCol( oBrw, "+ cVarName +", "+ cValToChar(nX+2) +" ) }"),;              					// [n][13] Code-Block de execução do clique no header
+							.F.,;                            										// [n][14] Indica se a coluna está deletada
+							.F.,;                            										// [n][15] Indica se a coluna será exibida nos detalhes do Browse
+							{},; 										                            // [n][16] Opções de carga dos dados (Ex: 1=Sim, 2=Não)
+							aFields[nX] })                          								// [n][17] Id da coluna
+		elseif aFields[nX] == 'ULTENT'
+			aAdd(aColumns, {;
+							'Ult.Entr.',;                     										// [n][01] Título da coluna
+							&("{|oBrw| " + cVarName + "[oBrw:At()]["+ cValToChar(nX+2) +"] }"),; 	// [n][02] Code-Block de carga dos dados
+							"D",;                													// [n][03] Tipo de dados
+							Nil,;                     												// [n][04] Máscara
+							0,;                      												// [n][05] Alinhamento (0=Centralizado, 1=Esquerda ou 2=Direita)
+							U_JSDEFSIZ( aFields[nX], oPrefs )[1] * SIZE_FIELD,;                             	// [n][06] Tamanho
+							U_JSDEFSIZ( aFields[nX], oPrefs )[2],;                         					// [n][07] Decimal
+							.F.,;                            										// [n][08] Indica se permite a edição
+							{|| AlwaysTrue() },;                          							// [n][09] Code-Block de validação da coluna após a edição
+							.F.,;                            										// [n][10] Indica se exibe imagem
+							Nil,;                            										// [n][11] Code-Block de execução do duplo clique
+							cVarName +"["+ cBrwName +":At()]["+cValToChar(nX+2)+"]",;               // [n][12] Variável a ser utilizada na edição (ReadVar)
+							&("{|oBrw| sortCol( oBrw, "+ cVarName +", "+ cValToChar(nX+2) +" ) }"),;	// [n][13] Code-Block de execução do clique no header
+							.F.,;                            										// [n][14] Indica se a coluna está deletada
+							.F.,;                            										// [n][15] Indica se a coluna será exibida nos detalhes do Browse
+							{},; 										                            // [n][16] Opções de carga dos dados (Ex: 1=Sim, 2=Não)
+							aFields[nX] })                          								// [n][17] Id da coluna
+		elseif aFields[nX] == 'QTDULT'
+			aAdd(aColumns, {;
+							'Qtd.Ult.Ent.',;                   										// [n][01] Título da coluna
+							&("{|oBrw| " + cVarName + "[oBrw:At()]["+ cValToChar(nX+2) +"] }"),; 	// [n][02] Code-Block de carga dos dados
+							"N",;                													// [n][03] Tipo de dados
+							PesqPict( 'SD1', 'D1_QUANT' ),;                     					// [n][04] Máscara
+							2,;                      												// [n][05] Alinhamento (0=Centralizado, 1=Esquerda ou 2=Direita)
+							U_JSDEFSIZ( aFields[nX], oPrefs )[1] * SIZE_FIELD,;                             	// [n][06] Tamanho
+							U_JSDEFSIZ( aFields[nX], oPrefs )[2],;                         					// [n][07] Decimal
+							.F.,;                            										// [n][08] Indica se permite a edição
+							{|| AlwaysTrue() },;                          							// [n][09] Code-Block de validação da coluna após a edição
+							.F.,;                            										// [n][10] Indica se exibe imagem
+							Nil,;                            										// [n][11] Code-Block de execução do duplo clique
+							cVarName +"["+ cBrwName +":At()]["+cValToChar(nX+2)+"]",;               // [n][12] Variável a ser utilizada na edição (ReadVar)
+							&("{|oBrw| sortCol( oBrw, "+ cVarName +", "+ cValToChar(nX+2) +" ) }"),;	// [n][13] Code-Block de execução do clique no header
 							.F.,;                            										// [n][14] Indica se a coluna está deletada
 							.F.,;                            										// [n][15] Indica se a coluna será exibida nos detalhes do Browse
 							{},; 										                            // [n][16] Opções de carga dos dados (Ex: 1=Sim, 2=Não)
