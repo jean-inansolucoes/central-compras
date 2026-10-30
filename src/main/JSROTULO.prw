@@ -12,11 +12,13 @@ A interface é um HTML com JavaScript num TWebEngine dentro de um FWDialogModal. 
 oficial da TOTVS (resource do RPO) são gravados no servidor, publicados na pasta web do usuário (CpyF2Web) e
 abertos com navigate(), cuja URL informa à página os dados de conexão do TWebChannel (twebchannel.connect) -
 mesmo padrão comprovado da notificação MGNOTFAL. A página é gerada só com ASCII (acentos como entidades HTML
-e \uXXXX no JavaScript), independente da codificação. Cada ação é gravada imediatamente.
+e \uXXXX no JavaScript), independente da codificação. O estado inicial (rótulos, vínculos e paleta) vai
+embutido na página, que abre sem depender de troca de mensagens com o Protheus; o canal é usado só nas ações do
+usuário, cada uma gravada imediatamente. Falhas são exibidas na tela e registradas no log do servidor (FWLogMsg).
 Tabelas: PNC_LABEL_<empresa> (cadastro, único para a empresa) e PNC_LABEL_PROD_<empresa> (vínculos, com a
 filial seguindo o compartilhamento do SB1).
 @type function
-@version 25.0001
+@version 25.0004
 @author Jean Carlos Pandolfo Saggin
 @since 16/10/2026
 @param cProd, character, código do produto
@@ -31,6 +33,8 @@ User Function JSROTULO( cProd, cDesc, cFilVinc )
     Local aArqServ  := {} as array
     Local cLib      := "" as character
     Local cUrl      := "" as character
+    Local cEstado   := "" as character
+    Local cLibRmt   := "" as character
     Local nX        := 0  as numeric
 
     Private oRotCanal as object
@@ -59,12 +63,18 @@ User Function JSROTULO( cProd, cDesc, cFilVinc )
         Return .F.
     EndIf
 
-    // Canal de comunicação JavaScript x AdvPL (conectado antes da publicação/abertura da página)
+    // Estado inicial (rótulos, vínculos do produto e paleta) montado antes da abertura e embutido na página: a lista
+    // aparece sem depender de uma troca de mensagens com o Protheus enquanto a janela ainda está sendo aberta
+    cEstado := rotProc( 'carga', '' )
+
+    // Canal de comunicação JavaScript x AdvPL (conectado antes da publicação/abertura da página), usado nas ações
     oRotCanal := TWebChannel():New()
     oRotCanal:bJsToAdvpl := {|oSelf, cChave, cValor| rotEvento( oSelf, cChave, cValor ) }
     oRotCanal:connect()
 
-    cUrl := rotPublica( cLib, @aArqServ )
+    cUrl := rotPublica( cLib, cEstado, @aArqServ )
+    FWLogMsg( 'INFO', /*cTransactionId*/, 'SMARTSUPPLY', 'JSROTULO', '', '01', 'Tela de rótulos: SmartClient '+ cValToChar( GetRemoteType( @cLibRmt ) ) +;
+              ' ('+ AllTrim( cValToChar( cLibRmt ) ) +'), porta do canal '+ cValToChar( oRotCanal:nPort ) +', página '+ cUrl )
     If Empty( cUrl )
         hlp( 'ROTULOS', 'Não foi possível publicar a tela de rótulos na pasta web do usuário.',;
              'Tente novamente. Persistindo, verifique a gravação na pasta '+ ROT_TMP +' do servidor.' )
@@ -82,7 +92,7 @@ User Function JSROTULO( cProd, cDesc, cFilVinc )
 
         oWeb := TWebEngine():New( oDlg:GetPanelMain(), 0, 0, 100, 100, /*cUrl*/, oRotCanal:nPort )
         oWeb:Align := CONTROL_ALIGN_ALLCLIENT
-        oWeb:bLoadFinished := {|oEngine, cUrlCarga| lRotCarg := .T. }
+        oWeb:bLoadFinished := {|oEngine, cUrlCarga| lRotCarg := .T., FWLogMsg( 'INFO', /*cTransactionId*/, 'SMARTSUPPLY', 'JSROTULO', '', '01', 'Tela de rótulos carregada no navegador' ) }
         oWeb:Navigate( cUrl )
 
         oDlg:Activate()
@@ -192,10 +202,11 @@ do usuário (CpyF2Web), para abertura no TWebEngine com navigate()
 @author Jean Carlos Pandolfo Saggin
 @since 21/10/2026
 @param cLib, character, conteúdo do twebchannel.js
+@param cEstado, character, estado inicial da tela (JSON de rotProc), embutido na página
 @param aArqServ, array, (referência) arquivos gravados no servidor, para exclusão ao fechar a janela
 @return character, cUrl - endereço da página na pasta web do usuário (vazio quando não publicada)
 /*/
-Static Function rotPublica( cLib, aArqServ )
+Static Function rotPublica( cLib, cEstado, aArqServ )
 
     Local cId     := cValToChar( ThreadId() ) +'_'+ StrTran( Time(), ':', '' ) as character
     Local cScript := 'sstwebchannel_'+ cId +'.js' as character
@@ -209,7 +220,7 @@ Static Function rotPublica( cLib, aArqServ )
         MakeDir( ROT_TMP )
     EndIf
 
-    If MemoWrite( ROT_TMP +'/'+ cScript, cLib ) .and. MemoWrite( ROT_TMP +'/'+ cPagina, rotHtml( cScript ) )
+    If MemoWrite( ROT_TMP +'/'+ cScript, cLib ) .and. MemoWrite( ROT_TMP +'/'+ cPagina, rotHtml( cScript, cEstado ) )
         aArqServ := { ROT_TMP +'/'+ cScript, ROT_TMP +'/'+ cPagina }
         // Script e página publicados na mesma pasta web do usuário (a página referencia o script pelo nome)
         If ! Empty( CpyF2Web( ROT_TMP +'/'+ cScript, .T., .F., .F. ) )
@@ -242,10 +253,11 @@ Return Nil
 
 /*/{Protheus.doc} rotEvento
 Trata as mensagens enviadas pela página (JavaScript -> AdvPL) e devolve o estado atualizado da tela.
-Mensagens: ready (página carregada), toggle (vincular/desvincular), create, update e delete. Os textos
-digitados chegam codificados com encodeURIComponent (somente ASCII), evitando problemas de acentuação
+Mensagens: carga (somente quando a página foi aberta sem o estado inicial embutido), toggle (vincular/desvincular),
+create, update e delete. Os textos digitados chegam codificados com encodeURIComponent (somente ASCII), evitando
+problemas de acentuação
 @type function
-@version 25.0001
+@version 25.0004
 @author Jean Carlos Pandolfo Saggin
 @since 16/10/2026
 @param oCanal, object, TWebChannel
@@ -254,47 +266,78 @@ digitados chegam codificados com encodeURIComponent (somente ASCII), evitando pr
 /*/
 Static Function rotEvento( oCanal, cChave, cValor )
 
-    Local oDados  := JsonObject():New() as object
-    Local cErro   := "" as character
-    Local lFechar := .F. as logical
-    Local xParser
-
-    If ! Empty( cValor )
-        xParser := oDados:FromJson( cValor )
-        If ValType( xParser ) == 'C'
-            cErro := 'Mensagem inválida recebida da tela de rótulos.'
-        EndIf
-    EndIf
-
-    If Empty( cErro )
-        Do Case
-        Case cChave == 'toggle'
-            cErro := rotVinc( jNum( oDados['id'] ), ValType( oDados['marcar'] ) == 'L' .and. oDados['marcar'] )
-        Case cChave == 'create'
-            cErro   := rotGrvRot( 0, jTxt( oDados['nome'] ), jChr( oDados['cor'] ) )
-            lFechar := Empty( cErro )
-        Case cChave == 'update'
-            cErro   := rotGrvRot( jNum( oDados['id'] ), jTxt( oDados['nome'] ), jChr( oDados['cor'] ) )
-            lFechar := Empty( cErro )
-        Case cChave == 'delete'
-            cErro   := rotExcl( jNum( oDados['id'] ) )
-            lFechar := Empty( cErro )
-        EndCase
-        If cChave != 'ready' .and. Empty( cErro )
-            lRotMudou := .T.
-        EndIf
-    EndIf
-
-    FreeObj( oDados )
-    oCanal:advplToJS( 'estado', rotEstado( cErro, lFechar ) )
+    FWLogMsg( 'INFO', /*cTransactionId*/, 'SMARTSUPPLY', 'JSROTULO', '', '01', 'Tela de rótulos: mensagem "'+ cChave +'" recebida da página' )
+    oCanal:advplToJS( 'estado', rotProc( cChave, cValor ) )
 
 Return Nil
 
+/*/{Protheus.doc} rotProc
+Processa uma mensagem da tela de rótulos (ou a carga inicial, antes da abertura) e devolve o estado da tela em
+JSON. Qualquer falha (mensagem inválida, gravação ou consulta) é capturada, registrada no log do servidor e
+devolvida como mensagem de erro para a página, que assim nunca fica aguardando uma resposta que não chega
+@type function
+@version 25.0004
+@author Jean Carlos Pandolfo Saggin
+@since 30/10/2026
+@param cChave, character, tipo da mensagem (carga, toggle, create, update ou delete)
+@param cValor, character, conteúdo da mensagem (JSON)
+@return character, cJson - estado da tela (somente ASCII)
+/*/
+Static Function rotProc( cChave, cValor )
+
+    Local oDados  := JsonObject():New() as object
+    Local oFalha  as object
+    Local bErro   as codeblock
+    Local cErro   := "" as character
+    Local cJson   := "" as character
+    Local lFechar := .F. as logical
+    Local xParser
+
+    bErro := ErrorBlock( {|oErr| oFalha := oErr, Break( oErr ) } )
+    Begin Sequence
+        If ! Empty( cValor )
+            xParser := oDados:FromJson( cValor )
+            If ValType( xParser ) == 'C'
+                cErro := 'Mensagem inválida recebida da tela de rótulos.'
+            EndIf
+        EndIf
+
+        If Empty( cErro )
+            Do Case
+            Case cChave == 'toggle'
+                cErro := rotVinc( jNum( oDados['id'] ), ValType( oDados['marcar'] ) == 'L' .and. oDados['marcar'] )
+            Case cChave == 'create'
+                cErro   := rotGrvRot( 0, jTxt( oDados['nome'] ), jChr( oDados['cor'] ) )
+                lFechar := Empty( cErro )
+            Case cChave == 'update'
+                cErro   := rotGrvRot( jNum( oDados['id'] ), jTxt( oDados['nome'] ), jChr( oDados['cor'] ) )
+                lFechar := Empty( cErro )
+            Case cChave == 'delete'
+                cErro   := rotExcl( jNum( oDados['id'] ) )
+                lFechar := Empty( cErro )
+            EndCase
+            If aScan( { 'toggle', 'create', 'update', 'delete' }, {|x| x == cChave } ) > 0 .and. Empty( cErro )
+                lRotMudou := .T.
+            EndIf
+        EndIf
+
+        cJson := rotEstado( cErro, lFechar )
+    Recover
+        cErro := 'Falha ao processar a tela de rótulos: '+ AllTrim( oFalha:Description )
+        FWLogMsg( 'ERROR', /*cTransactionId*/, 'SMARTSUPPLY', 'JSROTULO', '', '02', cErro + Chr(13) + Chr(10) + oFalha:ErrorStack )
+        cJson := '{"erro":'+ jsStr( cErro ) +',"fechar":false}'
+    End Sequence
+    ErrorBlock( bErro )
+
+    FreeObj( oDados )
+
+Return cJson
+
 /*/{Protheus.doc} rotEstado
 Monta o estado da tela (rótulos, vínculo com o produto, uso e paleta de cores) em JSON somente ASCII
-(caracteres acentuados como \uXXXX), independente da codificação usada pelo canal
+(caracteres acentuados como \uXXXX, < e > escapados), independente da codificação usada pelo canal
 @type function
-@version 25.0001
+@version 25.0004
 @author Jean Carlos Pandolfo Saggin
 @since 16/10/2026
 @param cErro, character, mensagem de erro da última ação (vazio quando não houve erro)
@@ -308,36 +351,46 @@ Static Function rotEstado( cErro, lFechar )
     Local cAlias  := "" as character
     Local cSep    := "" as character
     Local aPaleta := rotPaleta() as array
-    Local nX      := 0  as numeric
+    Local oVinc   := JsonObject():New() as object
     Local oExec   as object
+    Local nX      := 0  as numeric
 
-    cQuery := "SELECT LB.ID, LB.DESCRI, LB.COR, "
-    cQuery += "( SELECT COUNT( DISTINCT LP.PROD ) FROM PNC_LABEL_PROD_"+ cEmpAnt +" LP "
-    cQuery += "  WHERE LP.LABELID = LB.ID AND LP.D_E_L_E_T_ = ' ' ) USO, "
-    cQuery += "( SELECT COUNT(*) FROM PNC_LABEL_PROD_"+ cEmpAnt +" LV "
-    cQuery += "  WHERE LV.LABELID = LB.ID AND LV.FILIAL = ? AND LV.PROD = ? AND LV.D_E_L_E_T_ = ' ' ) VINC "
-    cQuery += "FROM PNC_LABEL_"+ cEmpAnt +" LB "
-    cQuery += "WHERE LB.D_E_L_E_T_ = ' ' "
-    cQuery += "ORDER BY LB.ID "
-    cQuery := ChangeQuery( cQuery )
-
-    oExec := FwExecStatement():New( cQuery )
+    // Rótulos vinculados ao produto da tela, na filial do vínculo (parâmetros só no WHERE, como em JSROTPRD)
+    cQuery := "SELECT LP.LABELID FROM PNC_LABEL_PROD_"+ cEmpAnt +" LP "
+    cQuery += "WHERE LP.FILIAL = ? AND LP.PROD = ? AND LP.D_E_L_E_T_ = ' ' "
+    oExec := FwExecStatement():New( ChangeQuery( cQuery ) )
     oExec:SetString( 1, cRotFil )
     oExec:SetString( 2, cRotProd )
     cAlias := oExec:OpenAlias()
+    While ! ( cAlias )->( EOF() )
+        oVinc[ cValToChar( ( cAlias )->LABELID ) ] := .T.
+        ( cAlias )->( DBSkip() )
+    EndDo
+    ( cAlias )->( DBCloseArea() )
+    oExec:Destroy()
+
+    // Rótulos cadastrados e quantos produtos usam cada um, sem parâmetros: no SQL Server, parâmetros dentro de
+    // subconsultas da lista do SELECT dependem da dedução de tipo na preparação da instrução pelo driver
+    cQuery := "SELECT LB.ID, LB.DESCRI, LB.COR, COUNT( DISTINCT LP.PROD ) USO "
+    cQuery += "FROM PNC_LABEL_"+ cEmpAnt +" LB "
+    cQuery += "LEFT JOIN PNC_LABEL_PROD_"+ cEmpAnt +" LP ON LP.LABELID = LB.ID AND LP.D_E_L_E_T_ = ' ' "
+    cQuery += "WHERE LB.D_E_L_E_T_ = ' ' "
+    cQuery += "GROUP BY LB.ID, LB.DESCRI, LB.COR "
+    cQuery += "ORDER BY LB.ID "
+    cAlias := MPSysOpenQuery( cQuery )
 
     cJson := '{"rotulos":['
     While ! ( cAlias )->( EOF() )
         cJson += cSep +'{"id":'+ cValToChar( ( cAlias )->ID ) +;
                  ',"nome":'+ jsStr( AllTrim( ( cAlias )->DESCRI ) ) +;
                  ',"cor":'+ jsStr( AllTrim( ( cAlias )->COR ) ) +;
-                 ',"vinc":'+ jsBool( ( cAlias )->VINC > 0 ) +;
+                 ',"vinc":'+ jsBool( oVinc:hasProperty( cValToChar( ( cAlias )->ID ) ) ) +;
                  ',"uso":'+ cValToChar( ( cAlias )->USO ) +'}'
         cSep := ','
         ( cAlias )->( DBSkip() )
     EndDo
     ( cAlias )->( DBCloseArea() )
-    oExec:Destroy()
+    FreeObj( oVinc )
 
     cJson += '],"cores":['
     cSep := ""
@@ -686,7 +739,7 @@ Static Function jsStr( cTexto )
         nCod := Asc( cChr )
         If cChr == '"' .or. cChr == '\'
             cRet += '\'+ cChr
-        ElseIf nCod < 32 .or. nCod > 126
+        ElseIf nCod < 32 .or. nCod > 126 .or. cChr == '<' .or. cChr == '>'	// < e >: o JSON também vai embutido no <script> da página
             cRet += '\u'+ hex4( jsUni( nCod ) )
         Else
             cRet += cChr
@@ -902,17 +955,20 @@ Return Help( ,, cTitle,, cFail, 1, 0, NIL, NIL, NIL, NIL, NIL, { cHelp } )
 Página da tela de rótulos (HTML, CSS e JavaScript). Os nomes dos rótulos são sempre exibidos com
 textContent (nunca interpretados como HTML) e enviados ao AdvPL com encodeURIComponent
 @type function
-@version 25.0001
+@version 25.0004
 @author Jean Carlos Pandolfo Saggin
 @since 16/10/2026
 @param cScript, character, nome do twebchannel.js publicado na mesma pasta da página
+@param cEstado, character, estado inicial da tela (JSON somente ASCII), no lugar do marcador ESTADO
 @return character, cHtml - documento somente ASCII
 /*/
-Static Function rotHtml( cScript )
+Static Function rotHtml( cScript, cEstado )
 
     Local cHtml   := "" as character
     Local cTopo   := "" as character
     Local cApp    := "" as character
+
+    Default cEstado := ""
 
     BeginContent var cTopo
 <!DOCTYPE html>
@@ -982,6 +1038,8 @@ Static Function rotHtml( cScript )
   var confirmaExclusao = false;
   var corSelecionada = '';
   var conectado = false;
+  // Estado inicial embutido pelo Protheus ao gerar a página (rotProc); null quando a página veio sem ele
+  var inicial = /*ESTADO*/null;
   var ICONE_EDITAR = '<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">' +
     '<path d="M11.013 1.427a1.75 1.75 0 0 1 2.474 0l1.086 1.086a1.75 1.75 0 0 1 0 2.474l-8.61 8.61c-.21.21-.47.364-.756.445' +
     'l-3.251.93a.75.75 0 0 1-.927-.928l.929-3.25c.081-.286.235-.547.445-.758l8.61-8.61Zm.176 4.823L9.75 4.81l-6.286 6.287' +
@@ -1113,21 +1171,30 @@ Static Function rotHtml( cScript )
     enviar('delete', { id: edicao.id });
   }
 
+  // Aplica o estado recebido: numa falha o Protheus devolve só a mensagem de erro, e a lista atual é mantida
+  function aplicar(novo) {
+    if (!novo) { return; }
+    if (novo.rotulos) { estado.rotulos = novo.rotulos; }
+    if (novo.cores) { estado.cores = novo.cores; }
+    if (novo.erro) {
+      el('erro').textContent = novo.erro;
+    } else {
+      el('erro').textContent = '';
+      if (novo.fechar) { fecharEditor(); }
+    }
+    renderLista();
+  }
+
   function receber(chave, valor) {
+    var novo;
     if (chave !== 'estado') { return; }
     try {
-      estado = JSON.parse(valor);
+      novo = JSON.parse(valor);
     } catch (e) {
       el('erro').textContent = 'Falha ao ler os dados enviados pelo Protheus.';
       return;
     }
-    if (estado.erro) {
-      el('erro').textContent = estado.erro;
-    } else {
-      el('erro').textContent = '';
-      if (estado.fechar) { fecharEditor(); }
-    }
-    renderLista();
+    aplicar(novo);
   }
 
   el('busca').addEventListener('input', renderLista);
@@ -1143,6 +1210,9 @@ Static Function rotHtml( cScript )
     if (e.key === 'Escape') { fecharEditor(); }
   });
 
+  // Lista exibida já na abertura, com o estado embutido, sem esperar a conexão do canal
+  aplicar(inicial);
+
   window.onload = function () {
     el('busca').focus();
     // Os eventos da tela já estão ligados; sem a biblioteca do canal, apenas informa (não interrompe o script)
@@ -1152,10 +1222,11 @@ Static Function rotHtml( cScript )
     }
     twebchannel.advplToJs = receber;
     // Dados de conexão (porta, tipo do SmartClient, thread e origem) informados pelo TWebEngine na URL
-    twebchannel.connect(function () { conectado = true; enviar('ready', {}); });
+    // O canal é usado nas ações; só pede a carga quando a página veio sem o estado inicial
+    twebchannel.connect(function () { conectado = true; if (!inicial) { enviar('carga', {}); } });
     // Sem conexão em 6 segundos: informa na tela (diagnóstico)
     setTimeout(function () {
-      if (!conectado) { el('erro').textContent = 'Sem comunicação com o Protheus. Feche e abra a tela novamente.'; }
+      if (!conectado) { el('erro').textContent = 'Sem comunicação com o Protheus: as alterações não serão gravadas. Feche e abra a tela novamente.'; }
     }, 6000);
   };
 })();
@@ -1166,5 +1237,10 @@ Static Function rotHtml( cScript )
     // marcação e como \uXXXX no JavaScript
     cTopo := StrTran( cTopo, '</head>', '<script src="'+ cScript +'"></script>'+ Chr(13) + Chr(10) +'</head>' )
     cHtml := rotAscii( cTopo, .F. ) + rotAscii( cApp, .T. ) +'</body>'+ Chr(13) + Chr(10) +'</html>'
+
+    // Estado inicial da tela (JSON somente ASCII, com < e > escapados) no lugar do marcador do script
+    If ! Empty( cEstado )
+        cHtml := StrTran( cHtml, '/*ESTADO*/null', cEstado )
+    EndIf
 
 Return cHtml

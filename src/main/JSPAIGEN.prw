@@ -244,6 +244,7 @@ user function JSDETVER()
     aAdd( aDetVer, { '25','0001','16/10/2026', 'Novo cadastro de rótulos de produtos, que substitui o antigo cadastro de tags: a mesma tela (Outras Ações ou F7) cria, edita, exclui e atribui rótulos coloridos ao produto, que aparecem como legendas em colunas ao lado da legenda de criticidade (quantidade definida por parâmetro), e a tela de filtro ganha a seleção dos rótulos a considerar' } )
     aAdd( aDetVer, { '25','0002','22/10/2026', 'Nova coluna com a data da última entrada de compra do produto na grid principal (data de digitação da nota mais recente do tipo normal, respeitando a configuração de transferências entre empresas do grupo) e correção de falha na tela de entradas do produto quando essas transferências são consideradas' } )
     aAdd( aDetVer, { '25','0003','29/10/2026', 'Nova coluna com a quantidade da última entrada de compra do produto na grid principal (soma das quantidades das notas de compra do tipo normal digitadas na data da última entrada, com os mesmos critérios da coluna de data; na análise com várias filiais, prevalece a data mais recente e, havendo empate, as quantidades são somadas)' } )
+    aAdd( aDetVer, { '25','0004','30/10/2026', 'Correção da tela de rótulos do produto, que podia ficar parada em "Carregando..." em alguns ambientes com SQL Server: a lista de rótulos passa a ser montada junto com a tela, a consulta dos rótulos foi simplificada e qualquer falha passa a ser exibida na própria tela e registrada no log do servidor' } )
 
 return aDetVer
 
