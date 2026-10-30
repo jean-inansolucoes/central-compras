@@ -8,17 +8,19 @@
 /*/{Protheus.doc} JSROTULO
 Tela de rótulos do produto (cadastro e vínculo na mesma tela). Exibe todos os rótulos cadastrados com um
 checkbox que vincula/desvincula o rótulo ao produto informado, permite criar, editar e excluir rótulos.
-A interface é um HTML com JavaScript num TWebEngine dentro de um FWDialogModal. A página e o twebchannel.js
-oficial da TOTVS (resource do RPO) são gravados no servidor, publicados na pasta web do usuário (CpyF2Web) e
-abertos com navigate(), cuja URL informa à página os dados de conexão do TWebChannel (twebchannel.connect) -
-mesmo padrão comprovado da notificação MGNOTFAL. A página é gerada só com ASCII (acentos como entidades HTML
-e \uXXXX no JavaScript), independente da codificação. O estado inicial (rótulos, vínculos e paleta) vai
-embutido na página, que abre sem depender de troca de mensagens com o Protheus; o canal é usado só nas ações do
-usuário, cada uma gravada imediatamente. Falhas são exibidas na tela e registradas no log do servidor (FWLogMsg).
+A interface é um HTML com JavaScript num TWebEngine dentro de um FWDialogModal. A página, o script da tela e o
+twebchannel.js oficial da TOTVS (resource do RPO) são gravados no servidor, publicados na pasta web do usuário
+(CpyF2Web) e abertos com navigate(), cuja URL informa à página os dados de conexão do TWebChannel
+(twebchannel.connect) - mesmo padrão comprovado da notificação MGNOTFAL. Todo o JavaScript fica em arquivos .js:
+no SmartClient HTML (WebApp) a política de segurança de conteúdo (CSP) só executa scripts de arquivo, nunca os
+embutidos na página. Os arquivos são gerados só com ASCII (acentos como entidades HTML e \uXXXX no JavaScript),
+independente da codificação. O estado inicial (rótulos, vínculos e paleta) vai no script da tela, que abre sem
+depender de troca de mensagens com o Protheus; o canal é usado só nas ações do usuário, cada uma gravada
+imediatamente. Falhas são exibidas na tela e registradas no log do servidor (FWLogMsg).
 Tabelas: PNC_LABEL_<empresa> (cadastro, único para a empresa) e PNC_LABEL_PROD_<empresa> (vínculos, com a
 filial seguindo o compartilhamento do SB1).
 @type function
-@version 25.0004
+@version 25.0005
 @author Jean Carlos Pandolfo Saggin
 @since 16/10/2026
 @param cProd, character, código do produto
@@ -63,8 +65,8 @@ User Function JSROTULO( cProd, cDesc, cFilVinc )
         Return .F.
     EndIf
 
-    // Estado inicial (rótulos, vínculos do produto e paleta) montado antes da abertura e embutido na página: a lista
-    // aparece sem depender de uma troca de mensagens com o Protheus enquanto a janela ainda está sendo aberta
+    // Estado inicial (rótulos, vínculos do produto e paleta) montado antes da abertura e gravado no script da tela: a
+    // lista aparece sem depender de uma troca de mensagens com o Protheus enquanto a janela ainda está sendo aberta
     cEstado := rotProc( 'carga', '' )
 
     // Canal de comunicação JavaScript x AdvPL (conectado antes da publicação/abertura da página), usado nas ações
@@ -92,7 +94,7 @@ User Function JSROTULO( cProd, cDesc, cFilVinc )
 
         oWeb := TWebEngine():New( oDlg:GetPanelMain(), 0, 0, 100, 100, /*cUrl*/, oRotCanal:nPort )
         oWeb:Align := CONTROL_ALIGN_ALLCLIENT
-        oWeb:bLoadFinished := {|oEngine, cUrlCarga| lRotCarg := .T., FWLogMsg( 'INFO', /*cTransactionId*/, 'SMARTSUPPLY', 'JSROTULO', '', '01', 'Tela de rótulos carregada no navegador' ) }
+        oWeb:bLoadFinished := {|oEngine, cUrlCarga| lRotCarg := .T., FWLogMsg( 'INFO', /*cTransactionId*/, 'SMARTSUPPLY', 'JSROTULO', '', '01', 'Tela de rótulos carregada no navegador: '+ cValToChar( cUrlCarga ) ) }
         oWeb:Navigate( cUrl )
 
         oDlg:Activate()
@@ -195,14 +197,16 @@ User Function JSROTPRD( aFilSB1 )
 Return oMapa
 
 /*/{Protheus.doc} rotPublica
-Grava no servidor a página da tela de rótulos e o twebchannel.js (resource do RPO) e os publica na pasta web
-do usuário (CpyF2Web), para abertura no TWebEngine com navigate()
+Grava no servidor a página da tela de rótulos, o script da tela (com o estado inicial) e o twebchannel.js
+(resource do RPO) e os publica na pasta web do usuário (CpyF2Web), para abertura no TWebEngine com navigate().
+O JavaScript vai sempre em arquivo .js: no SmartClient HTML (WebApp) a política de segurança de conteúdo (CSP)
+não executa scripts embutidos na página
 @type function
-@version 25.0001
+@version 25.0005
 @author Jean Carlos Pandolfo Saggin
 @since 21/10/2026
 @param cLib, character, conteúdo do twebchannel.js
-@param cEstado, character, estado inicial da tela (JSON de rotProc), embutido na página
+@param cEstado, character, estado inicial da tela (JSON de rotProc), gravado no script da tela
 @param aArqServ, array, (referência) arquivos gravados no servidor, para exclusão ao fechar a janela
 @return character, cUrl - endereço da página na pasta web do usuário (vazio quando não publicada)
 /*/
@@ -210,6 +214,7 @@ Static Function rotPublica( cLib, cEstado, aArqServ )
 
     Local cId     := cValToChar( ThreadId() ) +'_'+ StrTran( Time(), ':', '' ) as character
     Local cScript := 'sstwebchannel_'+ cId +'.js' as character
+    Local cApp    := 'ssrotulos_'+ cId +'.js' as character
     Local cPagina := 'ssrotulos_'+ cId +'.html' as character
     Local cUrl    := "" as character
 
@@ -220,10 +225,12 @@ Static Function rotPublica( cLib, cEstado, aArqServ )
         MakeDir( ROT_TMP )
     EndIf
 
-    If MemoWrite( ROT_TMP +'/'+ cScript, cLib ) .and. MemoWrite( ROT_TMP +'/'+ cPagina, rotHtml( cScript, cEstado ) )
-        aArqServ := { ROT_TMP +'/'+ cScript, ROT_TMP +'/'+ cPagina }
-        // Script e página publicados na mesma pasta web do usuário (a página referencia o script pelo nome)
-        If ! Empty( CpyF2Web( ROT_TMP +'/'+ cScript, .T., .F., .F. ) )
+    // Lista de exclusão montada antes da gravação: remove também o que foi gravado se uma etapa seguinte falhar
+    aArqServ := { ROT_TMP +'/'+ cScript, ROT_TMP +'/'+ cApp, ROT_TMP +'/'+ cPagina }
+    If MemoWrite( ROT_TMP +'/'+ cScript, cLib ) .and. MemoWrite( ROT_TMP +'/'+ cApp, rotApp( cEstado ) ) .and.;
+       MemoWrite( ROT_TMP +'/'+ cPagina, rotHtml( cScript, cApp ) )
+        // Scripts e página publicados na mesma pasta web do usuário (a página referencia os scripts pelo nome)
+        If ! Empty( CpyF2Web( ROT_TMP +'/'+ cScript, .T., .F., .F. ) ) .and. ! Empty( CpyF2Web( ROT_TMP +'/'+ cApp, .T., .F., .F. ) )
             cUrl := CpyF2Web( ROT_TMP +'/'+ cPagina, .T., .F., .F. )
         EndIf
     EndIf
@@ -739,7 +746,7 @@ Static Function jsStr( cTexto )
         nCod := Asc( cChr )
         If cChr == '"' .or. cChr == '\'
             cRet += '\'+ cChr
-        ElseIf nCod < 32 .or. nCod > 126 .or. cChr == '<' .or. cChr == '>'	// < e >: o JSON também vai embutido no <script> da página
+        ElseIf nCod < 32 .or. nCod > 126 .or. cChr == '<' .or. cChr == '>'	// < e >: escapados por segurança (o JSON também vai no script da tela)
             cRet += '\u'+ hex4( jsUni( nCod ) )
         Else
             cRet += cChr
@@ -952,23 +959,21 @@ Static Function hlp( cTitle, cFail, cHelp )
 Return Help( ,, cTitle,, cFail, 1, 0, NIL, NIL, NIL, NIL, NIL, { cHelp } )
 
 /*/{Protheus.doc} rotHtml
-Página da tela de rótulos (HTML, CSS e JavaScript). Os nomes dos rótulos são sempre exibidos com
-textContent (nunca interpretados como HTML) e enviados ao AdvPL com encodeURIComponent
+Página da tela de rótulos (HTML e CSS), sem nenhum script embutido: o twebchannel.js e o script da tela são
+referenciados como arquivos da mesma pasta, porque o SmartClient HTML (WebApp) publica a pasta web com uma
+política de segurança de conteúdo (CSP) que não executa scripts embutidos na página
 @type function
-@version 25.0004
+@version 25.0005
 @author Jean Carlos Pandolfo Saggin
 @since 16/10/2026
 @param cScript, character, nome do twebchannel.js publicado na mesma pasta da página
-@param cEstado, character, estado inicial da tela (JSON somente ASCII), no lugar do marcador ESTADO
+@param cApp, character, nome do script da tela (rotApp) publicado na mesma pasta da página
 @return character, cHtml - documento somente ASCII
 /*/
-Static Function rotHtml( cScript, cEstado )
+Static Function rotHtml( cScript, cApp )
 
     Local cHtml   := "" as character
     Local cTopo   := "" as character
-    Local cApp    := "" as character
-
-    Default cEstado := ""
 
     BeginContent var cTopo
 <!DOCTYPE html>
@@ -1029,8 +1034,33 @@ Static Function rotHtml( cScript, cEstado )
 </div>
     EndContent
 
+    // Canal no cabeçalho e script da tela ao final do corpo (executado com os elementos da página já criados).
+    // Documento somente ASCII: acentos como entidades HTML
+    cTopo := StrTran( cTopo, '</head>', '<script src="'+ cScript +'"></script>'+ Chr(13) + Chr(10) +'</head>' )
+    cHtml := rotAscii( cTopo, .F. ) +'<script src="'+ cApp +'"></script>'+ Chr(13) + Chr(10) +;
+             '</body>'+ Chr(13) + Chr(10) +'</html>'
+
+Return cHtml
+
+/*/{Protheus.doc} rotApp
+Script da tela de rótulos (JavaScript), publicado como arquivo .js na mesma pasta da página. Os nomes dos
+rótulos são sempre exibidos com textContent (nunca interpretados como HTML) e enviados ao AdvPL com
+encodeURIComponent. O estado inicial da tela entra no lugar do marcador ESTADO do script
+@type function
+@version 25.0005
+@author Jean Carlos Pandolfo Saggin
+@since 30/10/2026
+@param cEstado, character, estado inicial da tela (JSON somente ASCII de rotProc)
+@return character, cJs - script somente ASCII (acentos como \uXXXX)
+/*/
+Static Function rotApp( cEstado )
+
+    Local cJs     := "" as character
+    Local cApp    := "" as character
+
+    Default cEstado := ""
+
     BeginContent var cApp
-<script>
 (function () {
   'use strict';
   var estado = { rotulos: [], cores: [] };
@@ -1038,7 +1068,7 @@ Static Function rotHtml( cScript, cEstado )
   var confirmaExclusao = false;
   var corSelecionada = '';
   var conectado = false;
-  // Estado inicial embutido pelo Protheus ao gerar a página (rotProc); null quando a página veio sem ele
+  // Estado inicial gravado pelo Protheus ao gerar este script (rotProc); null quando o script veio sem ele
   var inicial = /*ESTADO*/null;
   var ICONE_EDITAR = '<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">' +
     '<path d="M11.013 1.427a1.75 1.75 0 0 1 2.474 0l1.086 1.086a1.75 1.75 0 0 1 0 2.474l-8.61 8.61c-.21.21-.47.364-.756.445' +
@@ -1210,7 +1240,7 @@ Static Function rotHtml( cScript, cEstado )
     if (e.key === 'Escape') { fecharEditor(); }
   });
 
-  // Lista exibida já na abertura, com o estado embutido, sem esperar a conexão do canal
+  // Lista exibida já na abertura, com o estado inicial, sem esperar a conexão do canal
   aplicar(inicial);
 
   window.onload = function () {
@@ -1222,7 +1252,7 @@ Static Function rotHtml( cScript, cEstado )
     }
     twebchannel.advplToJs = receber;
     // Dados de conexão (porta, tipo do SmartClient, thread e origem) informados pelo TWebEngine na URL
-    // O canal é usado nas ações; só pede a carga quando a página veio sem o estado inicial
+    // O canal é usado nas ações; só pede a carga quando o script veio sem o estado inicial
     twebchannel.connect(function () { conectado = true; if (!inicial) { enviar('carga', {}); } });
     // Sem conexão em 6 segundos: informa na tela (diagnóstico)
     setTimeout(function () {
@@ -1230,17 +1260,13 @@ Static Function rotHtml( cScript, cEstado )
     }, 6000);
   };
 })();
-</script>
     EndContent
 
-    // Script do canal (publicado na mesma pasta) e documento somente ASCII: acentos como entidades HTML na
-    // marcação e como \uXXXX no JavaScript
-    cTopo := StrTran( cTopo, '</head>', '<script src="'+ cScript +'"></script>'+ Chr(13) + Chr(10) +'</head>' )
-    cHtml := rotAscii( cTopo, .F. ) + rotAscii( cApp, .T. ) +'</body>'+ Chr(13) + Chr(10) +'</html>'
+    cJs := rotAscii( cApp, .T. )
 
-    // Estado inicial da tela (JSON somente ASCII, com < e > escapados) no lugar do marcador do script
+    // Estado inicial da tela (JSON somente ASCII) no lugar do marcador do script
     If ! Empty( cEstado )
-        cHtml := StrTran( cHtml, '/*ESTADO*/null', cEstado )
+        cJs := StrTran( cJs, '/*ESTADO*/null', cEstado )
     EndIf
 
-Return cHtml
+Return cJs
