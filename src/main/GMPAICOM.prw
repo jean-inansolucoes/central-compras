@@ -8463,6 +8463,12 @@ Static Function fGrvPed( oCbo, aCbo, cCbo, cFornece, cLoja )
 
 				lMsErroAuto := .F.
 				MSExecAuto({|a,b,c,d| MATA120(a,b,c,d)}, 1, aCab, aIte, 3 )
+
+				// Dupla checagem: a rotina padrão pode indicar falha mesmo com o pedido gravado (ex.: mensagem de interpretação
+				// de fórmula emitida depois da gravação). Se o pedido está no Protheus igual ao carrinho, a inclusão é válida
+				if lMsErroAuto .and. pedGrav( aCab, aIte )
+					lMsErroAuto := .F.
+				endif
 				
 				if lMsErroAuto
 					lSuccess := .F.
@@ -8676,6 +8682,109 @@ Static Function fGrvPed( oCbo, aCbo, cCbo, cFornece, cLoja )
 	endif
 	
 Return ( lSuccess )
+
+/*/{Protheus.doc} pedGrav
+Dupla checagem da inclusão do pedido de compra: quando o ExecAuto da rotina padrão (MATA120) devolve erro, verifica
+se o pedido foi gravado mesmo assim, exatamente igual ao carrinho. Há casos em que o pedido é gravado e uma mensagem
+emitida depois da gravação (ex.: AJUDA:FORMUL, interpretação de fórmula) marca a execução como falha.
+A busca é feita pelo número reservado para esta inclusão (confirmado antes do ExecAuto e inexistente até então),
+conferindo fornecedor, loja e todos os itens (item, produto, quantidade e preço). Confirmada a gravação, posiciona o
+SC7 no pedido (usado na mensagem de sucesso, na impressão e no envio por e-mail) e registra o ocorrido no log do servidor
+@type function
+@version 25.0006
+@author Jean Carlos Pandolfo Saggin
+@since 30/10/2026
+@param aCab, array, cabeçalho enviado ao ExecAuto (C7_NUM, C7_FORNECE e C7_LOJA)
+@param aIte, array, itens enviados ao ExecAuto
+@return logical, lGravou - .T. quando o pedido está gravado e confere com o carrinho
+/*/
+Static Function pedGrav( aCab, aIte )
+
+	Local lGravou := .F. as logical
+	Local aGrav   := {} as array
+	Local oExec   as object
+	Local cQuery  := "" as character
+	Local cAlias  := "" as character
+	Local cNumPed := "" as character
+	Local cForn   := "" as character
+	Local cLojFor := "" as character
+	Local nX      := 0 as numeric
+	Local nPos    := 0 as numeric
+	Local nCpo    := 0 as numeric
+	Local nTolQtd := 1 / ( 10 ^ TAMSX3( 'C7_QUANT' )[2] ) as numeric
+	Local nTolPrc := 1 / ( 10 ^ TAMSX3( 'C7_PRECO' )[2] ) as numeric
+
+	nCpo := aScan( aCab, {|x| AllTrim( x[1] ) == 'C7_NUM' } )
+	if nCpo > 0
+		cNumPed := aCab[nCpo][2]
+	endif
+	nCpo := aScan( aCab, {|x| AllTrim( x[1] ) == 'C7_FORNECE' } )
+	if nCpo > 0
+		cForn := AllTrim( aCab[nCpo][2] )
+	endif
+	nCpo := aScan( aCab, {|x| AllTrim( x[1] ) == 'C7_LOJA' } )
+	if nCpo > 0
+		cLojFor := AllTrim( aCab[nCpo][2] )
+	endif
+
+	if ! Empty( cNumPed ) .and. Len( aIte ) > 0
+		cQuery := "SELECT SC7.C7_ITEM, SC7.C7_PRODUTO, SC7.C7_QUANT, SC7.C7_PRECO, SC7.C7_FORNECE, SC7.C7_LOJA "
+		cQuery += "FROM "+ RetSqlName( 'SC7' ) +" SC7 "
+		cQuery += "WHERE SC7.C7_FILIAL = ? AND SC7.C7_NUM = ? AND SC7.D_E_L_E_T_ = ' ' "
+		cQuery += "ORDER BY SC7.C7_ITEM "
+		oExec := FwExecStatement():New( ChangeQuery( cQuery ) )
+		oExec:SetString( 1, xFilial( 'SC7' ) )
+		oExec:SetString( 2, cNumPed )
+		cAlias := oExec:OpenAlias()
+		while ! ( cAlias )->( EOF() )
+			aAdd( aGrav, { ( cAlias )->C7_ITEM, AllTrim( ( cAlias )->C7_PRODUTO ), ( cAlias )->C7_QUANT, ( cAlias )->C7_PRECO,;
+			               AllTrim( ( cAlias )->C7_FORNECE ), AllTrim( ( cAlias )->C7_LOJA ) } )
+			( cAlias )->( DBSkip() )
+		end
+		( cAlias )->( DBCloseArea() )
+		oExec:Destroy()
+
+		// Mesma quantidade de itens do carrinho, e cada item enviado gravado com os mesmos dados
+		lGravou := Len( aGrav ) == Len( aIte )
+		for nX := 1 to Len( aIte )
+			nPos := 0
+			nCpo := aScan( aIte[nX], {|y| AllTrim( y[1] ) == 'C7_ITEM' } )
+			if nCpo > 0
+				nPos := aScan( aGrav, {|x| x[1] == aIte[nX][nCpo][2] } )
+			endif
+			if nPos == 0 .or. ! ( aGrav[nPos][5] == cForn ) .or. ! ( aGrav[nPos][6] == cLojFor )
+				lGravou := .F.
+			else
+				nCpo := aScan( aIte[nX], {|y| AllTrim( y[1] ) == 'C7_PRODUTO' } )
+				if nCpo > 0 .and. ! ( AllTrim( aIte[nX][nCpo][2] ) == aGrav[nPos][2] )
+					lGravou := .F.
+				endif
+				// Quantidade e preço com tolerância de uma unidade da última casa decimal do campo (arredondamento)
+				nCpo := aScan( aIte[nX], {|y| AllTrim( y[1] ) == 'C7_QUANT' } )
+				if nCpo > 0 .and. Abs( aIte[nX][nCpo][2] - aGrav[nPos][3] ) >= nTolQtd
+					lGravou := .F.
+				endif
+				nCpo := aScan( aIte[nX], {|y| AllTrim( y[1] ) == 'C7_PRECO' } )
+				if nCpo > 0 .and. Abs( aIte[nX][nCpo][2] - aGrav[nPos][4] ) >= nTolPrc
+					lGravou := .F.
+				endif
+			endif
+		next nX
+	endif
+
+	if lGravou
+		// Posiciona no pedido gravado: a mensagem de sucesso, a impressão e o envio por e-mail usam o SC7 posicionado
+		SC7->( DBSetOrder( 1 ) )
+		lGravou := SC7->( DBSeek( xFilial( 'SC7' ) + cNumPed ) )
+	endif
+
+	if lGravou
+		FWLogMsg( 'WARN', /*cTransactionId*/, 'SMARTSUPPLY', 'GMPAICOM', '', '01', 'Pedido de compra '+ cNumPed +' (filial '+ cFilAnt +;
+		          ', fornecedor '+ cForn +'/'+ cLojFor +'): a rotina padrão indicou erro na inclusão, mas o pedido foi gravado '+;
+		          'igual ao carrinho e foi considerado incluído' )
+	endif
+
+Return lGravou
 
 /*/{Protheus.doc} fAtuPosPed
 Atualiza a grid principal de produtos apos a inclusao de pedido/solicitacao de compra,
