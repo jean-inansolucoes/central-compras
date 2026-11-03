@@ -328,8 +328,8 @@
   .sumario-lista .pag{ font-size:12px; color:var(--pink-escuro); font-weight:800; flex:0 0 auto; }
 
   /* Glossário */
-  .glossario dt{ font-weight:800; color:var(--roxo); margin-top:9px; font-size:13.5px; }
-  .glossario dd{ margin:3px 0 0 0; color:var(--texto); font-size:13px; }
+  .glossario dt{ font-weight:800; color:var(--roxo); margin-top:5px; font-size:13.5px; }
+  .glossario dd{ margin:2px 0 0 0; color:var(--texto); font-size:13px; line-height:1.45; }
 
   .capa-final{
     background:linear-gradient(160deg, var(--roxo-escuro) 0%, var(--roxo) 60%, var(--roxo-medio) 100%);
@@ -370,7 +370,7 @@
   </div>
   <div class="rodape-capa">
     <div class="marca">INAN Soluções · SmartSupply</div>
-    <div class="info">Documentação de referência para usuários de negócio<br>Versão 1.3 — Outubro de 2026</div>
+    <div class="info">Documentação de referência para usuários de negócio<br>Versão 1.4 — Novembro de 2026</div>
   </div>
 </section>
 
@@ -395,60 +395,60 @@
       <div class="idx">3</div>
       <div class="nome">A fórmula da sugestão de compra</div>
       <div class="pag">06</div>
-      <div class="desc">Como os ingredientes se combinam — com um exemplo numérico completo.</div>
+      <div class="desc">Como os ingredientes se combinam, com exemplo, e os perfis de cálculo da empresa.</div>
     </li>
     <li>
       <div class="idx">4</div>
       <div class="nome">Arredondamentos inteligentes</div>
-      <div class="pag">08</div>
+      <div class="pag">09</div>
       <div class="desc">Lote mínimo, lote econômico e embalagem do fornecedor.</div>
     </li>
     <li>
       <div class="idx">5</div>
       <div class="nome">Compras em rede: o cálculo multi-filial</div>
-      <div class="pag">09</div>
-      <div class="desc">Somar loja por loja ou consolidar tudo — os dois modos, com exemplo.</div>
+      <div class="pag">10</div>
+      <div class="desc">Somar loja por loja ou consolidar tudo, e entregar por filial ou de forma centralizada.</div>
     </li>
     <li>
       <div class="idx">6</div>
       <div class="nome">Quando o insumo vira outro produto</div>
-      <div class="pag">11</div>
+      <div class="pag">13</div>
       <div class="desc">A análise reversa de estruturas: da demanda do produto final à matéria-prima.</div>
     </li>
     <li>
       <div class="idx">7</div>
       <div class="nome">A régua de importância: classificação por giro</div>
-      <div class="pag">13</div>
+      <div class="pag">15</div>
       <div class="desc">Como o sistema separa o crítico do que pode esperar.</div>
     </li>
     <li>
       <div class="idx">8</div>
       <div class="nome">O painel no dia a dia</div>
-      <div class="pag">14</div>
+      <div class="pag">16</div>
       <div class="desc">O que o comprador vê e faz na tela, do filtro ao pedido fechado.</div>
     </li>
     <li>
       <div class="idx">9</div>
       <div class="nome">Radar de sazonalidade</div>
-      <div class="pag">17</div>
+      <div class="pag">19</div>
       <div class="desc">Enxergando picos e vales de consumo antes que eles surpreendam.</div>
     </li>
     <li>
       <div class="idx">10</div>
       <div class="nome">Alertas automáticos de ruptura</div>
-      <div class="pag">18</div>
+      <div class="pag">20</div>
       <div class="desc">Como a equipe é avisada antes de faltar produto na prateleira.</div>
     </li>
     <li>
       <div class="idx">11</div>
       <div class="nome">Pedido de compra sob medida</div>
-      <div class="pag">19</div>
+      <div class="pag">21</div>
       <div class="desc">Um relatório de pedido com o layout que a empresa quiser.</div>
     </li>
     <li>
       <div class="idx">12</div>
       <div class="nome">Glossário</div>
-      <div class="pag">20</div>
+      <div class="pag">22</div>
       <div class="desc">Os termos deste documento, em uma frase cada.</div>
     </li>
   </ul>
@@ -575,7 +575,7 @@
 
   <div class="caixa caixa-conceito">
     <div class="titulo-caixa"><span class="badge-icone">i</span> Fórmula configurável, não fixa</div>
-    <p style="margin:0">Essa é a fórmula padrão de fábrica, mas o SmartSupply permite que a empresa monte sua <strong>própria fórmula</strong>, combinando livremente os ingredientes da seção 2 (mais o lote mínimo, a embalagem e o estoque de segurança) com os operadores matemáticos básicos. É possível, inclusive, ter fórmulas diferentes por grupo de produto — um "perfil de cálculo" mais conservador para itens críticos, e outro mais enxuto para itens de baixo giro.</p>
+    <p style="margin:0">Essa é a fórmula padrão de fábrica, mas o SmartSupply permite que a empresa monte sua <strong>própria fórmula</strong>, combinando livremente os ingredientes da seção 2 (mais o lote mínimo, a embalagem e o estoque de segurança) com os operadores matemáticos básicos. É possível, inclusive, ter fórmulas diferentes por grupo de produto — um "perfil de cálculo" mais conservador para itens críticos, e outro mais enxuto para itens de baixo giro. Como os perfis são cadastrados e escolhidos está explicado no fim desta seção.</p>
   </div>
 
   <h3>Exemplo fictício passo a passo</h3>
@@ -640,6 +640,47 @@
   <div class="rodape-pagina"><span>SmartSupply — Painel de Compras</span><span>07</span></div>
 </section>
 
+<section class="pagina conteudo">
+  <div class="cab-secao">
+    <div class="numero">3</div>
+    <h2>A fórmula da sugestão de compra <span style="font-size:14px;color:var(--texto-suave);font-weight:400">(continuação)</span></h2>
+    <div class="linha"></div>
+  </div>
+
+  <h3>Perfis de cálculo: uma fórmula para cada tipo de produto</h3>
+  <p>As fórmulas ficam guardadas em <strong>perfis de cálculo</strong>, cadastrados na própria tela do SmartSupply, em <strong>Outras Ações &gt; Perfis de Cálculo</strong>. Cada perfil tem um nome e uma fórmula montada com cliques: nos ingredientes da seção 2 (estoque, empenho, dias de cobertura, lead time, dias de estoque restante, consumo médio, lote mínimo, embalagem, estoque mínimo, pedidos e solicitações em aberto e quantidade em produção), em números e nos sinais de conta (+, −, ×, ÷ e parênteses). A tela só libera os botões que fazem sentido em cada posição e só deixa salvar fórmulas completas, que resultam numa conta válida. O cadastro é único para a empresa: o mesmo perfil vale em todas as filiais.</p>
+
+  <div class="caixa caixa-exemplo">
+    <div class="titulo-caixa"><span class="badge-icone">$</span> Exemplo: um perfil com 10% de folga</div>
+    <div class="formula" style="font-size:14px;margin:6px 0 10px 0">
+      <span class="op">(</span><span class="var">Dias de Cobertura</span> <span class="op">+</span> <span class="var">Lead Time</span> <span class="op">−</span> <span class="var">Dias de Estoque Restante</span><span class="op">)</span>
+      <span class="op">×</span> <span class="var">Consumo Médio</span> <span class="op">×</span> 1,1
+    </div>
+    <p style="margin:0">Com os números da Tinta Acrílica Branca 18L (seção anterior), a fórmula padrão sugeria 290 latas. Com este perfil, a conta fica 290 × 1,1 = <strong>319 latas</strong> — uma folga extra para os itens em que faltar produto custa caro.</p>
+  </div>
+
+  <h3>Como o perfil chega a cada produto</h3>
+  <div class="passo">
+    <div class="bola">1</div>
+    <div class="texto">No painel, o comprador escolhe o perfil da análise na lista <strong>Perfil Calc.</strong>, na área Filtros e Parâmetros. A sugestão de todos os produtos é recalculada na hora, inclusive com várias filiais na análise.</div>
+  </div>
+  <div class="passo">
+    <div class="bola">2</div>
+    <div class="texto">Ao ser marcado para compra, o produto passa a guardar esse perfil, que é o usado no recálculo automático diário.</div>
+  </div>
+  <div class="passo">
+    <div class="bola">3</div>
+    <div class="texto">O perfil também pode ser trocado no cadastro de produtos do Protheus: a tecla <strong>F3</strong> do campo Perfil de Cálculo lista os perfis ativos, com a fórmula em texto, para o usuário escolher.</div>
+  </div>
+
+  <div class="caixa caixa-atencao">
+    <div class="titulo-caixa">Regras que protegem o cálculo</div>
+    <p style="margin:0">O perfil <strong>01 (padrão)</strong> é usado pelos produtos sem perfil definido e não pode ser bloqueado nem excluído. Um perfil que algum produto já usa não pode ser excluído, só <strong>bloqueado</strong>: ele sai da lista de escolha, mas os produtos que já o usam continuam calculados por ele. Na atualização para esta versão, os perfis do cadastro antigo são trazidos automaticamente, com as mesmas fórmulas.</p>
+  </div>
+
+  <div class="rodape-pagina"><span>SmartSupply — Painel de Compras</span><span>08</span></div>
+</section>
+
 <!-- ======================= 4. ARREDONDAMENTOS ======================= -->
 <section class="pagina conteudo">
   <div class="cab-secao">
@@ -676,7 +717,7 @@
     <p style="margin:8px 0 0 0"><strong>Sugestão final de compra: 300 latas</strong> (6 caixas fechadas), em vez das 290 calculadas matematicamente.</p>
   </div>
 
-  <div class="rodape-pagina"><span>SmartSupply — Painel de Compras</span><span>08</span></div>
+  <div class="rodape-pagina"><span>SmartSupply — Painel de Compras</span><span>09</span></div>
 </section>
 
 <!-- ======================= 5. MULTI-FILIAL ======================= -->
@@ -728,7 +769,7 @@
     <p style="margin:8px 0 0 0">No modo Pool, a folga de estoque da Loja Norte "socorre" parcialmente a Loja Centro dentro da própria conta — por isso o total consolidado (302) é próximo, mas calculado de forma diferente do modo Individual (290). O sistema então devolve essa quantidade para cada loja, proporcionalmente ao seu consumo.</p>
   </div>
 
-  <div class="rodape-pagina"><span>SmartSupply — Painel de Compras</span><span>09</span></div>
+  <div class="rodape-pagina"><span>SmartSupply — Painel de Compras</span><span>10</span></div>
 </section>
 
 <section class="pagina conteudo">
@@ -755,7 +796,43 @@
     <p style="margin:0">O consumo médio de cada filial vem sempre do <strong>último recálculo diário concluído naquela filial</strong>. Se o recálculo de uma loja ainda estiver em andamento quando o comprador abrir a análise, o sistema usa o resultado completo anterior dessa loja — nunca mistura números de um cálculo pela metade com os das demais.</p>
   </div>
 
-  <div class="rodape-pagina"><span>SmartSupply — Painel de Compras</span><span>10</span></div>
+  <div class="rodape-pagina"><span>SmartSupply — Painel de Compras</span><span>11</span></div>
+</section>
+
+<section class="pagina conteudo">
+  <div class="cab-secao">
+    <div class="numero">5</div>
+    <h2>Compras em rede: o cálculo multi-filial <span style="font-size:14px;color:var(--texto-suave);font-weight:400">(continuação)</span></h2>
+    <div class="linha"></div>
+  </div>
+
+  <h3>Quem recebe a mercadoria: entrega distribuída ou centralizada</h3>
+  <p>Além de como a necessidade é calculada, a empresa define, em cada filial, <strong>como a compra multi-filial é entregue</strong>:</p>
+  <ul>
+    <li><strong>Distribuída (padrão)</strong> — cada filial recebe a sua própria demanda: o carrinho separa as quantidades por filial e o fechamento gera um pedido para cada uma.</li>
+    <li><strong>Centralizada</strong> — toda a demanda das filiais selecionadas vai para a filial em que o comprador está: o carrinho tem uma única linha por produto, com a soma das filiais, e sai um único pedido. A quantidade sugerida pode ser ajustada direto na grade de produtos, e a redistribuição física entre as lojas fica a cargo da empresa, por transferência.</li>
+  </ul>
+
+  <div class="caixa caixa-exemplo">
+    <div class="titulo-caixa"><span class="badge-icone">$</span> Exemplo: as 302 latas do modo Pool</div>
+    <p style="margin:0 0 6px 0">No exemplo anterior, o modo Pool chegou a 302 latas, divididas pelo consumo de cada loja: cerca de <strong>189</strong> para a Loja Centro e <strong>113</strong> para a Loja Norte.</p>
+    <table>
+      <tbody>
+        <tr><td>Entrega distribuída</td><td>Dois pedidos: 189 latas entregues na Loja Centro e 113 na Loja Norte.</td></tr>
+        <tr><td>Entrega centralizada (comprador na Loja Centro)</td><td>Um pedido de 302 latas, entregue na Loja Centro; depois, 113 latas seguem por transferência para a Loja Norte.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="caixa caixa-atencao">
+    <div class="titulo-caixa">Entrega centralizada combina com o modo Pool</div>
+    <p style="margin:0">No modo Individual, cada filial só enxerga os pedidos em aberto dela mesma. Com a entrega centralizada, o pedido fica todo na filial do comprador — e, na próxima análise, as demais filiais voltariam a sugerir a compra do que já foi pedido para elas, com risco de <strong>compra em dobro</strong>. Por isso o SmartSupply avisa sempre que essa combinação está configurada: ao carregar a análise, ao gerar o pedido (pedindo confirmação) e ao gravar os parâmetros internos. O recomendado é usar a entrega centralizada junto com o modo Pool.</p>
+  </div>
+
+  <h3>As filiais da última análise</h3>
+  <p>As filiais escolhidas para a análise ficam guardadas para cada usuário e já vêm marcadas na próxima abertura do painel — a escolha é lembrada separadamente para cada empresa e filial em que o usuário entra no sistema.</p>
+
+  <div class="rodape-pagina"><span>SmartSupply — Painel de Compras</span><span>12</span></div>
 </section>
 
 <!-- ======================= 6. ANÁLISE REVERSA ======================= -->
@@ -815,7 +892,7 @@
     <p style="margin:8px 0 0 0">Como o lote de venda do fornecedor de cimento é de 500 kg por carga, e 8.500 já é um múltiplo exato, a sugestão final permanece em <strong>8.500 kg</strong>.</p>
   </div>
 
-  <div class="rodape-pagina"><span>SmartSupply — Painel de Compras</span><span>11</span></div>
+  <div class="rodape-pagina"><span>SmartSupply — Painel de Compras</span><span>13</span></div>
 </section>
 
 <section class="pagina conteudo">
@@ -833,7 +910,7 @@
     <p style="margin:0">O sistema sempre calcula primeiro a necessidade dos <strong>produtos finais</strong> (o que sai de fato pela porta, vendido a clientes) e só depois "desce" pela árvore de componentes, nível por nível, até chegar às matérias-primas mais básicas. Isso garante que, em receitas com vários níveis (um componente que por sua vez é feito de outros componentes), a necessidade se propague corretamente do topo até a base, sem depender de quem foi calculado primeiro.</p>
   </div>
 
-  <div class="rodape-pagina"><span>SmartSupply — Painel de Compras</span><span>12</span></div>
+  <div class="rodape-pagina"><span>SmartSupply — Painel de Compras</span><span>14</span></div>
 </section>
 
 <!-- ======================= 7. GIRO ======================= -->
@@ -861,7 +938,7 @@
     <p style="margin:0">O índice de giro do SmartSupply mede a <strong>recorrência</strong> do produto — quantas vezes ele aparece em documentos de saída (notas de venda, requisições de produção) em relação ao total de documentos processados no período — e não apenas o volume vendido. Um produto de ticket baixo mas presente em quase toda venda (como um item de acabamento) pode ser classificado como crítico mesmo sem grande valor financeiro individual, justamente porque sua falta trava muitas vendas ao mesmo tempo.</p>
   </div>
 
-  <div class="rodape-pagina"><span>SmartSupply — Painel de Compras</span><span>13</span></div>
+  <div class="rodape-pagina"><span>SmartSupply — Painel de Compras</span><span>15</span></div>
 </section>
 
 <!-- ======================= 8. O PAINEL NO DIA A DIA ======================= -->
@@ -893,11 +970,11 @@
     <li><strong>Ajustar e fechar o carrinho</strong> — o comprador pode alterar manualmente a quantidade sugerida, escolher a condição de pagamento e a transportadora, e confirmar a geração do pedido de compra diretamente para o fornecedor.</li>
     <li><strong>Alterar o preço de venda na própria tela</strong> — uma novidade recente: ao revisar o custo de compra de um item, o comprador (se autorizado) já pode ajustar o preço de venda daquele produto sem sair da tela principal, evitando o retrabalho de abrir outra rotina.</li>
     <li><strong>Consultar pedidos em aberto</strong> — uma tela reformulada que permite buscar livremente por fornecedor ou por produto entre todos os pedidos pendentes da empresa, não apenas os do item selecionado no momento.</li>
-    <li><strong>Selecionar quais filiais entram na análise</strong> — controlando exatamente o cenário multi-filial descrito na seção 5.</li>
+    <li><strong>Selecionar quais filiais entram na análise</strong> — controlando exatamente o cenário multi-filial descrito na seção 5; a escolha fica guardada para o próximo acesso.</li>
     <li><strong>Remover um item do carrinho por filial</strong> — um botão dedicado retira o item apenas da filial selecionada, sem bagunçar os dados internos do carrinho nem deixar o produto marcado por engano na tela principal, e o carrinho responde mais rápido mesmo com muitos produtos dentro dele.</li>
   </ul>
 
-  <div class="rodape-pagina"><span>SmartSupply — Painel de Compras</span><span>14</span></div>
+  <div class="rodape-pagina"><span>SmartSupply — Painel de Compras</span><span>16</span></div>
 </section>
 
 <section class="pagina conteudo">
@@ -930,7 +1007,7 @@
   </div>
   <div class="passo">
     <div class="bola">6</div>
-    <div class="texto">Pedido de compra é gerado no Protheus, pronto para envio ao fornecedor</div>
+    <div class="texto">Pedido de compra é gerado no Protheus, pronto para envio ao fornecedor, e a sugestão dos itens comprados é recalculada na hora. Se o Protheus acusar uma falha depois de já ter gravado o pedido igual ao carrinho, o SmartSupply reconhece o pedido gravado, evitando que ele seja gerado de novo</div>
   </div>
 
   <h3>Última entrada: quando e quanto foi comprado da última vez</h3>
@@ -951,7 +1028,7 @@
     <p style="margin:0">Quando duas ou mais empresas do mesmo grupo econômico usam o SmartSupply, elas não aparecem uma para a outra como opção de fornecedor nem entram no histórico de entradas de compra do produto ou na última entrada mostrada na grade. Assim, uma simples transferência interna não é confundida com uma compra real feita no mercado. Se preferir, a empresa pode configurar a filial para considerar as transferências entre empresas do grupo; nesse caso, elas passam a contar normalmente.</p>
   </div>
 
-  <div class="rodape-pagina"><span>SmartSupply — Painel de Compras</span><span>15</span></div>
+  <div class="rodape-pagina"><span>SmartSupply — Painel de Compras</span><span>17</span></div>
 </section>
 
 <section class="pagina conteudo">
@@ -999,7 +1076,7 @@
   <h3>Ordenar a grade com um clique</h3>
   <p>Clicando no cabeçalho de qualquer coluna, a grade é ordenada por ela — crescente no primeiro clique, decrescente no segundo. Produtos empatados ficam em ordem de descrição, e a ordem escolhida se mantém mesmo depois de filtros e recargas da tela.</p>
 
-  <div class="rodape-pagina"><span>SmartSupply — Painel de Compras</span><span>16</span></div>
+  <div class="rodape-pagina"><span>SmartSupply — Painel de Compras</span><span>18</span></div>
 </section>
 
 <!-- ======================= 9. SAZONALIDADE ======================= -->
@@ -1044,7 +1121,7 @@
     <p style="margin:0">A média de 12 meses (42,0/dia) é muito mais baixa que a do mês atual (110,0/dia) — um sinal claro de que estamos entrando na temporada de alta do produto (verão, no caso de tinta para piscina). Se o comprador usasse apenas a média anual "achatada" para calcular a compra, sub-dimensionaria a necessidade justamente na época de maior consumo. O radar de sazonalidade existe para que essa decisão de ajustar o número de dias de cobertura (ou o perfil de cálculo) na época certa seja tomada conscientemente pelo comprador.</p>
   </div>
 
-  <div class="rodape-pagina"><span>SmartSupply — Painel de Compras</span><span>17</span></div>
+  <div class="rodape-pagina"><span>SmartSupply — Painel de Compras</span><span>19</span></div>
 </section>
 
 <!-- ======================= 10. ALERTAS DE RUPTURA ======================= -->
@@ -1074,7 +1151,7 @@
 
   <p>Dentro do próprio painel, existe ainda uma tela de "eventos pendentes de análise", onde cada alerta pode receber uma tratativa registrada — por exemplo, marcar que a compra será feita sob demanda, reprogramar a data em que o sistema deve voltar a avisar, ou simplesmente ignorar aquele alerta específico — mantendo um histórico de decisões tomadas item a item.</p>
 
-  <div class="rodape-pagina"><span>SmartSupply — Painel de Compras</span><span>18</span></div>
+  <div class="rodape-pagina"><span>SmartSupply — Painel de Compras</span><span>20</span></div>
 </section>
 
 <!-- ======================= 11. RELATÓRIO DE PEDIDO ======================= -->
@@ -1094,7 +1171,7 @@
     <p style="margin:0">Se um layout foi configurado usando um campo que existe no cadastro de uma empresa mas não em outra, o sistema simplesmente remove aquele campo automaticamente do relatório impresso e redistribui o espaço entre os campos restantes — evitando que a impressão "quebre" visualmente quando o mesmo modelo de layout é usado em diferentes bases de clientes.</p>
   </div>
 
-  <div class="rodape-pagina"><span>SmartSupply — Painel de Compras</span><span>19</span></div>
+  <div class="rodape-pagina"><span>SmartSupply — Painel de Compras</span><span>21</span></div>
 </section>
 
 <!-- ======================= 12. GLOSSÁRIO ======================= -->
@@ -1145,11 +1222,17 @@
     <dt>Rótulo de produto</dt>
     <dd>Marcação com nome e cor criada pela equipe e atribuída aos produtos; aparece na grade e filtra a análise.</dd>
 
+    <dt>Perfil de cálculo</dt>
+    <dd>Fórmula da sugestão de compra, com nome, cadastrada pela empresa e válida em todas as filiais.</dd>
+
+    <dt>Entrega centralizada</dt>
+    <dd>Compra multi-filial feita num único pedido, entregue na filial do comprador.</dd>
+
     <dt>Indicador de produto por filial</dt>
     <dd>Cadastro complementar do produto em cada filial (como estoque mínimo e máximo); quando existe, o SmartSupply usa os valores dele no lugar do cadastro geral do produto.</dd>
   </dl>
 
-  <div class="rodape-pagina"><span>SmartSupply — Painel de Compras</span><span>20</span></div>
+  <div class="rodape-pagina"><span>SmartSupply — Painel de Compras</span><span>22</span></div>
 </section>
 
 <!-- ======================= ENCERRAMENTO ======================= -->
@@ -1158,7 +1241,7 @@
   <h2>Da conta manual ao clique de confirmar.</h2>
   <p>O SmartSupply não substitui o julgamento do comprador — ele elimina o trabalho repetitivo de refazer a mesma conta, produto a produto, filial a filial, todos os dias, para que esse julgamento seja aplicado onde realmente importa.</p>
   <div class="linha-fina" style="margin:24px auto"></div>
-  <p style="font-size:12px; color:var(--roxo-claro)">INAN Soluções · Documentação Funcional do SmartSupply — Painel de Compras · Versão 1.3 · Outubro de 2026</p>
+  <p style="font-size:12px; color:var(--roxo-claro)">INAN Soluções · Documentação Funcional do SmartSupply — Painel de Compras · Versão 1.4 · Novembro de 2026</p>
 </section>
 
 </body>

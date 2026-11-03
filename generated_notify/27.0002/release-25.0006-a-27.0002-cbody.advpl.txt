@@ -1,0 +1,268 @@
+// Conteudo da notificacao (cBody) - gerado pela skill protheus-notification-html
+cBody := ""
+cBody += '<div class="ss-rel">'+ EOL
+cBody += '<style>'+ EOL
+cBody += '  .ss-rel{margin-top:4px;}'+ EOL
+cBody += '  /* painel principal da notificacao */'+ EOL
+cBody += '  .ss-panel{'+ EOL
+cBody += '    position:relative;'+ EOL
+cBody += '    background:radial-gradient(420px 240px at 12% -10%, #441c7d 0%, rgba(68,28,125,0) 60%),'+ EOL
+cBody += '               radial-gradient(360px 220px at 108% 115%, #6b31b0 0%, rgba(107,49,176,0) 55%),'+ EOL
+cBody += '               linear-gradient(160deg, #2e105d 0%, #441c7d 100%);'+ EOL
+cBody += '    border-radius:14px;'+ EOL
+cBody += '    padding:16px 18px 12px;'+ EOL
+cBody += '    color:#ffffff;'+ EOL
+cBody += '    overflow:hidden;'+ EOL
+cBody += '    box-shadow:0 10px 26px rgba(46,16,93,.35);'+ EOL
+cBody += '  }'+ EOL
+cBody += '  /* faixa de brilho no topo do painel */'+ EOL
+cBody += '  .ss-panel:before{'+ EOL
+cBody += '    content:"";'+ EOL
+cBody += '    position:absolute;'+ EOL
+cBody += '    top:0;left:0;right:0;'+ EOL
+cBody += '    height:4px;'+ EOL
+cBody += '    background:linear-gradient(90deg, #6b31b0 0%, #f41dab 50%, #cd1f92 100%);'+ EOL
+cBody += '  }'+ EOL
+cBody += '  /* brilho decorativo */'+ EOL
+cBody += '  .ss-glow{'+ EOL
+cBody += '    position:absolute;'+ EOL
+cBody += '    width:190px;height:190px;'+ EOL
+cBody += '    border-radius:50%;'+ EOL
+cBody += '    background:#f41dab;'+ EOL
+cBody += '    opacity:.22;'+ EOL
+cBody += '    filter:blur(60px);'+ EOL
+cBody += '    top:-70px;right:-50px;'+ EOL
+cBody += '    pointer-events:none;'+ EOL
+cBody += '  }'+ EOL
+cBody += '  /* cabecalho: selo + marca */'+ EOL
+cBody += '  .ss-topo{'+ EOL
+cBody += '    display:flex;'+ EOL
+cBody += '    align-items:center;'+ EOL
+cBody += '    gap:12px;'+ EOL
+cBody += '    margin-bottom:10px;'+ EOL
+cBody += '    position:relative;'+ EOL
+cBody += '  }'+ EOL
+cBody += '  .ss-badge{'+ EOL
+cBody += '    display:inline-flex;'+ EOL
+cBody += '    align-items:center;'+ EOL
+cBody += '    gap:6px;'+ EOL
+cBody += '    background:linear-gradient(90deg, #f41dab, #cd1f92);'+ EOL
+cBody += '    color:#ffffff;'+ EOL
+cBody += '    font-size:10px;'+ EOL
+cBody += '    font-weight:600;'+ EOL
+cBody += '    letter-spacing:.1em;'+ EOL
+cBody += '    text-transform:uppercase;'+ EOL
+cBody += '    padding:4px 12px;'+ EOL
+cBody += '    border-radius:999px;'+ EOL
+cBody += '    box-shadow:0 4px 12px rgba(244,29,171,.45);'+ EOL
+cBody += '    white-space:nowrap;'+ EOL
+cBody += '  }'+ EOL
+cBody += '  .ss-ponto{'+ EOL
+cBody += '    width:6px;height:6px;'+ EOL
+cBody += '    border-radius:50%;'+ EOL
+cBody += '    background:#ffffff;'+ EOL
+cBody += '    animation:ss-pulsar 1.6s ease-in-out infinite;'+ EOL
+cBody += '  }'+ EOL
+cBody += '  @keyframes ss-pulsar{'+ EOL
+cBody += '    0%,100%{opacity:1;transform:scale(1);}'+ EOL
+cBody += '    50%{opacity:.45;transform:scale(.75);}'+ EOL
+cBody += '  }'+ EOL
+cBody += '  .ss-marca{'+ EOL
+cBody += '    font-size:10px;'+ EOL
+cBody += '    font-weight:700;'+ EOL
+cBody += '    letter-spacing:.24em;'+ EOL
+cBody += '    text-transform:uppercase;'+ EOL
+cBody += '    color:#a57dd0;'+ EOL
+cBody += '  }'+ EOL
+cBody += '  .ss-versoes{'+ EOL
+cBody += '    margin-left:auto;'+ EOL
+cBody += '    font-size:10px;'+ EOL
+cBody += '    font-weight:600;'+ EOL
+cBody += '    letter-spacing:.04em;'+ EOL
+cBody += '    color:#b6acc7;'+ EOL
+cBody += '    white-space:nowrap;'+ EOL
+cBody += '  }'+ EOL
+cBody += '  /* titulo interno */'+ EOL
+cBody += '  .ss-titulo{'+ EOL
+cBody += '    font-size:18px;'+ EOL
+cBody += '    font-weight:800;'+ EOL
+cBody += '    line-height:1.2;'+ EOL
+cBody += '    margin-bottom:14px;'+ EOL
+cBody += '    position:relative;'+ EOL
+cBody += '  }'+ EOL
+cBody += '  .ss-titulo .ss-destaque{'+ EOL
+cBody += '    background:linear-gradient(90deg, #f41dab, #a57dd0);'+ EOL
+cBody += '    -webkit-background-clip:text;'+ EOL
+cBody += '    background-clip:text;'+ EOL
+cBody += '    color:transparent;'+ EOL
+cBody += '  }'+ EOL
+cBody += '  /* linhas de novidade */'+ EOL
+cBody += '  .ss-item{'+ EOL
+cBody += '    display:flex;'+ EOL
+cBody += '    align-items:center;'+ EOL
+cBody += '    gap:12px;'+ EOL
+cBody += '    background:rgba(255,255,255,.07);'+ EOL
+cBody += '    border:1px solid rgba(130,86,185,.5);'+ EOL
+cBody += '    border-radius:11px;'+ EOL
+cBody += '    padding:11px 13px;'+ EOL
+cBody += '    margin-bottom:10px;'+ EOL
+cBody += '    position:relative;'+ EOL
+cBody += '  }'+ EOL
+cBody += '  .ss-icone{'+ EOL
+cBody += '    flex:0 0 auto;'+ EOL
+cBody += '    width:36px;height:36px;'+ EOL
+cBody += '    border-radius:10px;'+ EOL
+cBody += '    display:flex;'+ EOL
+cBody += '    align-items:center;'+ EOL
+cBody += '    justify-content:center;'+ EOL
+cBody += '    background:linear-gradient(135deg, #6b31b0 0%, #441c7d 100%);'+ EOL
+cBody += '    box-shadow:inset 0 1px 0 rgba(255,255,255,.25), 0 4px 10px rgba(46,16,93,.5);'+ EOL
+cBody += '  }'+ EOL
+cBody += '  .ss-item-2 .ss-icone{'+ EOL
+cBody += '    background:linear-gradient(135deg, #cd1f92 0%, #6b31b0 100%);'+ EOL
+cBody += '    box-shadow:inset 0 1px 0 rgba(255,255,255,.25), 0 4px 10px rgba(205,31,146,.4);'+ EOL
+cBody += '  }'+ EOL
+cBody += '  .ss-icone svg{'+ EOL
+cBody += '    width:20px;height:20px;'+ EOL
+cBody += '    stroke:#ffffff;fill:none;'+ EOL
+cBody += '    stroke-width:2;stroke-linecap:round;stroke-linejoin:round;'+ EOL
+cBody += '  }'+ EOL
+cBody += '  .ss-texto{flex:1 1 auto;min-width:0;}'+ EOL
+cBody += '  .ss-item-titulo{'+ EOL
+cBody += '    font-size:13px;'+ EOL
+cBody += '    font-weight:700;'+ EOL
+cBody += '    color:#ffffff;'+ EOL
+cBody += '    margin:0 0 3px;'+ EOL
+cBody += '    line-height:1.25;'+ EOL
+cBody += '  }'+ EOL
+cBody += '  .ss-item-desc{'+ EOL
+cBody += '    font-size:11.5px;'+ EOL
+cBody += '    line-height:1.5;'+ EOL
+cBody += '    color:#b6acc7;'+ EOL
+cBody += '    margin:0;'+ EOL
+cBody += '  }'+ EOL
+cBody += '  .ss-item-desc b{color:#a57dd0;font-weight:600;}'+ EOL
+cBody += '  /* interruptor ilustrando o novo parametro */'+ EOL
+cBody += '  .ss-toggle{'+ EOL
+cBody += '    flex:0 0 auto;'+ EOL
+cBody += '    width:40px;height:22px;'+ EOL
+cBody += '    border-radius:999px;'+ EOL
+cBody += '    background:linear-gradient(90deg, #f41dab, #cd1f92);'+ EOL
+cBody += '    position:relative;'+ EOL
+cBody += '    box-shadow:0 4px 10px rgba(244,29,171,.5);'+ EOL
+cBody += '  }'+ EOL
+cBody += '  .ss-toggle:after{'+ EOL
+cBody += '    content:"";'+ EOL
+cBody += '    position:absolute;'+ EOL
+cBody += '    top:2.5px;left:2.5px;'+ EOL
+cBody += '    width:17px;height:17px;'+ EOL
+cBody += '    border-radius:50%;'+ EOL
+cBody += '    background:#ffffff;'+ EOL
+cBody += '    animation:ss-alternar 3.2s ease-in-out infinite;'+ EOL
+cBody += '  }'+ EOL
+cBody += '  @keyframes ss-alternar{'+ EOL
+cBody += '    0%,40%{left:2.5px;}'+ EOL
+cBody += '    50%,90%{left:20.5px;}'+ EOL
+cBody += '    100%{left:2.5px;}'+ EOL
+cBody += '  }'+ EOL
+cBody += '  /* telas maiores: aumenta levemente a escala */'+ EOL
+cBody += '  @media (min-width:720px){'+ EOL
+cBody += '    .ss-panel{padding:22px 26px 16px;}'+ EOL
+cBody += '    .ss-titulo{font-size:22px;}'+ EOL
+cBody += '    .ss-item-titulo{font-size:14.5px;}'+ EOL
+cBody += '    .ss-item-desc{font-size:13px;}'+ EOL
+cBody += '    .ss-icone{width:42px;height:42px;}'+ EOL
+cBody += '    .ss-icone svg{width:23px;height:23px;}'+ EOL
+cBody += '  }'+ EOL
+cBody += '</style>'+ EOL
+cBody += '<div class="ss-panel">'+ EOL
+cBody += '  <div class="ss-glow"></div>'+ EOL
+cBody += '  <div class="ss-topo">'+ EOL
+cBody += '    <span class="ss-badge"><span class="ss-ponto"></span>Notas de vers&atilde;o</span>'+ EOL
+cBody += '    <span class="ss-marca">SmartSupply</span>'+ EOL
+cBody += '    <span class="ss-versoes">v25.0006 &rarr; v27.0002</span>'+ EOL
+cBody += '  </div>'+ EOL
+cBody += '  <div class="ss-titulo">Novos perfis de c&aacute;lculo e <span class="ss-destaque">entrega centralizada</span></div>'+ EOL
+cBody += '  <div class="ss-item ss-item-1">'+ EOL
+cBody += '    <span class="ss-icone">'+ EOL
+cBody += '      <svg viewBox="0 0 24 24">'+ EOL
+cBody += '        <path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"></path>'+ EOL
+cBody += '        <circle cx="16" cy="6" r="2"></circle>'+ EOL
+cBody += '        <circle cx="10" cy="12" r="2"></circle>'+ EOL
+cBody += '        <circle cx="18" cy="18" r="2"></circle>'+ EOL
+cBody += '      </svg>'+ EOL
+cBody += '    </span>'+ EOL
+cBody += '    <span class="ss-texto">'+ EOL
+cBody += '      <p class="ss-item-titulo">Novo cadastro de perfis de c&aacute;lculo</p>'+ EOL
+cBody += '      <p class="ss-item-desc">Em <b>Outras A&ccedil;&otilde;es &gt; Perfis de C&aacute;lculo</b>, monte a f&oacute;rmula da sugest&atilde;o com vari&aacute;veis, n&uacute;meros e operadores, validada ao salvar. Os perfis existentes s&atilde;o <b>migrados automaticamente</b> e valem para todas as filiais.</p>'+ EOL
+cBody += '    </span>'+ EOL
+cBody += '  </div>'+ EOL
+cBody += '  <div class="ss-item ss-item-2">'+ EOL
+cBody += '    <span class="ss-icone">'+ EOL
+cBody += '      <svg viewBox="0 0 24 24">'+ EOL
+cBody += '        <rect x="3" y="4" width="18" height="16" rx="2"></rect>'+ EOL
+cBody += '        <path d="M7 9h10M7 13h6"></path>'+ EOL
+cBody += '        <circle cx="16.5" cy="15.5" r="2.2"></circle>'+ EOL
+cBody += '        <path d="M18.2 17.2L20 19"></path>'+ EOL
+cBody += '      </svg>'+ EOL
+cBody += '    </span>'+ EOL
+cBody += '    <span class="ss-texto">'+ EOL
+cBody += '      <p class="ss-item-titulo">Perfil do produto escolhido numa lista</p>'+ EOL
+cBody += '      <p class="ss-item-desc">No painel e no <b>cadastro de produtos (F3)</b>, os perfis aparecem com a f&oacute;rmula em texto. Trocar o perfil recalcula a sugest&atilde;o na hora, inclusive no c&aacute;lculo individual por filial.</p>'+ EOL
+cBody += '    </span>'+ EOL
+cBody += '  </div>'+ EOL
+cBody += '  <div class="ss-item ss-item-1">'+ EOL
+cBody += '    <span class="ss-icone">'+ EOL
+cBody += '      <svg viewBox="0 0 24 24">'+ EOL
+cBody += '        <path d="M3 7h11v9H3z"></path>'+ EOL
+cBody += '        <path d="M14 10h4l3 3v3h-7"></path>'+ EOL
+cBody += '        <circle cx="7" cy="18" r="1.8"></circle>'+ EOL
+cBody += '        <circle cx="17" cy="18" r="1.8"></circle>'+ EOL
+cBody += '      </svg>'+ EOL
+cBody += '    </span>'+ EOL
+cBody += '    <span class="ss-texto">'+ EOL
+cBody += '      <p class="ss-item-titulo">Entrega centralizada na compra multi-filial</p>'+ EOL
+cBody += '      <p class="ss-item-desc">Novo par&acirc;metro <b>MV_X_PNC23</b>: com a entrega centralizada, o carrinho recebe <b>uma linha por produto</b> na filial corrente, somando a demanda das filiais, e a quantidade &eacute; editada direto na grid.</p>'+ EOL
+cBody += '    </span>'+ EOL
+cBody += '    <span class="ss-toggle"></span>'+ EOL
+cBody += '  </div>'+ EOL
+cBody += '  <div class="ss-item ss-item-2">'+ EOL
+cBody += '    <span class="ss-icone">'+ EOL
+cBody += '      <svg viewBox="0 0 24 24">'+ EOL
+cBody += '        <path d="M12 3l9 16H3z"></path>'+ EOL
+cBody += '        <path d="M12 10v4M12 17h0"></path>'+ EOL
+cBody += '      </svg>'+ EOL
+cBody += '    </span>'+ EOL
+cBody += '    <span class="ss-texto">'+ EOL
+cBody += '      <p class="ss-item-titulo">Avisos para evitar compra em dobro</p>'+ EOL
+cBody += '      <p class="ss-item-desc">O painel avisa quando a entrega centralizada est&aacute; combinada com o <b>c&aacute;lculo individual por filial</b>, ao carregar a an&aacute;lise, ao gerar o pedido e ao gravar os par&acirc;metros internos.</p>'+ EOL
+cBody += '    </span>'+ EOL
+cBody += '  </div>'+ EOL
+cBody += '  <div class="ss-item ss-item-1">'+ EOL
+cBody += '    <span class="ss-icone">'+ EOL
+cBody += '      <svg viewBox="0 0 24 24">'+ EOL
+cBody += '        <rect x="3" y="3" width="7" height="7" rx="1.5"></rect>'+ EOL
+cBody += '        <rect x="14" y="3" width="7" height="7" rx="1.5"></rect>'+ EOL
+cBody += '        <rect x="8.5" y="14" width="7" height="7" rx="1.5"></rect>'+ EOL
+cBody += '        <path d="M6.5 10v2h11v-2M12 12v2"></path>'+ EOL
+cBody += '      </svg>'+ EOL
+cBody += '    </span>'+ EOL
+cBody += '    <span class="ss-texto">'+ EOL
+cBody += '      <p class="ss-item-titulo">Suas filiais da &uacute;ltima an&aacute;lise</p>'+ EOL
+cBody += '      <p class="ss-item-desc">As filiais escolhidas ficam guardadas nas <b>prefer&ecirc;ncias do usu&aacute;rio</b> e j&aacute; v&ecirc;m selecionadas na pr&oacute;xima abertura do painel.</p>'+ EOL
+cBody += '    </span>'+ EOL
+cBody += '  </div>'+ EOL
+cBody += '  <div class="ss-item ss-item-2">'+ EOL
+cBody += '    <span class="ss-icone">'+ EOL
+cBody += '      <svg viewBox="0 0 24 24">'+ EOL
+cBody += '        <path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z"></path>'+ EOL
+cBody += '        <path d="M9 12l2 2 4-4"></path>'+ EOL
+cBody += '      </svg>'+ EOL
+cBody += '    </span>'+ EOL
+cBody += '    <span class="ss-texto">'+ EOL
+cBody += '      <p class="ss-item-titulo">Pedido e carrinho mais confi&aacute;veis</p>'+ EOL
+cBody += '      <p class="ss-item-desc">Pedido gravado mesmo com falha da rotina padr&atilde;o <b>n&atilde;o &eacute; mais duplicado</b>; a grid recalcula a sugest&atilde;o logo ap&oacute;s o pedido; e foram corrigidos o Ctrl+R, o pre&ccedil;o e a troca de fornecedor no carrinho.</p>'+ EOL
+cBody += '    </span>'+ EOL
+cBody += '  </div>'+ EOL
+cBody += '</div>'+ EOL
+cBody += '</div>'+ EOL
