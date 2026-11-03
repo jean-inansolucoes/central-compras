@@ -130,6 +130,18 @@ user function JSGETSTR( cTable )
         aAdd( aStruct, { "LABELID", "N", 6, 0 } )
         aAdd( aStruct, { "USRINC" , "C", 6, 0 } )
         aAdd( aStruct, { "DTINC"  , "D", 8, 0 } )
+    elseif cTable == "PNC_PERFIL_"+ cEmpAnt
+
+        // Cadastro de perfis de cálculo (JSPERFIL) - único para a empresa, sem filial. O ID tem o tamanho do campo
+        // B1_X_PERCA, que guarda o perfil usado por cada produto
+        aAdd( aStruct, { "ID"     , "C", U_JSPFLTAM(), 0 } )
+        aAdd( aStruct, { "DESCRI" , "C", 40, 0 } )
+        aAdd( aStruct, { "FORMUL" , "C", 250, 0 } )      // Elementos da fórmula separados por "|" (mesmo formato do cadastro antigo)
+        aAdd( aStruct, { "BLOQ"   , "C", 1, 0 } )        // 1=Bloqueado ou 2=Ativo (mesma convenção do MSBLQL)
+        aAdd( aStruct, { "USRINC" , "C", 6, 0 } )
+        aAdd( aStruct, { "DTINC"  , "D", 8, 0 } )
+        aAdd( aStruct, { "USRALT" , "C", 6, 0 } )
+        aAdd( aStruct, { "DTALT"  , "D", 8, 0 } )
 
     endif
 
@@ -259,6 +271,8 @@ user function JSTBLIDX( cTable )
         aAdd( aIndex, { "PNC_LABEL_"+ cEmpAnt+'_01', 'ID', {|| 'ID' } } )
     elseif cTable == "PNC_LABEL_PROD_"+ cEmpAnt
         aAdd( aIndex, { "PNC_LABEL_PROD_"+ cEmpAnt+'_01', 'FILIAL+PROD', {|| 'FILIAL+PROD' } } )
+    elseif cTable == "PNC_PERFIL_"+ cEmpAnt
+        aAdd( aIndex, { "PNC_PERFIL_"+ cEmpAnt+'_01', 'ID', {|| 'ID' } } )
     endif
 return aIndex
 

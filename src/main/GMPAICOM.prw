@@ -72,8 +72,6 @@ User Function GMPAICOM()
 	local oBmpCri, oBmpAlt, oBmpMed, oBmpBai, oBmpSem/* , oBmpSol */ := nil
 	local oRadMenu as object
 	local oBtnFil  as object
-	local oPerfil  as object
-	local oDescPer as object
 	local aRadMenu := { "Todos os produtos", "Apenas sugestões de compra", "Apenas risco de ruptura", "Apenas produtos no carrinho" }
 	local oLine    as object
 	local cFileWF  := "" as character
@@ -87,7 +85,6 @@ User Function GMPAICOM()
 	local nSizeDsh  := 0 as numeric
 	local oPAs      as object
 	local nPAs      := 0 as numeric
-	local oUsrPref  := JsonObject():New()
 	local nRot      := 0 as numeric
 	local nRotCol   := 0 as numeric
 	local oTahoma   := TFont():New( "Tahoma",,-10,,.F.,,,,,.F.,.F. )
@@ -104,9 +101,8 @@ User Function GMPAICOM()
 	Private nRadMenu  := 1 as numeric 										// Exibir apenas produtos com necessidade de compra
 	Private cZB6      := AllTrim( SuperGetMv( 'MV_X_PNC04',,"" ) )			// Alias da tabela ZB6 no ambiente do cliente
 	Private cZB3      := "PNC_PROD_"+ cEmpAnt			// Nome fixo da tabela de índices por produto (fora do dicionário)
-	Private cZBM      := AllTrim( SuperGetMv( 'MV_X_PNC16',,'' ) )			// Alias da tabela ZBM no ambiente do cliente
 	Private cPerfil   := "" as character
-	Private cDescPer  := "" as character
+	Private oCboPer    as object			// Combo do perfil de cálculo da análise (Filtros e Parâmetros)
 	Private cMarca    := GetMark()
 	Private oLblDia   := Nil
 	Private nGetQtd   := 0
@@ -189,6 +185,9 @@ User Function GMPAICOM()
 	private lFilFirst  := .T. as logical
 	Private oBtnOPs    as object
 	Private aHdrPAs    := U_JSHDRPA()
+	Private oUsrPref   := JsonObject():New() as object		// Preferências do usuário: tamanho/título das colunas e filiais da análise
+	Private lEntCen    := ( AllTrim( SuperGetMv( 'MV_X_PNC23',, '1' ) ) == '2' ) as logical	// Compra multi-filial com entrega centralizada na filial corrente (MV_X_PNC23)
+	Private cAvEntCen  := "" as character		// Filiais e modo de cálculo já avisados sobre a entrega centralizada com cálculo individual (avEntCen)
 
 	oTahoma:nWidth := 10
 
@@ -220,28 +219,14 @@ User Function GMPAICOM()
 	// 	return Nil
 	// endif
 
-	// Checa existencia do parâmetro e da configuração do alias da tabelas de perfis de cálculo
-	if ! GetMv( 'MV_X_PNC16', .T. ) .or. Empty( cZBM )
-		Hlp( 'MV_X_PNC16',;
-			'Parâmetro interno que define alias da tabela de perfis de cálculo não existe ou não foi configurado corretamente',;
-			'Verifique com a equipe responsável pela rotina, solicite atualização para a versão mais recente e tente novamente.' )
-		Return Nil
-	elseif FindFunction( 'U_JSPERCHK' )
-		// Função que checa existência de conteúdo na tabela e, se está vazia, cria um registro genérico com a fórmula padrão de cálculo de compras
-		// definida através do parâmetro MV_X_PNC01
-		if !U_JSPERCHK()
-			Return Nil 
-		endif
-	else
-		Hlp( 'MV_X_PNC16',;
-			'Função de manutenção dos perfis de cálculo não localizada neste ambiente',;
-			'Solicite à equipe responsável a atualização desta rotina e tente novamente.' )
+	// Perfis de cálculo (tabela interna PNC_PERFIL_<empresa>, única para a empresa): na primeira utilização migra os
+	// perfis do cadastro antigo do dicionário e garante o perfil padrão, com a fórmula do MV_X_PNC01
+	if ! U_JSPFLCHK()
 		Return Nil
 	endif
 
 	// Inicializa com o perfil de cálculo default da rotina
-	cPerfil  := StrZero( 1, TAMSX3( cZBM +'_ID' )[1] )
-	cDescPer := RetField( cZBM, 1, FWxFilial( cZBM ) + cPerfil, cZBM +'_DESC' )
+	cPerfil := U_JSPFLDEF()
 
 	// Checa configuração de envio de e-mail para fornecedor
 	if AllTrim( SuperGetMv( 'MV_ENVPED' ) ) $ "1|2"
@@ -271,6 +256,8 @@ User Function GMPAICOM()
 	
 	// Carrega definições de preferências do usuário
 	oUsrPref := U_JSLDPREF()
+	// Filiais escolhidas pelo usuário na última análise nesta empresa/filial (preferências), já pré-selecionadas
+	_aFil := filPrefLd( oUsrPref )
 
 	// Define hotkeys da rotina
 	SetKey( K_ALT_X, {|| fMarkPro() } )
@@ -406,8 +393,7 @@ User Function GMPAICOM()
 	// Botões da EnchoiceBar
 	// aAdd( aButtons, { "BTNWARN"  , {|| fShowEv() }           , "Riscos de Ruptura" } )
 	// aAdd( aButtons, { "BTNNOTIFY", {|| fShowEv( aColPro[ oBrwPro:nAt][nPosPrd] ) }, "Eventos do Produto" } )
-	aAdd( aButtons, { "BMPMANUT" , {|| iif( !Empty(U_JSDoFrml( cPerfil )),;
-										Processa( {|lEnd| fLoadInf(,,@lEnd) }, 'Aguarde!','Analisando dados do MRP...', .T. ), Nil ) }, "Formula de Cálculo" } ) 
+	aAdd( aButtons, { "BMPMANUT" , {|| pflManut() }, "Perfis de Cálculo" } )
 	aAdd( aButtons, { "BTNEMPEN" , {|| iif( len( aColPro ) > 0, fShowEm( aColPro[ oBrwPro:nAt][nPosPrd] ), Nil ) }, "Empenhos do Produto" } )
 	aAdd( aButtons, { "BTNROTULO", {|| rotProd() }, "Rótulos do Produto (F7)" } )
 	aAdd( aButtons, { "BTNPEDIDO", {|| iif( len( aColPro ) > 0, fSolPend(), Nil ) }, "Solicitações de Compra" } )
@@ -584,21 +570,14 @@ User Function GMPAICOM()
 										  oBrwPro:SetArray( aColPro ),;
 										  oBrwPro:UpdateBrowse() }, 'Aguarde!','Executando filtro de produtos...' ) }
 
-	oPerfil := TGet():New( 75, 70,{|u| If(pCount()>0,cPerfil:=u,cPerfil ) },oWinPar,030,012,"@!",,0,,,.F.,,.T.,,.F.,,.F.,.F.,,.F.,.F.,,'cPerfil',,,,.T.,.F.,,'Perfil Calc.', 1 )
-	oPerfil:cF3 := cZBM
-	oPerfil:bValid := {|| !Empty( cPerfil ) .and. ExistCpo( cZBM, cPerfil ) }
-	oPerfil:bChange := {|| cDescPer := RetField( cZBM, 1, FWxFilial( cZBM ) + cPerfil, cZBM +'_DESC' ),; 
-						   Processa( {|| chgFilter( 3 ),;
-						   				 oBrwPro:SetArray( aColPro ),;
-										 oBrwPro:UpdateBrowse() }, 'Aguarde!','Executando filtro de produtos...' ) }
+	// Perfil de cálculo da análise: perfis ativos do cadastro de perfis (Outras Ações > Perfis de Cálculo)
+	oCboPer := TComboBox():New( 75, 70, {|u| if( PCount() > 0, cPerfil := u, cPerfil ) }, U_JSPFLCBO( cPerfil ), 110, 14, oWinPar,,;
+								{|| pflTroca() },,,,.T.,,,,,,,,,'cPerfil', 'Perfil Calc.', 1 )
 
 	oBtnFil := TBitmap():New( 30, 180, 30, 30, "filter.png", Nil, .T., oWinPar,;
         {|| _aFilters := prodFilter( _aFilters ),;
 		   iif( !_aFilters[len(_aFilters)], Processa( {|lEnd| fLoadInf(,,@lEnd) }, 'Aguarde!','Executando filtro de produtos...', .T. ) , Nil ) },; 
 		nil, .F., .F., nil, nil, .F., nil, .T., nil, .F.)
-
-	oDescPer := TGet():New( 75, 110,{|u| If(pCount()>0,cDescPer:=u,cDescPer ) },oWinPar,070,012,"@x",,0,,,.F.,,.T.,,.F.,,.F.,.F.,,.F.,.F.,,'cDescPer',,,,.T.,.F.,,'Descrição', 1  )
-	oDescPer:bWhen := {|| .F. }
 
 	@ 06, 04 SAY oLblPer PROMPT "Período: " SIZE (oWinDash:nWidth/2)*0.1, 011 OF oWinDash FONT oFntTxt COLORS 8421504, 16777215 PIXEL
 	@ 04, 06+(oWinDash:nWidth/2)*0.1 MSCOMBOBOX oCboAna VAR cCboAna ITEMS aCboAna SIZE (oWinDash:nWidth/2)*0.3, 013 OF oWinDash COLORS 8421504, 16777215 FONT oFntCbo ON CHANGE Processa( {|| fLoadAna() }, 'Aguarde!', 'Analisando sazonalidade do produto...' ) PIXEL
@@ -3683,6 +3662,7 @@ Static Function fLoadInf( aMPs, lAll, lEnd )
 	local cErroSQL  := "" as character
 	local aFilVaz   := {} as array
 	local aRotQry   := {} as array	// Filtro por rótulos (aFilRot) aplicado na leitura dos produtos
+	local cEntTit   := "" as character		// Indicação da entrega centralizada (MV_X_PNC23) no título da janela de produtos
 	
 	default aMPs := {} 
 	default lAll := .T. 
@@ -4063,7 +4043,14 @@ Static Function fLoadInf( aMPs, lAll, lEnd )
 		// Atualiza o título da janela de produtos com a data/hora dos últimos cálculos (convencional e reverso) a cada refresh da tela principal
 		cLastRun := AllTrim( SuperGetMv( 'MV_X_PNC12',,"" ) )
 		cLastRev := U_JSLASTREV( cFilAnt )
-		oLayer:SetWinTitle( 'colPro', 'winPro', 'Produtos | U.C.M.: '+ cLastRun +' | U.C.R.: '+ iif( Empty( cLastRev ), 'N/A', cLastRev ), 'line2' )
+		// Indica no título quando a compra multi-filial está com a entrega centralizada na filial corrente (MV_X_PNC23)
+		cEntTit := ""
+		if entCent()
+			cEntTit := ' | Entrega centralizada na filial '+ AllTrim( cFilAnt )
+		endif
+		oLayer:SetWinTitle( 'colPro', 'winPro', 'Produtos | U.C.M.: '+ cLastRun +' | U.C.R.: '+ iif( Empty( cLastRev ), 'N/A', cLastRev ) + cEntTit, 'line2' )
+		// Entrega centralizada (MV_X_PNC23) com o cálculo individual por filial: avisa o risco de compra em dobro
+		avEntCen()
 	endif
 
 Return aReturn
@@ -4523,6 +4510,8 @@ Static Function fMarkPro( aData, oBrw )
 	local aBkpFil   := {} as array
 	local lShowMP   := isInCallStack( 'showMP' )
 	local nFound    := 0 as numeric
+	local lCentral  := entCent() as logical		// Compra multi-filial com entrega centralizada na filial corrente (MV_X_PNC23)
+	local nLinCar   := 0 as numeric
 	
 	default aData   := aColPro
 	default oBrw    := oBrwPro
@@ -4595,26 +4584,10 @@ Static Function fMarkPro( aData, oBrw )
 					for nFil := 1 to len( _aFil )
 						cFilAnt := _aFil[nFil]
 						nProdFil := aScan( _aProdFil, {|x| x[nPosPrd] == aData[oBrw:nAt][nPosPrd] .and. x[len(x)] == AllTrim(_aFil[nFil]) } )
-						if nProdFil > 0 .and. _aProdFil[nProdFil][nPosNec] > 0
-							aLinFil     := aClone( aCarCom[nFound] )
-							aLinFil[carPos('QUANT')]  := _aProdFil[nProdFil][nPosNec]
-							aLinFil[carPos('TOTAL')]  := aLinFil[carPos('QUANT')] * aLinFil[carPos('PRECO')]
-							aLinFil[carPos('C7_LOCAL')]  := iif( !Empty( aConfig[26] ), aConfig[26], RetField( 'SB1', 1, FWxFilial( 'SB1' ) + aLinFil[carPos('C7_PRODUTO')], 'B1_LOCPAD' ) )
-							nQtdSeg     := ConvUM( aData[oBrw:nAt][nPosPrd],; 
-													aLinFil[carPos('QUANT')],;
-													0 /* nQtdSeg */,;
-													2 /* nRetQtd */ )
-							aLinFil[carPos('QTSEGUM')] := nQtdSeg 
-							if nQtdSeg > 0
-								nPrcSeg := aLinFil[carPos('TOTAL')] / nQtdSeg
-							else
-								nPrcSeg := 0
-							endif
-							aLinFil[carPos('VALSEGUM')]   := Round( nPrcSeg, 2 )
-							aAdd( aLinFil, _aFil[nFil] )
-
-							aAdd( aCarFil, aClone( aLinFil ) )
-							aLinFil := {}
+						if ! lCentral .and. nProdFil > 0 .and. _aProdFil[nProdFil][nPosNec] > 0
+							// Soma na linha que o produto já tiver no carrinho desta filial (ex.: matéria-prima incluída de novo pela tela
+							// de MPs) ou cria a linha - antes era sempre criada uma nova linha, duplicando o produto no pedido
+							carAdd( aCarCom[nFound], _aProdFil[nProdFil][nPosNec], aData[oBrw:nAt][nPosNeg], _aFil[nFil] )
 						endif
 						// Atualiza perfil de cálculo do produto automaticamente para que o sistema saiba qual perfil de cálculo o produto utiliza
 						// durante os recálculos feitos de maneira automática
@@ -4629,6 +4602,10 @@ Static Function fMarkPro( aData, oBrw )
 						endif
 					next nFil
 					cFilAnt := cFilHist
+					// Entrega centralizada (MV_X_PNC23): a demanda incluída soma na linha única do produto na filial corrente
+					if lCentral
+						carAdd( aCarCom[nFound], aData[oBrw:nAt][nPosNec], aData[oBrw:nAt][nPosNeg], cFilHist )
+					endif
 
 					lInclui := .F.
 				else
@@ -4673,7 +4650,7 @@ Static Function fMarkPro( aData, oBrw )
 					for nFil := 1 to len( _aFil )
 						cFilAnt := _aFil[nFil]
 						nProdFil := aScan( _aProdFil, {|x| x[nPosPrd] == aLinCar[carPos('C7_PRODUTO')] .and. x[len(x)] == AllTrim(_aFil[nFil]) } )
-						if nProdFil > 0 .and. _aProdFil[nProdFil][nPosNec] > 0
+						if ! lCentral .and. nProdFil > 0 .and. _aProdFil[nProdFil][nPosNec] > 0
 							aLinFil     := aClone( aLinCar )
 							aLinFil[carPos('QUANT')]  := _aProdFil[nProdFil][nPosNec]
 							aLinFil[carPos('TOTAL')]  := aLinFil[carPos('QUANT')] * aLinFil[carPos('PRECO')]
@@ -4707,6 +4684,11 @@ Static Function fMarkPro( aData, oBrw )
 						endif
 					next nFil
 					cFilAnt := cFilHist
+					// Entrega centralizada (MV_X_PNC23): no lugar das linhas por filial do laço acima, uma única linha na filial
+					// corrente com a demanda somada de todas as filiais selecionadas
+					if lCentral
+						carAdd( aLinCar, aData[oBrw:nAt][nPosNec], aData[oBrw:nAt][nPosNeg], cFilHist )
+					endif
 
 					aAdd( aCarCom, aClone( aLinCar ) )
 					aLinCar := {}
@@ -4729,14 +4711,15 @@ Static Function fMarkPro( aData, oBrw )
 				endif
 
 			else
-				// Elimina do carrinho por filial
-				for nFil := 1 to len( _aFil )
-					nProdFil := aScan( aCarFil, {|x| x[carPos('C7_PRODUTO')] == aData[oBrw:nAt][nPosPrd] .and. x[len(x)] == _aFil[nFil] } )
-					if nProdFil > 0
-						aDel( aCarFil, nProdFil )
-						aSize( aCarFil, len( aCarFil )-1 )
-					endif
-				next nFil
+				// Elimina do carrinho todas as linhas do produto, em qualquer filial: a linha única da entrega centralizada
+				// (MV_X_PNC23) e também as de filiais retiradas da seleção depois da marcação, que antes ficavam no carrinho e
+				// iam para o pedido mesmo com o produto desmarcado
+				nLinCar := aScan( aCarFil, {|x| x[carPos('C7_PRODUTO')] == aData[oBrw:nAt][nPosPrd] } )
+				while nLinCar > 0
+					aDel( aCarFil, nLinCar )
+					aSize( aCarFil, len( aCarFil )-1 )
+					nLinCar := aScan( aCarFil, {|x| x[carPos('C7_PRODUTO')] == aData[oBrw:nAt][nPosPrd] } )
+				end
 
 				cForLoj := aData[oBrw:nAt][nPosFor] + aData[oBrw:nAt][nPosLoj]
 				aDel( aCarCom, aScan( aCarCom, {|x| x[carPos('C7_PRODUTO')] == aData[oBrw:nAt][nPosPrd] } ) ) 
@@ -4816,6 +4799,7 @@ User Function PCOMVLD()
 	local cField    := AllTrim( oBrwPro:GetColumn(oBrwPro:ColPos()):GetID() )
 	local lGrvInd   := .F. as logical
 	local cPrdAlt   := "" as character
+	local nLinCar   := 0 as numeric
 	
 	Private oBtnSel     := Nil
 	Private lMsErroAuto := .F.
@@ -4872,6 +4856,9 @@ User Function PCOMVLD()
 				// Atualiza o código do produto no novo fornecedor (A5_CODPRF) - fica em branco se não
 				// existir vínculo SA5 para o fornecedor/loja recém-selecionado
 				aColPro[oBrwPro:At()][nPosCPF] := RetField( 'SA5', 1, FWxFilial('SA5') + aColPro[oBrwPro:At()][nPosFor] + aColPro[oBrwPro:At()][nPosLoj] + aColPro[oBrwPro:nAt][nPosPrd], 'A5_CODPRF' )
+				// Mesmo fornecedor em todas as filiais do produto (como na troca pelo F4 - U_JSSUPPLY): sem isso, as buscas por
+				// produto, filial e fornecedor no vetor por filial falhavam depois da troca feita direto na grid
+				aEval( idxProd( aColPro[oBrwPro:nAt][nPosPrd] ), {|x| _aProdFil[x][nPosFor] := aColPro[oBrwPro:At()][nPosFor], _aProdFil[x][nPosLoj] := aColPro[oBrwPro:At()][nPosLoj], _aProdFil[x][nPosCPF] := aColPro[oBrwPro:At()][nPosCPF] } )
 				aFullPro[ aScan( aFullPro, {|x| x[nPosPrd] == aColPro[oBrwPro:nAt][nPosPrd] } ) ] := aClone( aColPro[oBrwPro:nAt] )
 
 				// Quando usuário não alterou o preço negociado, atualiza o conteúdo do campo do preço conforme tabela de preço do novo fornecedor ou preço historico do novo fornecedor
@@ -4886,20 +4873,10 @@ User Function PCOMVLD()
 						aCarCom[ aScan( aCarCom, {|x| AllTrim( x[carPos('C7_PRODUTO')] ) == AllTrim( aColPro[ oBrwPro:nAt ][ nPosPrd ] ) } ) ][ carPos('PRECO') ] := aColPro[obrwPro:nAt][nPosNeg]
 						aCarCom[ aScan( aCarCom, {|x| AllTrim( x[carPos('C7_PRODUTO')] ) == AllTrim( aColPro[ oBrwPro:nAt ][ nPosPrd ] ) } ) ][ carPos('TOTAL') ] := aColPro[oBrwPro:At()][nPosNec] * aColPro[oBrwPro:nAt][nPosNeg]
 					endif
-					for nX := 1 to len( _aFil )
-						nAux := aScan(_aProdFil,{|x| x[nPosPrd] == aColPro[ oBrwPro:nAt ][ nPosPrd ] .and. x[len(x)] == _aFil[nX] })
-						_aProdFil[ nAux ][nPosNeg] := aColPro[oBrwPro:At()][nPosNeg]
-						_aProdFil[ nAux ][nPosUlt] := aColPro[oBrwPro:At()][nPosUlt]
-					next nX
-
-					for nX := 1 to len( _aFil )
-						nAux := aScan(_aProdFil,{|x| x[nPosPrd] == aColPro[ oBrwPro:nAt ][ nPosPrd ] .and. x[len(x)] == _aFil[nX] })
-						if aScan( aCarFil, {|x| x[carPos('C7_PRODUTO')] == aColPro[ oBrwPro:nAt ][ nPosPrd ] .and. x[len(x)] == _aFil[nX] } ) > 0
-							aCarFil[ aScan( aCarFil, {|x| x[carPos('C7_PRODUTO')] == aColPro[ oBrwPro:nAt ][ nPosPrd ] .and. x[len(x)] == _aFil[nX] } ) ][carPos('PRECO')] := _aProdFil[nAux][nPosNeg]
-							aCarFil[ aScan( aCarFil, {|x| x[carPos('C7_PRODUTO')] == aColPro[ oBrwPro:nAt ][ nPosPrd ] .and. x[len(x)] == _aFil[nX] } ) ][carPos('TOTAL')] := ;
-								aCarFil[ aScan( aCarFil, {|x| x[carPos('C7_PRODUTO')] == aColPro[oBrwPro:nAt][nPosPrd] .and. x[len(x)] == _aFil[nX] } ) ][carPos('PRECO')] * aCarFil[nAux][carPos('QUANT')]
-						endif
-					next nX
+					// Preço do novo fornecedor em todas as filiais do produto e nas linhas do produto no carrinho, com o total pela
+					// quantidade de cada linha (inclusive a linha única da entrega centralizada - MV_X_PNC23)
+					aEval( idxProd( aColPro[oBrwPro:nAt][nPosPrd] ), {|x| _aProdFil[x][nPosNeg] := aColPro[oBrwPro:At()][nPosNeg], _aProdFil[x][nPosUlt] := aColPro[oBrwPro:At()][nPosUlt] } )
+					carPrc( aColPro[oBrwPro:nAt][nPosPrd], aColPro[oBrwPro:At()][nPosNeg] )
 
 				endif
 
@@ -4949,23 +4926,36 @@ User Function PCOMVLD()
 					if aColPro[oBrwPro:At()][nPosNec] != _aProdFil[aScan(_aProdFil,{|x| x[nPosPrd] == aColPro[oBrwPro:At()][nPosPrd] .and. x[len(x)] == _aFil[1] })][nPosNec]
 						_aProdFil[aScan(_aProdFil,{|x| x[nPosPrd] == aColPro[oBrwPro:At()][nPosPrd] .and. x[len(x)] == _aFil[1] })][nPosNec] := aColPro[oBrwPro:At()][nPosNec]
 					endif
+				elseif entCent()
+					// Entrega centralizada (MV_X_PNC23): a quantidade editada é rateada entre as filiais analisadas, na proporção da
+					// demanda de cada uma, mantendo a soma por filial igual ao total da grid
+					distNec( idxProd( aColPro[oBrwPro:nAt][nPosPrd] ), aColPro[oBrwPro:At()][nPosNec] )
 				endif
 				
 				aCarCom[ aScan( aCarCom, {|x| AllTrim( x[carPos('C7_PRODUTO')] ) == AllTrim( aColPro[ oBrwPro:nAt ][ nPosPrd ] ) } ) ][ carPos('QUANT') ] := aColPro[oBrwPro:At()][nPosNec]
 				aCarCom[ aScan( aCarCom, {|x| AllTrim( x[carPos('C7_PRODUTO')] ) == AllTrim( aColPro[ oBrwPro:nAt ][ nPosPrd ] ) } ) ][ carPos('TOTAL') ] := aColPro[oBrwPro:At()][nPosNec] * aColPro[oBrwPro:nAt][nPosNeg]
 				
-				for nX := 1 to len( _aFil )
-					nAux := aScan(_aProdFil,{|x| x[nPosPrd] == aColPro[ oBrwPro:nAt ][ nPosPrd ] .and. x[len(x)] == _aFil[nX] .and. x[nPosFor] == aColPro[ oBrwPro:nAt ][ nPosFor ] .and. x[nPosLoj] == aColPro[ oBrwPro:nAt ][ nPosLoj ] })
-					_aProdFil[ nAux ][nPosNec] := aColPro[oBrwPro:At()][nPosNec]
-				next nX
+				if entCent()
+					// Entrega centralizada (MV_X_PNC23): a quantidade editada vai inteira para a linha única do produto no carrinho
+					cenQtd( aColPro[oBrwPro:nAt][nPosPrd], aColPro[oBrwPro:At()][nPosNec] )
+				else
+					for nX := 1 to len( _aFil )
+						nAux := aScan(_aProdFil,{|x| x[nPosPrd] == aColPro[ oBrwPro:nAt ][ nPosPrd ] .and. x[len(x)] == _aFil[nX] .and. x[nPosFor] == aColPro[ oBrwPro:nAt ][ nPosFor ] .and. x[nPosLoj] == aColPro[ oBrwPro:nAt ][ nPosLoj ] })
+						if nAux > 0
+							_aProdFil[ nAux ][nPosNec] := aColPro[oBrwPro:At()][nPosNec]
+						endif
+					next nX
 
-				for nX := 1 to len( _aFil )
-					nAux := aScan(_aProdFil,{|x| x[nPosPrd] == aColPro[ oBrwPro:nAt ][ nPosPrd ] .and. x[len(x)] == _aFil[nX] })
-					if aScan( aCarFil, {|x| x[carPos('C7_PRODUTO')] == aColPro[ oBrwPro:nAt ][ nPosPrd ] .and. x[len(x)] == _aFil[nX] } ) > 0
-						aCarFil[ aScan( aCarFil, {|x| x[carPos('C7_PRODUTO')] == aColPro[ oBrwPro:nAt ][ nPosPrd ] .and. x[len(x)] == _aFil[nX] } ) ][carPos('QUANT')] := _aProdFil[nAux][nPosNec]
-						aCarFil[ aScan( aCarFil, {|x| x[carPos('C7_PRODUTO')] == aColPro[ oBrwPro:nAt ][ nPosPrd ] .and. x[len(x)] == _aFil[nX] } ) ][carPos('TOTAL')] := aCarFil[ aScan( aCarFil, {|x| x[carPos('C7_PRODUTO')] == aColPro[oBrwPro:nAt][nPosPrd] .and. x[len(x)] == _aFil[nX] } ) ][carPos('PRECO')] * _aProdFil[nAux][nPosNec]
-					endif
-				next nX
+					for nX := 1 to len( _aFil )
+						nAux    := aScan( _aProdFil, {|x| x[nPosPrd] == aColPro[ oBrwPro:nAt ][ nPosPrd ] .and. x[len(x)] == _aFil[nX] } )
+						nLinCar := aScan( aCarFil, {|x| x[carPos('C7_PRODUTO')] == aColPro[ oBrwPro:nAt ][ nPosPrd ] .and. x[len(x)] == _aFil[nX] } )
+						if nAux > 0 .and. nLinCar > 0
+							aCarFil[nLinCar][carPos('QUANT')] := _aProdFil[nAux][nPosNec]
+							aCarFil[nLinCar][carPos('TOTAL')] := aCarFil[nLinCar][carPos('PRECO')] * _aProdFil[nAux][nPosNec]
+							carSeg( nLinCar )
+						endif
+					next nX
+				endif
 
 				// Ajusta também o vetor de backup para que, em caso de restauração, a informação esteja atualizada
 				aFullPro[ aScan( aFullPro, {|x| x[nPosPrd] == aColPro[ oBrwPro:nAt ][ nPosPrd ] } ) ] := aClone( aColPro[ oBrwPro:nAt ] )
@@ -4981,6 +4971,12 @@ User Function PCOMVLD()
 							_aProdFil[aScan(_aProdFil,{|x| x[nPosPrd] == aColPro[oBrwPro:At()][nPosPrd] .and. x[len(x)] == _aFil[1] })][nPosNec] := aColPro[oBrwPro:At()][nPosNec]
 						endif
 					endif
+				elseif entCent()
+					// Entrega centralizada (MV_X_PNC23): rateia a quantidade editada entre as filiais analisadas
+					if U_JSISPA( aColPro[oBrwPro:At()][nPosPrd] )
+						lSuccess := col2SC2()
+					endif
+					distNec( idxProd( aColPro[oBrwPro:nAt][nPosPrd] ), aColPro[oBrwPro:At()][nPosNec] )
 				endif
 			EndIf
 		ElseIf cField == "PRCNEGOC"					// Alteração no campo do valor negociado
@@ -4990,18 +4986,10 @@ User Function PCOMVLD()
 				aCarCom[ aScan( aCarCom, {|x| AllTrim( x[carPos('C7_PRODUTO')] ) == AllTrim( aColPro[ oBrwPro:nAt ][ nPosPrd ] ) } ) ][ carPos('PRECO') ] := aColPro[oBrwPro:nAt][nPosNeg]
 				aCarCom[ aScan( aCarCom, {|x| AllTrim( x[carPos('C7_PRODUTO')] ) == AllTrim( aColPro[ oBrwPro:nAt ][ nPosPrd ] ) } ) ][ carPos('TOTAL') ] := aColPro[oBrwPro:nAt][nPosNec] * aColPro[oBrwPro:nAt][nPosNeg]
 
-				for nX := 1 to len( _aFil )
-					nAux := aScan(_aProdFil,{|x| x[nPosPrd] == aColPro[ oBrwPro:nAt ][ nPosPrd ] .and. x[len(x)] == _aFil[nX] .and. x[nPosFor] == aColPro[ oBrwPro:nAt ][ nPosFor ] .and. x[nPosLoj] == aColPro[ oBrwPro:nAt ][ nPosLoj ] })
-					_aProdFil[ nAux ][nPosNeg] := aColPro[oBrwPro:At()][nPosNeg]
-				next nX
-
-				for nX := 1 to len( _aFil )
-					nAux := aScan(_aProdFil,{|x| x[nPosPrd] == aColPro[ oBrwPro:nAt ][ nPosPrd ] .and. x[len(x)] == _aFil[nX] })	
-					if aScan( aCarFil, {|x| x[carPos('C7_PRODUTO')] == aColPro[ oBrwPro:nAt ][ nPosPrd ] .and. x[len(x)] == _aFil[nX] } ) > 0 
-						aCarFil[ aScan( aCarFil, {|x| x[carPos('C7_PRODUTO')] == aColPro[ oBrwPro:nAt ][ nPosPrd ] .and. x[len(x)] == _aFil[nX] } ) ][carPos('PRECO')] := aColPro[oBrwPro:nAt][nPosNeg] 
-						aCarFil[ aScan( aCarFil, {|x| x[carPos('C7_PRODUTO')] == aColPro[ oBrwPro:nAt ][ nPosPrd ] .and. x[len(x)] == _aFil[nX] } ) ][carPos('TOTAL')] := aColPro[oBrwPro:nAt][nPosNeg] * _aProdFil[nAux][nPosNec]
-					endif
-				next nX
+				// Preço em todas as filiais do produto e nas linhas do produto no carrinho, com o total pela quantidade de cada
+				// linha (inclusive a linha única da entrega centralizada - MV_X_PNC23)
+				aEval( idxProd( aColPro[oBrwPro:nAt][nPosPrd] ), {|x| _aProdFil[x][nPosNeg] := aColPro[oBrwPro:nAt][nPosNeg] } )
+				carPrc( aColPro[oBrwPro:nAt][nPosPrd], aColPro[oBrwPro:nAt][nPosNeg] )
 
 			EndIf
 
@@ -5588,7 +5576,6 @@ User Function GMINDPRO( aParam )
 	Private aConfig  := {} as array
 	Private cZB3     := "" as character
 	Private _aFilters := {}
-	Private cZBM     := "" as character
 	Private _cPedSol := "" as character
 	Private cDictVer := "00" as character
 	Private cFornSM0 := "" as character
@@ -5673,19 +5660,14 @@ User Function GMINDPRO( aParam )
 
 	_aFilters[2] := PADR(aConfig[21],200,' ')					// pré-definições dos tipos de produtos a serem analisados
 	
-	// Valida existência da tabela ZBM
-	cZBM         := AllTrim( GetMV( 'MV_X_PNC16' ) )			// Tabela de perfis de cálculo
-	if !Empty( cZBM )
-		if !U_JSPERCHK()
-			Return Nil
-		endif
-	else
-		ConOut( 'GMINDPRO - '+ Time() +' - AUSENCIA DE CONFIGURACAO PARA A TABELA DE PERFIS DE CALCULO' )
+	// Perfis de cálculo (tabela interna PNC_PERFIL_<empresa>): migração do cadastro antigo e perfil padrão
+	if ! U_JSPFLCHK( .T. /* lAuto */ )
+		FWLogMsg( 'WARN', /*cTransactionId*/, 'SMARTSUPPLY', 'GMINDPRO', '', '01', 'GMINDPRO - '+ Time() +' - Perfis de cálculo indisponíveis: recálculo não executado' )
 		Return Nil
 	endif
 
-	// Define um perfil de cálculo padrão  
-	cPerfDef     := StrZero(1,TAMSX3(cZBM +'_ID')[1])
+	// Define um perfil de cálculo padrão
+	cPerfDef     := U_JSPFLDEF()
 	cPerfil      := cPerfDef
 
 	// Valida se existe o parâmetro configurado no ambiente
@@ -7284,7 +7266,8 @@ Static Function fCalNec( aInfPrd, cPerfil, lSkipLot )
 	cFormula := ""
 	HMGet( hFormula, cPerfil, @cFormula )
 	if Empty( cFormula )
-		cFormula := AllTrim( RetField( cZBM, 1, FWxFilial( cZBM ) + cPerfil, cZBM+'_FORMUL' ) )
+		// Fórmula do perfil no cadastro de perfis de cálculo (PNC_PERFIL), lida uma única vez por perfil
+		cFormula := U_JSPFLFRM( cPerfil )
 		HMSet( hFormula, cPerfil, cFormula )
 	endif
 	if Empty( cFormula )
@@ -7313,7 +7296,7 @@ Return ( nQtdCom )
 /*/{Protheus.doc} JSCALNEC
 Wrapper público do cálculo de necessidade de compra (fCalNec) para uso pelo motor de análise
 reversa de estruturas (U_JSREVEST). Pré-condição: deve ser chamado dentro da pilha de execução
-de U_GMINDPRO ou da tela U_GMPAICOM, pois o cálculo depende das variáveis Private cZBM e aConfig.
+de U_GMINDPRO ou da tela U_GMPAICOM, pois o cálculo depende da variável Private aConfig.
 @type function
 @version 20.0002
 @author Jean Carlos Pandolfo Saggin
@@ -7472,7 +7455,7 @@ Return ( nQtdGrp )
 /*/{Protheus.doc} JSFRMTXT
 Devolve a fórmula do perfil de cálculo em formato legível (descrições) ou como expressão
 avaliável (variáveis), para uso da tela Sequência de Cálculo (U_JSSEQCAL).
-Pré-condição: depende da variável Private cZBM (pilha de U_GMPAICOM/U_GMINDPRO).
+A fórmula vem do cadastro de perfis de cálculo (U_JSPFLFRM, tabela interna PNC_PERFIL).
 @type function
 @version 20.0002
 @author Jean Carlos Pandolfo Saggin
@@ -7489,166 +7472,12 @@ user function JSFRMTXT( cPerfilId, lVar )
 	default cPerfilId := ""
 	default lVar      := .F.
 
-	cFormula := AllTrim( RetField( cZBM, 1, FWxFilial( cZBM ) + cPerfilId, cZBM +'_FORMUL' ) )
+	cFormula := U_JSPFLFRM( cPerfilId )
 	if ! Empty( cFormula )
 		cFormTxt := fLoadCri( cFormula, lVar )
 	endif
 
 return cFormTxt
-
-/*/{Protheus.doc} JSDoFrml 
-Função de manutenção da fórmula de cálculo da necessidade de compra
-@type function
-@version 1.0
-@author Jean Carlos Pandolfo Saggin
-@since 09/04/2024
-@param cID, character, ID do perfil de cálculo
-@return character, cFormula
-/*/
-User Function JSDoFrml( cID, oDlg )
-	
-	Local oBtnAbP  := Nil
-	Local oBtnAdd  := Nil
-	Local oBtnDiv  := Nil
-	Local oBtnFeP  := Nil
-	Local oBtnMai  := Nil
-	Local oBtnMen  := Nil
-	Local oBtnVez  := Nil
-	Local oCboVar  := Nil
-	Local oFntFor  := TFont():New("Courier New", , 014, , .T., , , , , .F., .F.)
-	Local oGetFor  := Nil
-	Local oLblVar  := Nil
-	local cPerf    := "" as character
-	local cFormula := "" as character
-	local bOk      := {|| cFormula := fGrvCri( cPerf, cFormTmp ), iif( oDlg==Nil, oDlgCri:End(), Nil ) }
-	local bCancel  := {|| oDlgCri:End() }
-	local aButtons := {} as array
-	local oModel    as object
-	local oMaster   as object
-	local cZBM     := AllTrim(GetMV( 'MV_X_PNC16' ))
-	local cForm    := ""
-	local cCboVar  := ""
-	local cFormTmp := ""		// Formula temporária
-
-	Private oDlgCri  := Nil
-	
-	default oDlg := Nil
-
-	if !oDlg == Nil
-		oDlgCri  := oDlg
-		oModel   := FWModelActive()
-		oMaster  := oModel:GetModel( cZBM +'MASTER' )
-		cPerf    := oMaster:GetValue( cZBM +'_ID' )
-		cFormTmp := AllTrim( oMaster:GetValue( cZBM +'_FORMUL' ) )
-		cForm  := fLoadCri( oMaster:GetValue( cZBM +'_FORMUL' ) )
-	else
-		cFormTmp := AllTrim( RetField( cZBM, 1, FWxFilial( cZBM ) + cPerfil, cZBM +'_FORMUL' ) )
-		cForm  := fLoadCri( cFormTmp )
-		cPerf    := cID
-		DEFINE MSDIALOG oDlgCri TITLE "Critério de Compra - "+ AllTrim( RetField( cZBM, 1, FWxFilial( cZBM ) + cPerf, cZBM +"_DESC" ) ) FROM 000, 000 TO 175, 700 COLORS 0, 16777215 PIXEL
-	endif
-
-    @ 037, 006 SAY oLblVar PROMPT "Variáveis" SIZE 025, 007 OF oDlgCri COLORS 0, 16777215 PIXEL
-
-	oGetFor := TSay():New( 058, 004, {|u| cForm },oDlgCri,,oFntFor,,,,.T.,CLR_RED,CLR_WHITE,340,20)
-
-    @ 035, 032 MSCOMBOBOX oCboVar VAR cCboVar ITEMS fGetVar( 1 /*nOpc*/, @cCboVar ) SIZE 070, 013 OF oDlgCri  COLORS 0, 16777215 PIXEL
-    @ 035, 104 BUTTON oBtnAdd PROMPT "&Adicionar" SIZE 035, 012 OF oDlgCri ACTION {|| cForm := fManFor( 1 /*nOpc*/,, @cFormTmp, @cCboVar ), oGetFor:CtrlRefresh() } PIXEL
-    @ 035, 141 BUTTON oBtnRem PROMPT "&Remover" SIZE 035, 012 OF oDlgCri ACTION {|| cForm := fManFor( 2 /*nOpc*/,, @cFormTmp, @cCboVar ), oGetFor:CtrlRefresh() } PIXEL
-    @ 035, 350-(12*6)-(2*6) BUTTON oBtnAbP PROMPT "(" SIZE 012, 012 OF oDlgCri ACTION {|| cForm := fManFor( 3 /*nOpc*/, oBtnAbP:CCAPTION /*cOpc*/, @cFormTmp, @cCboVar ), oGetFor:CtrlRefresh() } PIXEL
-    @ 035, 350-(12*5)-(2*5) BUTTON oBtnFeP PROMPT ")" SIZE 012, 012 OF oDlgCri ACTION {|| cForm := fManFor( 3 /*nOpc*/, oBtnFeP:CCAPTION /*cOpc*/, @cFormTmp, @cCboVar ), oGetFor:CtrlRefresh() } PIXEL
-    @ 035, 350-(12*4)-(2*4) BUTTON oBtnMen PROMPT "-" SIZE 012, 012 OF oDlgCri ACTION {|| cForm := fManFor( 3 /*nOpc*/, oBtnMen:CCAPTION /*cOpc*/, @cFormTmp, @cCboVar ), oGetFor:CtrlRefresh() } PIXEL
-    @ 035, 350-(12*3)-(2*3) BUTTON oBtnMai PROMPT "+" SIZE 012, 012 OF oDlgCri ACTION {|| cForm := fManFor( 3 /*nOpc*/, oBtnMai:CCAPTION /*cOpc*/, @cFormTmp, @cCboVar ), oGetFor:CtrlRefresh() } PIXEL
-    @ 035, 350-(12*2)-(2*2) BUTTON oBtnDiv PROMPT "/" SIZE 012, 012 OF oDlgCri ACTION {|| cForm := fManFor( 3 /*nOpc*/, oBtnDiv:CCAPTION /*cOpc*/, @cFormTmp, @cCboVar ), oGetFor:CtrlRefresh() } PIXEL
-    @ 035, 350-(12*1)-(2*1) BUTTON oBtnVez PROMPT "x" SIZE 012, 012 OF oDlgCri ACTION {|| cForm := fManFor( 3 /*nOpc*/, "*" /*cOpc*/, @cFormTmp, @cCboVar ), oGetFor:CtrlRefresh() } PIXEL
-    
-	if oDlg == Nil
-    	ACTIVATE MSDIALOG oDlgCri CENTERED ON INIT EnchoiceBar( oDlgCri, bOk, bCancel,, aButtons )
-	endif
-	
-Return ( cFormula )
-
-/*/{Protheus.doc} fGrvCri
-Função responsável pela gravação da configuração do critério de compra
-@type function
-@version 1.0
-@author Jean Carlos Pandolfo Saggin
-@since 09/04/2024
-@param cFormula, character, formula de cálculo da necessidade de compra
-@return character, cFormula
-/*/
-Static Function fGrvCri( cID, cFormula )
-	
-	DBSelectArea( cZBM )
-	( cZBM )->( DBSetOrder( 1 ) )		// ID
-	if ( cZBM )->( DBSeek( FWxFilial( cZBM ) + cID ) )
-		RecLock( cZBM, .F. )
-		( cZBM )->( FieldPut( FieldPos( cZBM +'_FORMUL' ), cFormula ) )
-		( cZBM )->( MsUnlock() )
-	else
-		cFormula := ""
-	endif
-	
-Return ( cFormula )
- 
-*/
-/*/{Protheus.doc} fManFor
-Função que re torna as variáveis que poderão ser utilizadas na composição da fórmula de cálculo das necessidades de compra
-@type function
-@version 1.0
-@author Jean Carlos Pandolfo Saggin
-@since 2/25/2025
-@param nOpc, numeric, 1=Adiciona COnteúdo, 2=Remove Conteúdo ou 3=Adiciona Operador
-@param cOpc, character, Operador que será adicionado à fórmula
-@param cFormTmp, character, Formula atual (não visual)
-@param cCboVar, character, Conteúdo do combo de variáveis
-@return character, cFormulaVisual
-/*/
-Static Function fManFor( nOpc, cOpc, cFormTmp, cCboVar )
-	
-	Local aItens   := {}
-	Local cVar     := ""
-	Local nX       := 0
-	local cAux     := "" as character
-	local oModel   as object
-	local oMaster  as object
-	local lMVC     := FWIsInCallStack( 'U_JSPERCAL' )
-	local cZBM     := AllTrim( GetMv( 'MV_X_PNC16' ) )
-	
-	Default cOpc := ""
-
-	cAux := cFormTmp // Inicializa com conteúdo atual da fórmula
-	if nOpc == 1 .or. nOpc == 3				// Adicionar
-		cVar     := fGetVar(2, @cCboVar )[aScan( fGetVar(2, @cCboVar ), {|x| AllTrim(x[1]) == cCboVar } )][02]
-		cAux += iif( !Empty( cAux ), CSEPARA, "" ) + iif( !Empty( cOpc ), cOpc, cVar ) 
-	ElseIf nOpc == 2						// Remover
-		if !Empty( cAux )
-			aItens := StrTokArr( AllTrim( cAux ), CSEPARA )
-			If Len( aItens ) > 0
-				aDel( aItens, Len( aItens ) )
-				aSize( aItens, Len( aItens )-1 )
-			EndIf
-			cAux := ""
-			If Len( aItens ) > 0
-				For nX := 1 to Len( aItens )
-					cAux += iif( !Empty( cAux ), CSEPARA, "" ) + aItens[nX]
-				Next nX
-			EndIf
-		EndIf
-	EndIf
-	
-	cFormTmp := cAux
-	cAux := fLoadCri( cAux, Nil, @cCboVar )
-	if lMVC
-		oModel := FWModelActive()
-		// Checa operação para saber se deve atualizar o conteúdo da variável ou não
-		if oModel:GetOperation() == MODEL_OPERATION_INSERT .or. oModel:GetOperation() == MODEL_OPERATION_UPDATE
-			oMaster := oModel:GetModel( cZBM +'MASTER' )
-			oMaster:SetValue( cZBM +'_FORMUL', cFormTmp )
-		endif
-	endif
-
-Return ( cAux )
 
 /*/{Protheus.doc} fLoadCri
 Função de leitura e interpretação da fórmula de cálculo de necessidade de compra
@@ -7708,18 +7537,8 @@ Static Function fGetVar( nOpc, cCboVar )
 	Local aCbo := {}
 	Local bRet := Nil
 	 
-	aAdd( aVar, { 'Sld. Prod.'  , 'nQtdEst'         } )
-	aAdd( aVar, { 'Empenhado'   , 'nQtdEmp'         } )
-	aAdd( aVar, { 'Dias Pret.'  , 'nDias'           } )
-	aAdd( aVar, { 'L-Time'      , 'nLdTime'         } )
-	aAdd( aVar, { 'Dura. Est.'  , 'nPrjEst'         } )
-	aAdd( aVar, { 'Cons. Med.'  , 'nConMed'         } )
-	aAdd( aVar, { 'Lote Min.'   , 'nLotMin'         } )
-	aAdd( aVar, { 'Qtde Emb.'   , 'nQtdEmb'         } )
-	aAdd( aVar, { 'Qtde Comp.'  , 'nQtdPed'         } )
-	aAdd( aVar, { 'Estoq. Min.' , 'nEstSeg'         } )
-	aAdd( aVar, { 'Qtd. Solic.' , 'nQtdSol'         } )
-	aAdd( aVar, { 'Qtd. em O.P.', 'nQtdPrd'         } )
+	// Variáveis definidas junto do cadastro de perfis de cálculo (U_JSPFLVAR): { descrição, variável }
+	aEval( U_JSPFLVAR(), {|x| aAdd( aVar, { x[1], x[2] } ) } )
 	
 	aSort( aVar,,, { |x,y| x[01] < y[01] } )
 	aEval( aVar,{ |x| aAdd( aCbo, x[1] ) } )
@@ -7854,6 +7673,10 @@ Static Function fCarCom( cFor, cLoj, lRecalc )
 	
 	cGetDes := RetField( 'SE4', 1, xFilial( 'SE4' ) + cGetCon, 'E4_DESCRI' )
 	cTitulo := "CARRINHO DE COMPRAS" + iif( !Empty( cGetFor ), " - " + AllTrim( RetField( 'SA2', 1, xFilial( 'SA2' ) + cGetFor + cGetLoj, 'A2_NOME' ) ), '' )    
+	// Compra multi-filial com entrega centralizada (MV_X_PNC23): todo o carrinho é entregue na filial corrente
+	if entCent()
+		cTitulo += " - Entrega centralizada na filial "+ AllTrim( cFilAnt )
+	endif
 	
 	if cCboFrt == 'C'		// Transportadora
 		lUsaTrans  := SC7->( FieldPos( 'C7_X_TRANS' ) ) > 0 .and. X3Uso( GetSX3Cache( 'C7_X_TRANS', 'X3_USADO' ) )
@@ -7912,8 +7735,8 @@ Static Function fCarCom( cFor, cLoj, lRecalc )
 		oGetFor:bChange := {|| cGetCon := RetField( 'SA2', 1, xFilial( 'SA2' ) + cGetFor + cGetLoj, 'A2_COND' ),;
 							cGetDes := RetField( 'SE4', 1, xFilial( 'SE4' ) + cGetCon, 'E4_DESCRI' ),;
 							cGetMai := RetField( 'SA2', 1, xFilial( 'SA2' ) + cGetFor + cGetLoj, 'A2_EMAIL' ),;
-							cContat := RetField( 'SA2', 1, xFilial( 'SA2' ) + cGetFor + cGetLoj, 'A2_CONTATO' ),,;
-						ExecBlock( 'GMPAICOM01', .F., .F., @cGetCon, @cGetDes, cGetFor, cGetLoj, @aCarFil, @aHeaCar ),;
+							cContat := RetField( 'SA2', 1, xFilial( 'SA2' ) + cGetFor + cGetLoj, 'A2_CONTATO' ),;
+						peForCar( @cGetCon, @cGetDes, cGetFor, cGetLoj ),;
 							oGetCon:CtrlRefresh(),;
 							oGetDes:CtrlRefresh(),;
 							oGetMai:CtrlRefresh(),;
@@ -8185,7 +8008,8 @@ Static Function fReplica( aCbo, cCbo )
 	local nLin   := 0 as numeric
 	local nLinPro := 0 as numeric
 	local nProFil := 0 as numeric
-	local nQtdPro := 0 as numeric
+	local lCentral := entCent() as logical	// Compra multi-filial com entrega centralizada na filial corrente (MV_X_PNC23)
+	local nQtdUM1  := 0 as numeric
 	local nCbo    := aScan( aCbo, {|x| SubStr(x,1,len(cFilAnt)) == cCbo } )
 	
 	if oBrwCar != Nil .and. Len( oBrwCar:aCols ) > 0
@@ -8215,10 +8039,7 @@ Static Function fReplica( aCbo, cCbo )
 						oBrwCar:aCols[nX][ carPos( 'QTSEGUM' ) ] := ConvUM( oBrwCar:aCols[nX][carPos('C7_PRODUTO')], xInfo, 0, 2 )
 						aCarFil[nLin][ carPos( 'QUANT' ) ] := xInfo
 						aCarFil[nLin][ carPos( 'TOTAL' ) ] := oBrwCar:aCols[nX][ carPos( 'TOTAL' ) ]
-						_aProdFil[nProFil][nPosNec] := xInfo
-						nQtdPro := 0
-						aEval( _aProdFil, {|x| nQtdPro += iif( x[nPosPrd] == oBrwCar:aCols[nX][carPos('C7_PRODUTO')], x[nPosNec], 0 ) } )
-						aColPro[nPosNec] := nQtdPro
+						repQtd( oBrwCar:aCols[nX][carPos('C7_PRODUTO')], xInfo, nProFil, nLinPro, lCentral )
 
 					elseif cField == 'PRECO'
 						
@@ -8226,34 +8047,39 @@ Static Function fReplica( aCbo, cCbo )
 						oBrwCar:aCols[nX][ carPos( 'VALSEGUM' ) ] := iif( oBrwCar:aCols[nX][ carPos( 'QTSEGUM' ) ] > 0, oBrwCar:aCols[nX][ carPos( 'TOTAL' ) ] / oBrwCar:aCols[nX][ carPos( 'QTSEGUM' ) ], 0 )
 						aCarFil[nLin][ carPos( 'PRECO' ) ] := xInfo
 						aCarFil[nLin][ carPos( 'TOTAL' ) ] := oBrwCar:aCols[nX][ carPos( 'TOTAL' ) ]
-						_aProdFil[nProFil][nPosNeg] := xInfo
-						aColPro[nLinPro][nPosNeg] := xInfo
+						repPrc( nProFil, nLinPro, xInfo )
 
 					elseif cField == 'TOTAL'
 						oBrwCar:aCols[nX][ carPos( 'PRECO' ) ] := xInfo / oBrwCar:aCols[nX][ carPos( 'QUANT' ) ]
 						oBrwCar:aCols[nX][ carPos( 'VALSEGUM' ) ] := iif( oBrwCar:aCols[nX][ carPos( 'QTSEGUM' ) ] > 0, xInfo / oBrwCar:aCols[nX][ carPos( 'QTSEGUM' ) ], 0 )
 						aCarFil[nLin][ carPos( 'TOTAL' ) ] := xInfo
 						aCarFil[nLin][ carPos( 'PRECO' ) ] := oBrwCar:aCols[nX][ carPos( 'PRECO' ) ]
-						_aProdFil[nProFil][nPosNeg] := oBrwCar:aCols[nX][ carPos( 'PRECO' ) ]
-						aColPro[nLinPro][nPosNeg] := oBrwCar:aCols[nX][ carPos( 'PRECO' ) ]
+						repPrc( nProFil, nLinPro, oBrwCar:aCols[nX][ carPos( 'PRECO' ) ] )
 
 					elseif cField == 'VALSEGUM'
-						oBrwCar:aCols[nX][ colPos( 'TOTAL' ) ] := xInfo * oBrwCar:aCols[nX][ carPos( 'QTSEGUM' ) ]
-						oBrwCar:aCols[nX][ colPos( 'PRECO' ) ] := oBrwCar:aCols[nX][ colPos( 'TOTAL' ) ] / oBrwCar:aCols[nX][ carPos( 'QUANT' ) ]
-						aCarFil[nLin][ carPos( 'TOTAL' ) ] := oBrwCar:aCols[nX][ colPos( 'TOTAL' ) ]
-						aCarFil[nLin][ carPos( 'PRECO' ) ] := oBrwCar:aCols[nX][ colPos( 'PRECO' ) ]
-						_aProdFil[nProFil][nPosNeg] := oBrwCar:aCols[nX][ carPos( 'PRECO' ) ]
-						aColPro[nLinPro][nPosNeg] := oBrwCar:aCols[nX][ carPos( 'PRECO' ) ]
+						// Mesmos cálculos da edição da célula (U_FMANCAR)
+						oBrwCar:aCols[nX][ carPos( 'TOTAL' ) ] := xInfo * oBrwCar:aCols[nX][ carPos( 'QTSEGUM' ) ]
+						if oBrwCar:aCols[nX][ carPos( 'QUANT' ) ] > 0
+							oBrwCar:aCols[nX][ carPos( 'PRECO' ) ] := oBrwCar:aCols[nX][ carPos( 'TOTAL' ) ] / oBrwCar:aCols[nX][ carPos( 'QUANT' ) ]
+						endif
+						aCarFil[nLin][ carPos( 'VALSEGUM' ) ] := xInfo
+						aCarFil[nLin][ carPos( 'TOTAL' ) ] := oBrwCar:aCols[nX][ carPos( 'TOTAL' ) ]
+						aCarFil[nLin][ carPos( 'PRECO' ) ] := oBrwCar:aCols[nX][ carPos( 'PRECO' ) ]
+						repPrc( nProFil, nLinPro, oBrwCar:aCols[nX][ carPos( 'PRECO' ) ] )
 
 					elseif cField == 'QTSEGUM'
-						oBrwCar:aCols[nX][ colPos( 'TOTAL' ) ] := xInfo * oBrwCar:aCols[nX][ carPos( 'VALSEGUM' ) ]
-						oBrwCar:aCols[nX][ colPos( 'QUANT' ) ] := oBrwCar:aCols[nX][ colPos( 'TOTAL' ) ] / oBrwCar:aCols[nX][ carPos( 'VALSEGUM' ) ]
-						aCarFil[nLin][ colPos( 'TOTAL' ) ] := oBrwCar:aCols[nX][ colPos( 'TOTAL' ) ]
-						aCarFil[nLin][ colPos( 'QUANT' ) ] := oBrwCar:aCols[nX][ colPos( 'QUANT' ) ]
-						_aProdFil[nProFil][nPosNec] := oBrwCar:aCols[nX][ colPos( 'QUANT' ) ]
-						nQtdPro := 0
-						aEval( _aProdFil, {|x| nQtdPro += iif( x[nPosPrd] == oBrwCar:aCols[nX][carPos('C7_PRODUTO')], x[6], 0 ) } )
-						aColPro[nPosNec] := nQtdPro
+						// Mesma conversão da edição da célula (U_FMANCAR): quantidade na 1a unidade pelo fator de conversão do produto
+						nQtdUM1 := ConvUM( oBrwCar:aCols[nX][carPos('C7_PRODUTO')], xInfo, xInfo, 1 )
+						oBrwCar:aCols[nX][ carPos( 'QUANT' ) ] := nQtdUM1
+						oBrwCar:aCols[nX][ carPos( 'TOTAL' ) ] := nQtdUM1 * oBrwCar:aCols[nX][ carPos( 'PRECO' ) ]
+						if xInfo > 0
+							oBrwCar:aCols[nX][ carPos( 'VALSEGUM' ) ] := oBrwCar:aCols[nX][ carPos( 'TOTAL' ) ] / xInfo
+						endif
+						aCarFil[nLin][ carPos( 'QTSEGUM' ) ] := xInfo
+						aCarFil[nLin][ carPos( 'QUANT' ) ] := nQtdUM1
+						aCarFil[nLin][ carPos( 'TOTAL' ) ] := oBrwCar:aCols[nX][ carPos( 'TOTAL' ) ]
+						aCarFil[nLin][ carPos( 'VALSEGUM' ) ] := oBrwCar:aCols[nX][ carPos( 'VALSEGUM' ) ]
+						repQtd( oBrwCar:aCols[nX][carPos('C7_PRODUTO')], nQtdUM1, nProFil, nLinPro, lCentral )
 
 					endif
 
@@ -8318,7 +8144,7 @@ Static Function fGrvPed( oCbo, aCbo, cCbo, cFornece, cLoja )
 	local aProdOk  := {} as array
 	local cProdOk  := "" as character
 	local nQtdOk   := 0  as numeric
-	local nAchOk   := 0  as numeric
+	local lCentral := entCent() as logical		// Compra multi-filial com entrega centralizada na filial corrente (MV_X_PNC23)
 	local cFilOk   := "" as character
 	
 	Private lMsErroAuto := .F.
@@ -8328,6 +8154,11 @@ Static Function fGrvPed( oCbo, aCbo, cCbo, cFornece, cLoja )
 		hlp( 'A T E N Ç Ã O ',;
 			'Existem informações inconsistentes e/ou que não foram preenchidas corretamente.',;
 			'Revise os dados do carrinho de compras e tente novamente.' )
+		Return .F.
+	endif
+	// Entrega centralizada (MV_X_PNC23) com o cálculo individual por filial: o usuário confirma, ciente do risco de
+	// compra em dobro, antes de gerar o pedido/solicitação
+	if ! avEntCen( .T. )
 		Return .F.
 	endif
 
@@ -8490,12 +8321,8 @@ Static Function fGrvPed( oCbo, aCbo, cCbo, cFornece, cLoja )
 					for nX := 1 to len( aIte )
 						cProdOk := aIte[nX][ aScan( aIte[nX], {|y| AllTrim(y[1]) == "C7_PRODUTO" } ) ][2]
 						nQtdOk  := aIte[nX][ aScan( aIte[nX], {|y| AllTrim(y[1]) == "C7_QUANT"   } ) ][2]
-						nAchOk  := aScan( aProdOk, {|x| x[1] == cProdOk .and. x[3] == cFilOk } )
-						if nAchOk > 0
-							aProdOk[nAchOk][2] += nQtdOk
-						else
-							aAdd( aProdOk, { cProdOk, nQtdOk, cFilOk } )
-						endif
+						// Na entrega centralizada (MV_X_PNC23) a quantidade é separada entre as filiais analisadas, na proporção da demanda
+						addPrdOk( aProdOk, cProdOk, nQtdOk, cFilOk, lCentral )
 					next nX
 
 					if MsgYesNo( 'Pedido de compra número <b>'+ SC7->C7_NUM +'</b> gerado com SUCESSO!'+;
@@ -8594,12 +8421,8 @@ Static Function fGrvPed( oCbo, aCbo, cCbo, cFornece, cLoja )
 					for nX := 1 to len( aIte )
 						cProdOk := aIte[nX][ aScan( aIte[nX], {|y| AllTrim(y[1]) == "C1_PRODUTO" } ) ][2]
 						nQtdOk  := aIte[nX][ aScan( aIte[nX], {|y| AllTrim(y[1]) == "C1_QUANT"   } ) ][2]
-						nAchOk  := aScan( aProdOk, {|x| x[1] == cProdOk .and. x[3] == cFilOk } )
-						if nAchOk > 0
-							aProdOk[nAchOk][2] += nQtdOk
-						else
-							aAdd( aProdOk, { cProdOk, nQtdOk, cFilOk } )
-						endif
+						// Na entrega centralizada (MV_X_PNC23) a quantidade é separada entre as filiais analisadas, na proporção da demanda
+						addPrdOk( aProdOk, cProdOk, nQtdOk, cFilOk, lCentral )
 					next nX
 
 					aAuxWF   := U_JSWFSOL()
@@ -8828,6 +8651,9 @@ Static Function fAtuPosPed( aProds )
 			else
 				_aProdFil[nAchF][nPosSol] += aProds[nX][2]
 			endif
+			// Recalcula a sugestão da filial com o pedido/solicitação incluído (no modo individual por filial, fGrpCalNec
+			// soma a sugestão de cada filial, que sem o recálculo voltaria com o valor anterior à inclusão)
+			recFilNec( nAchF )
 		endif
 
 		fRecalcNec( nAch )
@@ -8964,6 +8790,8 @@ Static Function fAtuLinPed( cProduto, cTipo, aSaldoFil )
 			else
 				_aProdFil[nAchF][nPosSol] := aSaldoFil[nX][2]
 			endif
+			// Recalcula a sugestão da filial com o novo saldo em aberto (mesmo motivo de fAtuPosPed)
+			recFilNec( nAchF )
 		endif
 	next nX
 
@@ -9823,6 +9651,11 @@ static function prodFilter( aFiltros, lManual, lTrad )
 				aEval( aCarCom, {|x| checkForn( x[carPos('C7_FORNECE')], x[carPos('C7_LOJA')] ) } )
 				oBrwFor:UpdateBrowse()
 				aCarFil   := loadSaved( 'carrinho_filial' )
+				// Processo retomado com a entrega centralizada da compra multi-filial (MV_X_PNC23): reúne na filial corrente as
+				// linhas do carrinho que tenham sido separadas por filial
+				if entCent()
+					cenCar()
+				endif
 				return _aFilters
 			else
 				// Elimina arquivo temporário para usuário dar início em um novo processo
@@ -11095,7 +10928,7 @@ static function userFil( aSelected )
 	local oBrwFil as object
 	local oDlgFil as object
 	local aBrwFil  := getFilData( aSelected )
-	local bOk      := {|| aSelected := getSelected( aBrwFil ), oDlgFil:End() }
+	local bOk      := {|| aSelected := getSelected( aBrwFil ), filPrefSv( aSelected ), oDlgFil:End() }
 	local bCancel  := {|| oDlgFil:End() }
 	local aButtons := {} as array
 	local binit    := {|| EnchoiceBar( oDlgFil, bOk, bCancel,,@aButtons ) }
@@ -11153,6 +10986,91 @@ static function getSelected( aBrwFil )
 		endif
 	next nFilial
 return aSelected
+
+/*/{Protheus.doc} filPrefCh
+Chave das filiais da análise nas preferências do usuário: uma escolha por empresa e filial de acesso
+@type function
+@version 26.0002
+@author Jean Carlos Pandolfo Saggin
+@since 30/10/2026
+@return character, cChave
+/*/
+static function filPrefCh()
+return 'FILIAIS_'+ cEmpAnt +'_'+ AllTrim( cFilAnt )
+
+/*/{Protheus.doc} filPrefLd
+Lê das preferências do usuário as filiais escolhidas na última análise (por empresa e filial de acesso), mantendo
+apenas as que ainda existem na empresa. Sem escolha gravada, ou sem nenhuma filial válida, devolve a filial corrente
+@type function
+@version 26.0002
+@author Jean Carlos Pandolfo Saggin
+@since 30/10/2026
+@param oPrefs, object, preferências do usuário (U_JSLDPREF)
+@return array, aFilSel - filiais pré-selecionadas para a análise
+/*/
+static function filPrefLd( oPrefs )
+
+	local aFilSel := {} as array
+	local aSalvas := {} as array
+	local aFilEmp := {} as array
+	local cChave  := filPrefCh() as character
+	local nPos    := 0 as numeric
+	local nX      := 0 as numeric
+
+	if ValType( oPrefs ) == 'J' .and. oPrefs:hasProperty( cChave ) .and. ValType( oPrefs[cChave] ) == 'A'
+		aSalvas := oPrefs[cChave]
+		aFilEmp := getFilData( {} )
+		for nX := 1 to len( aSalvas )
+			if ValType( aSalvas[nX] ) == 'C'
+				nPos := aScan( aFilEmp, {|x| x[2] == AllTrim( aSalvas[nX] ) } )
+				if nPos > 0 .and. aScan( aFilSel, {|x| x == aFilEmp[nPos][2] } ) == 0
+					aAdd( aFilSel, aFilEmp[nPos][2] )
+				endif
+			endif
+		next nX
+	endif
+
+	if len( aFilSel ) == 0
+		aFilSel := { cFilAnt }
+	endif
+
+return aFilSel
+
+/*/{Protheus.doc} filPrefSv
+Grava nas preferências do usuário as filiais escolhidas para a análise (por empresa e filial de acesso), para que
+venham pré-selecionadas na próxima abertura da rotina. Atualiza também as preferências em memória (oUsrPref), que
+são regravadas pela configuração do tamanho das colunas (U_JSPREFSV). Uma falha na gravação só é registrada no log
+do servidor, sem interromper a análise
+@type function
+@version 26.0002
+@author Jean Carlos Pandolfo Saggin
+@since 30/10/2026
+@param aFilSel, array, filiais selecionadas
+@return logical, lSuccess
+/*/
+static function filPrefSv( aFilSel )
+
+	local lSuccess := .F. as logical
+	local oPrefs   as object
+	local cPath    := U_JSPATHSV( 2 ) as character
+	local xResult
+
+	if Type( 'oUsrPref' ) != 'U' .and. ValType( oUsrPref ) == 'J'
+		oPrefs := oUsrPref
+	else
+		oPrefs := U_JSLDPREF()
+	endif
+
+	if ! Empty( cPath )
+		oPrefs[ filPrefCh() ] := aClone( aFilSel )
+		xResult  := oPrefs:toJsonFile( cPath )
+		lSuccess := ! ValType( xResult ) == 'C'
+		if ! lSuccess
+			FWLogMsg( 'WARN', /*cTransactionId*/, 'SMARTSUPPLY', 'GMPAICOM', '', '01', 'Filiais da análise não gravadas nas preferências do usuário: '+ xResult )
+		endif
+	endif
+
+return lSuccess
 
 /*/{Protheus.doc} JSCOLPRO
 Função para retornar colunas do browse de produtos
@@ -11989,8 +11907,9 @@ user function PCOMPRE(oBrw, oCol, cPre )
 
 	if oBrwPro:GetColumn(oBrwPro:ColPos()):GetID() == 'NECCOMP'
 		
-		// Quando a compra não for multi-filial, permite a edição diretamente no grid principal
-		if len( _aFil ) == 1 .and. _aFil[1] == cFilAnt
+		// Quando a compra não for multi-filial, ou for multi-filial com entrega centralizada na filial corrente
+		// (MV_X_PNC23), permite a edição diretamente no grid principal
+		if ( len( _aFil ) == 1 .and. _aFil[1] == cFilAnt ) .or. entCent()
 			lCanEdit := .T.
 		else
 			// Cria subvetor editável apenas com o produto selecionado
@@ -12658,6 +12577,10 @@ static function dataProdUpd( oBrw, cCbo )
 	local oSomOtr  := HMNew()	// _aProdFil (demais filiais): chave produto -> soma de nPosNec
 	local oIdxCol  := HMNew()	// aColPro: chave produto -> posicao
 	local oIdxFul  := HMNew()	// aFullPro: chave produto -> posicao
+	local lCentral := entCent() as logical	// Compra multi-filial com entrega centralizada na filial corrente (MV_X_PNC23)
+	local oIdxPrd  := HMNew()	// _aProdFil (entrega centralizada): chave produto -> posição do grupo em aGrpIdx
+	local aGrpIdx  := {} as array	// Posições de cada produto em _aProdFil, uma por filial (entrega centralizada)
+	local nGrp     := 0 as numeric
 
 	if len( aCols ) > 0
 		
@@ -12669,7 +12592,17 @@ static function dataProdUpd( oBrw, cCbo )
 		next nZ
 
 		for nZ := 1 to len( _aProdFil )
-			if _aProdFil[nZ][len(_aProdFil[nZ])] == cCbo
+			if lCentral
+				// Entrega centralizada: posições de todas as filiais do produto, para o rateio da quantidade da linha única
+				nGrp := 0
+				HMGet( oIdxPrd, _aProdFil[nZ][nPosPrd], @nGrp )
+				if nGrp == 0
+					aAdd( aGrpIdx, {} )
+					nGrp := len( aGrpIdx )
+					HMSet( oIdxPrd, _aProdFil[nZ][nPosPrd], nGrp )
+				endif
+				aAdd( aGrpIdx[nGrp], nZ )
+			elseif _aProdFil[nZ][len(_aProdFil[nZ])] == cCbo
 				HMSet( oIdxPFl, _aProdFil[nZ][nPosPrd], nZ )
 			else
 				nSomOtr := 0
@@ -12726,18 +12659,31 @@ static function dataProdUpd( oBrw, cCbo )
 				aCarFil[nAux][carPos('VALSEGUM')]   := nValSeg
 			endif
 
-			// Ajusta o vetor que armazena dados do produto x filial
-			nAux := 0
-			HMGet( oIdxPFl, cProduto, @nAux )
-			if nAux > 0 
-				_aProdFil[nAux][nPosNec] := nQuant		
-				_aProdFil[nAux][nPosNeg] := nValue
-			endif
+			if lCentral
+				// Entrega centralizada (MV_X_PNC23): a linha do carrinho (filial corrente) tem a quantidade total do produto,
+				// rateada entre as filiais analisadas para manter a soma por filial igual ao total exibido na grid
+				nGrp := 0
+				HMGet( oIdxPrd, cProduto, @nGrp )
+				if nGrp > 0
+					distNec( aGrpIdx[nGrp], nQuant )
+					for nZ := 1 to len( aGrpIdx[nGrp] )
+						_aProdFil[ aGrpIdx[nGrp][nZ] ][nPosNeg] := nValue
+					next nZ
+				endif
+			else
+				// Ajusta o vetor que armazena dados do produto x filial
+				nAux := 0
+				HMGet( oIdxPFl, cProduto, @nAux )
+				if nAux > 0 
+					_aProdFil[nAux][nPosNec] := nQuant		
+					_aProdFil[nAux][nPosNeg] := nValue
+				endif
 
-			// Soma quantidade geral por produto a ser comprado (esta filial + soma pre-calculada das demais)
-			nSomOtr := 0
-			HMGet( oSomOtr, cProduto, @nSomOtr )
-			nQuant := nSomOtr + nQuant
+				// Soma quantidade geral por produto a ser comprado (esta filial + soma pre-calculada das demais)
+				nSomOtr := 0
+				HMGet( oSomOtr, cProduto, @nSomOtr )
+				nQuant := nSomOtr + nQuant
+			endif
 
 			// Verifica se consegue encontrar o produto no vetor de produtos
 			nAux := 0
@@ -12768,6 +12714,663 @@ static function dataProdUpd( oBrw, cCbo )
 	endif
 
 	oBrwPro:UpdateBrowse()
+
+return Nil
+
+/*/{Protheus.doc} entCent
+Indica se a análise corrente usa a entrega centralizada da compra multi-filial: parâmetro MV_X_PNC23 igual a 2 na
+filial de acesso e seleção de filiais diferente de apenas a própria filial de acesso. Nesse modo o carrinho recebe uma
+única linha por produto, na filial corrente, com a demanda somada de todas as filiais selecionadas, e a quantidade
+sugerida é editada direto na grid principal. Fora dele (padrão), cada filial recebe a sua própria demanda
+@type function
+@version 26.0001
+@author Jean Carlos Pandolfo Saggin
+@since 30/10/2026
+@return logical, lCentral - .T. quando a entrega está centralizada na filial corrente
+/*/
+static function entCent()
+
+	local lCentral := .F. as logical
+
+	if Type( 'lEntCen' ) == 'L' .and. Type( '_aFil' ) == 'A'
+		if lEntCen
+			lCentral := ! ( len( _aFil ) == 1 .and. _aFil[1] == cFilAnt )
+		endif
+	endif
+
+return lCentral
+
+/*/{Protheus.doc} idxProd
+Posições do produto no vetor de produtos por filial (_aProdFil), uma por filial analisada
+@type function
+@version 26.0001
+@author Jean Carlos Pandolfo Saggin
+@since 30/10/2026
+@param cProduto, character, código do produto
+@return array, aIdx
+/*/
+static function idxProd( cProduto )
+
+	local aIdx := {} as array
+	local nX   := 0 as numeric
+
+	for nX := 1 to len( _aProdFil )
+		if _aProdFil[nX][nPosPrd] == cProduto
+			aAdd( aIdx, nX )
+		endif
+	next nX
+
+return aIdx
+
+/*/{Protheus.doc} pesoNec
+Pesos para ratear uma quantidade do produto entre as filiais: a sugestão de compra atual de cada filial ou, quando
+todas estiverem zeradas, o consumo médio de cada uma (zero quando não houver nenhum dos dois)
+@type function
+@version 26.0001
+@author Jean Carlos Pandolfo Saggin
+@since 30/10/2026
+@param aIdx, array, posições do produto em _aProdFil (idxProd)
+@return array, aPeso
+/*/
+static function pesoNec( aIdx )
+
+	local aPeso   := {} as array
+	local nSomPes := 0 as numeric
+	local nX      := 0 as numeric
+
+	for nX := 1 to len( aIdx )
+		aAdd( aPeso, Max( _aProdFil[ aIdx[nX] ][nPosNec], 0 ) )
+		nSomPes += aPeso[nX]
+	next nX
+
+	if nSomPes == 0
+		for nX := 1 to len( aIdx )
+			aPeso[nX] := Max( _aProdFil[ aIdx[nX] ][nPosCon], 0 )
+		next nX
+	endif
+
+return aPeso
+
+/*/{Protheus.doc} ratQtd
+Rateia uma quantidade proporcionalmente aos pesos, com duas casas decimais (mesmo critério de fGrpCalNec): item de
+peso zero não recebe parte e a diferença de arredondamento vai para a maior parte, fechando a soma com o total
+@type function
+@version 26.0001
+@author Jean Carlos Pandolfo Saggin
+@since 30/10/2026
+@param aPeso, array, pesos (pesoNec)
+@param nTotal, numeric, quantidade a ratear
+@return array, aParte - parte de cada peso (vazio quando a soma dos pesos for zero)
+/*/
+static function ratQtd( aPeso, nTotal )
+
+	local aParte  := {} as array
+	local nSomPes := 0 as numeric
+	local nSoma   := 0 as numeric
+	local nMaior  := 0 as numeric
+	local nX      := 0 as numeric
+
+	for nX := 1 to len( aPeso )
+		nSomPes += aPeso[nX]
+	next nX
+
+	if nSomPes > 0
+		for nX := 1 to len( aPeso )
+			aAdd( aParte, Round( nTotal * aPeso[nX] / nSomPes, 2 ) )
+			nSoma += aParte[nX]
+			if aPeso[nX] > 0 .and. ( nMaior == 0 .or. aParte[nX] > aParte[nMaior] )
+				nMaior := nX
+			endif
+		next nX
+		aParte[nMaior] += nTotal - nSoma
+	endif
+
+return aParte
+
+/*/{Protheus.doc} distNec
+Rateia a quantidade total de compra do produto entre as suas filiais em _aProdFil (entrega centralizada), na proporção
+da demanda de cada uma, mantendo a soma por filial igual ao total da grid e do carrinho - é essa soma que a grid,
+a tela de quantidades por filial e o recálculo da sugestão (fGrpCalNec) usam. Sem demanda nem consumo em nenhuma
+filial, a quantidade fica na filial corrente (ou na primeira filial do produto)
+@type function
+@version 26.0001
+@author Jean Carlos Pandolfo Saggin
+@since 30/10/2026
+@param aIdx, array, posições do produto em _aProdFil (idxProd)
+@param nTotal, numeric, quantidade total do produto
+/*/
+static function distNec( aIdx, nTotal )
+
+	local aParte := {} as array
+	local nSoma  := 0 as numeric
+	local nAlvo  := 0 as numeric
+	local nX     := 0 as numeric
+
+	for nX := 1 to len( aIdx )
+		nSoma += _aProdFil[ aIdx[nX] ][nPosNec]
+	next nX
+
+	// Soma por filial já igual ao total: nada a redistribuir
+	if len( aIdx ) > 0 .and. Abs( nSoma - nTotal ) >= 0.005
+		aParte := ratQtd( pesoNec( aIdx ), nTotal )
+		if len( aParte ) == 0
+			for nX := 1 to len( aIdx )
+				aAdd( aParte, 0 )
+				if nAlvo == 0 .and. AllTrim( _aProdFil[ aIdx[nX] ][ len( _aProdFil[ aIdx[nX] ] ) ] ) == AllTrim( cFilAnt )
+					nAlvo := nX
+				endif
+			next nX
+			if nAlvo == 0
+				nAlvo := 1
+			endif
+			aParte[nAlvo] := nTotal
+		endif
+		for nX := 1 to len( aIdx )
+			_aProdFil[ aIdx[nX] ][nPosNec] := aParte[nX]
+		next nX
+	endif
+
+return Nil
+
+/*/{Protheus.doc} filQtd
+Separa por filial a quantidade de um produto incluída em pedido/solicitação com entrega centralizada, na proporção da
+demanda de cada filial analisada, para que a atualização da grid após a inclusão (fAtuPosPed) abata de cada filial a
+sua parte. Sem demanda nem consumo nas filiais, a quantidade fica toda na filial de entrega
+@type function
+@version 26.0001
+@author Jean Carlos Pandolfo Saggin
+@since 30/10/2026
+@param cProduto, character, código do produto
+@param nQtd, numeric, quantidade incluída
+@param cFilEnt, character, filial de entrega (filial corrente)
+@return array, aPartes - { { cFilial, nQtd }, ... }
+/*/
+static function filQtd( cProduto, nQtd, cFilEnt )
+
+	local aIdx    := idxProd( cProduto ) as array
+	local aParte  := ratQtd( pesoNec( aIdx ), nQtd ) as array
+	local aPartes := {} as array
+	local nX      := 0 as numeric
+
+	for nX := 1 to len( aParte )
+		if aParte[nX] != 0
+			aAdd( aPartes, { _aProdFil[ aIdx[nX] ][ len( _aProdFil[ aIdx[nX] ] ) ], aParte[nX] } )
+		endif
+	next nX
+
+	if len( aPartes ) == 0
+		aPartes := { { cFilEnt, nQtd } }
+	endif
+
+return aPartes
+
+/*/{Protheus.doc} addPrdOk
+Acumula um produto incluído com sucesso em pedido/solicitação no vetor usado para atualizar a grid sem nova consulta
+(fAtuPosPed). Na entrega centralizada, a quantidade é separada entre as filiais analisadas (filQtd)
+@type function
+@version 26.0001
+@author Jean Carlos Pandolfo Saggin
+@since 30/10/2026
+@param aProdOk, array, (referência) vetor { cProduto, nQtd, cFilial }
+@param cProduto, character, código do produto
+@param nQtd, numeric, quantidade incluída
+@param cFilOk, character, filial do pedido/solicitação
+@param lCentral, logical, entrega centralizada na filial corrente (MV_X_PNC23)
+/*/
+static function addPrdOk( aProdOk, cProduto, nQtd, cFilOk, lCentral )
+
+	local aPartes := {} as array
+	local nAch    := 0 as numeric
+	local nX      := 0 as numeric
+
+	if lCentral
+		aPartes := filQtd( cProduto, nQtd, cFilOk )
+	else
+		aPartes := { { cFilOk, nQtd } }
+	endif
+
+	for nX := 1 to len( aPartes )
+		nAch := aScan( aProdOk, {|x| x[1] == cProduto .and. x[3] == aPartes[nX][1] } )
+		if nAch > 0
+			aProdOk[nAch][2] += aPartes[nX][2]
+		else
+			aAdd( aProdOk, { cProduto, aPartes[nX][2], aPartes[nX][1] } )
+		endif
+	next nX
+
+return Nil
+
+/*/{Protheus.doc} cenLin
+Posição da linha única do produto no carrinho por filial (aCarFil) na entrega centralizada (filial corrente)
+@type function
+@version 26.0001
+@author Jean Carlos Pandolfo Saggin
+@since 30/10/2026
+@param cProduto, character, código do produto
+@return numeric, nLin - zero quando o produto não está no carrinho da filial corrente
+/*/
+static function cenLin( cProduto )
+return aScan( aCarFil, {|x| x[carPos('C7_PRODUTO')] == cProduto .and. AllTrim( x[len(x)] ) == AllTrim( cFilAnt ) } )
+
+/*/{Protheus.doc} carSeg
+Recalcula a segunda unidade de medida (quantidade e valor) de uma linha do carrinho por filial (aCarFil)
+@type function
+@version 26.0001
+@author Jean Carlos Pandolfo Saggin
+@since 30/10/2026
+@param nLin, numeric, posição da linha em aCarFil
+/*/
+static function carSeg( nLin )
+
+	local nQtdSeg := ConvUM( aCarFil[nLin][carPos('C7_PRODUTO')], aCarFil[nLin][carPos('QUANT')], 0 /* nQtdSeg */, 2 /* nRetQtd */ ) as numeric
+
+	aCarFil[nLin][carPos('QTSEGUM')] := nQtdSeg
+	if nQtdSeg > 0
+		aCarFil[nLin][carPos('VALSEGUM')] := Round( aCarFil[nLin][carPos('TOTAL')] / nQtdSeg, 2 )
+	else
+		aCarFil[nLin][carPos('VALSEGUM')] := 0
+	endif
+
+return Nil
+
+/*/{Protheus.doc} carAdd
+Inclui a demanda do produto na linha do carrinho de uma filial (aCarFil): soma na linha que o produto já tiver nessa
+filial ou cria a linha a partir da linha consolidada do carrinho (aCarCom). Usada na entrega distribuída (uma linha por
+filial) e na centralizada (MV_X_PNC23, linha única na filial corrente), sem nunca duplicar o produto numa filial
+@type function
+@version 26.0004
+@author Jean Carlos Pandolfo Saggin
+@since 30/10/2026
+@param aBase, array, linha consolidada do produto no carrinho (aCarCom), modelo da nova linha
+@param nQtd, numeric, quantidade a incluir (demanda da filial ou, na entrega centralizada, somada das filiais)
+@param nPreco, numeric, preço negociado da quantidade incluída (zero mantém o preço da linha)
+@param cFilEnt, character, filial da linha do carrinho (na entrega centralizada, a filial corrente)
+/*/
+static function carAdd( aBase, nQtd, nPreco, cFilEnt )
+
+	local nLin    := aScan( aCarFil, {|x| x[carPos('C7_PRODUTO')] == aBase[carPos('C7_PRODUTO')] .and. AllTrim( x[len(x)] ) == AllTrim( cFilEnt ) } ) as numeric
+	local aLinFil := {} as array
+
+	if nLin > 0
+		if nPreco <= 0
+			nPreco := aCarFil[nLin][carPos('PRECO')]
+		endif
+		aCarFil[nLin][carPos('TOTAL')] += nQtd * nPreco
+		aCarFil[nLin][carPos('QUANT')] += nQtd
+		aCarFil[nLin][carPos('PRECO')] := aCarFil[nLin][carPos('TOTAL')] / aCarFil[nLin][carPos('QUANT')]
+	else
+		aLinFil := aClone( aBase )
+		aLinFil[carPos('QUANT')] := nQtd
+		aLinFil[carPos('TOTAL')] := nQtd * aLinFil[carPos('PRECO')]
+		if ! Empty( aConfig[26] )
+			aLinFil[carPos('C7_LOCAL')] := aConfig[26]
+		else
+			aLinFil[carPos('C7_LOCAL')] := RetField( 'SB1', 1, FWxFilial( 'SB1' ) + aLinFil[carPos('C7_PRODUTO')], 'B1_LOCPAD' )
+		endif
+		aAdd( aLinFil, cFilEnt )
+		aAdd( aCarFil, aLinFil )
+		nLin := len( aCarFil )
+	endif
+
+	carSeg( nLin )
+
+return Nil
+
+/*/{Protheus.doc} cenQtd
+Atualiza a quantidade da linha única do produto no carrinho da filial corrente (entrega centralizada)
+@type function
+@version 26.0001
+@author Jean Carlos Pandolfo Saggin
+@since 30/10/2026
+@param cProduto, character, código do produto
+@param nQtd, numeric, quantidade total do produto
+/*/
+static function cenQtd( cProduto, nQtd )
+
+	local nLin := cenLin( cProduto ) as numeric
+
+	if nLin > 0
+		aCarFil[nLin][carPos('QUANT')] := nQtd
+		aCarFil[nLin][carPos('TOTAL')] := nQtd * aCarFil[nLin][carPos('PRECO')]
+		carSeg( nLin )
+	endif
+
+return Nil
+
+/*/{Protheus.doc} carPrc
+Atualiza o preço do produto em todas as suas linhas do carrinho por filial (aCarFil), recalculando o total e a segunda
+unidade com a quantidade de cada linha (na entrega centralizada - MV_X_PNC23 - é a linha única da filial corrente)
+@type function
+@version 26.0004
+@author Jean Carlos Pandolfo Saggin
+@since 30/10/2026
+@param cProduto, character, código do produto
+@param nPreco, numeric, preço negociado
+/*/
+static function carPrc( cProduto, nPreco )
+
+	local nLin := 0 as numeric
+
+	for nLin := 1 to len( aCarFil )
+		if aCarFil[nLin][carPos('C7_PRODUTO')] == cProduto
+			aCarFil[nLin][carPos('PRECO')] := nPreco
+			aCarFil[nLin][carPos('TOTAL')] := nPreco * aCarFil[nLin][carPos('QUANT')]
+			carSeg( nLin )
+		endif
+	next nLin
+
+return Nil
+
+static function cenGrd( cProduto, nQtd )
+
+	local nPos := 0 as numeric
+
+	distNec( idxProd( cProduto ), nQtd )
+
+	nPos := aScan( aColPro, {|x| x[nPosPrd] == cProduto } )
+	if nPos > 0
+		aColPro[nPos][nPosNec] := nQtd
+	endif
+	nPos := aScan( aFullPro, {|x| x[nPosPrd] == cProduto } )
+	if nPos > 0
+		aFullPro[nPos][nPosNec] := nQtd
+	endif
+
+return Nil
+
+/*/{Protheus.doc} cenCar
+Reúne na filial corrente (entrega centralizada) as linhas do carrinho separadas por filial, somando quantidade, total,
+frete e desconto por produto, fornecedor e loja - usado ao retomar um processo salvo com a entrega distribuída depois
+que o parâmetro MV_X_PNC23 passou a centralizar a entrega
+@type function
+@version 26.0001
+@author Jean Carlos Pandolfo Saggin
+@since 30/10/2026
+/*/
+static function cenCar()
+
+	local aNovo  := {} as array
+	local lMudou := .F. as logical
+	local nLin   := 0 as numeric
+	local nX     := 0 as numeric
+
+	for nX := 1 to len( aCarFil )
+		if ! AllTrim( aCarFil[nX][ len( aCarFil[nX] ) ] ) == AllTrim( cFilAnt )
+			lMudou := .T.
+		endif
+		nLin := aScan( aNovo, {|x| x[carPos('C7_PRODUTO')] + x[carPos('C7_FORNECE')] + x[carPos('C7_LOJA')] ==;
+								   aCarFil[nX][carPos('C7_PRODUTO')] + aCarFil[nX][carPos('C7_FORNECE')] + aCarFil[nX][carPos('C7_LOJA')] } )
+		if nLin == 0
+			aAdd( aNovo, aClone( aCarFil[nX] ) )
+			aNovo[ len( aNovo ) ][ len( aNovo[ len( aNovo ) ] ) ] := cFilAnt
+		else
+			aNovo[nLin][carPos('QUANT')] += aCarFil[nX][carPos('QUANT')]
+			aNovo[nLin][carPos('TOTAL')] += aCarFil[nX][carPos('TOTAL')]
+			if carPos( 'C7_VALFRE' ) > 0
+				aNovo[nLin][carPos('C7_VALFRE')] += aCarFil[nX][carPos('C7_VALFRE')]
+			endif
+			if carPos( 'C7_VLDESC' ) > 0
+				aNovo[nLin][carPos('C7_VLDESC')] += aCarFil[nX][carPos('C7_VLDESC')]
+			endif
+			if carPos( 'C7OBSM' ) > 0 .and. Empty( aNovo[nLin][carPos('C7OBSM')] )
+				aNovo[nLin][carPos('C7OBSM')] := aCarFil[nX][carPos('C7OBSM')]
+			endif
+			if aNovo[nLin][carPos('QUANT')] > 0
+				aNovo[nLin][carPos('PRECO')] := aNovo[nLin][carPos('TOTAL')] / aNovo[nLin][carPos('QUANT')]
+			endif
+		endif
+	next nX
+
+	if lMudou
+		aCarFil := aNovo
+		for nX := 1 to len( aCarFil )
+			carSeg( nX )
+		next nX
+		saveData( 'carrinho_filial', aCarFil, aHeaCar )
+	endif
+
+return Nil
+
+/*/{Protheus.doc} repQtd
+Replicação de quantidade no carrinho (Ctrl+R): reflete a nova quantidade da linha na grid principal. Na entrega
+centralizada a linha tem o total do produto (cenGrd); na distribuída, a linha é a parte da filial do carrinho e a grid
+recebe a soma das filiais
+@type function
+@version 26.0003
+@author Jean Carlos Pandolfo Saggin
+@since 30/10/2026
+@param cProduto, character, código do produto
+@param nQtd, numeric, quantidade da linha do carrinho
+@param nProFil, numeric, posição do produto na filial do carrinho em _aProdFil (zero quando não existir)
+@param nLinPro, numeric, posição do produto na grid principal (zero quando não existir)
+@param lCentral, logical, entrega centralizada na filial corrente (MV_X_PNC23)
+/*/
+static function repQtd( cProduto, nQtd, nProFil, nLinPro, lCentral )
+
+	local nQtdPro := 0 as numeric
+	local nX      := 0 as numeric
+
+	if lCentral
+		cenGrd( cProduto, nQtd )
+	elseif nProFil > 0
+		_aProdFil[nProFil][nPosNec] := nQtd
+		for nX := 1 to len( _aProdFil )
+			if _aProdFil[nX][nPosPrd] == cProduto
+				nQtdPro += _aProdFil[nX][nPosNec]
+			endif
+		next nX
+		if nLinPro > 0
+			aColPro[nLinPro][nPosNec] := nQtdPro
+		endif
+	endif
+
+return Nil
+
+/*/{Protheus.doc} repPrc
+Replicação de preço no carrinho (Ctrl+R): reflete o novo preço na filial do carrinho em _aProdFil e na grid principal,
+quando o produto existir em cada uma delas
+@type function
+@version 26.0003
+@author Jean Carlos Pandolfo Saggin
+@since 30/10/2026
+@param nProFil, numeric, posição do produto na filial do carrinho em _aProdFil (zero quando não existir)
+@param nLinPro, numeric, posição do produto na grid principal (zero quando não existir)
+@param nPreco, numeric, preço negociado
+/*/
+static function repPrc( nProFil, nLinPro, nPreco )
+
+	if nProFil > 0
+		_aProdFil[nProFil][nPosNeg] := nPreco
+	endif
+	if nLinPro > 0
+		aColPro[nLinPro][nPosNeg] := nPreco
+	endif
+
+return Nil
+
+/*/{Protheus.doc} recFilNec
+Recalcula em memória a projeção e a sugestão de compra bruta de uma filial do produto em _aProdFil (mesmas fórmulas de
+fLoadInf, sem ajuste de lote - aplicado depois por fGrpCalNec) após mudar a quantidade em pedido/solicitação dessa
+filial. Linhas da análise reversa de estruturas (origem E) mantêm a sugestão materializada pelo job
+@type function
+@version 26.0003
+@author Jean Carlos Pandolfo Saggin
+@since 30/10/2026
+@param nRow, numeric, posição da filial do produto em _aProdFil
+/*/
+static function recFilNec( nRow )
+
+	local nAtual  := 0 as numeric
+	local nDiv    := 0 as numeric
+	local nPrj    := 0 as numeric
+	local aInfPrd := {} as array
+
+	if nRow > 0 .and. ! _aProdFil[nRow][nPosOri] == 'E'
+
+		nAtual := _aProdFil[nRow][nPosEmE]
+		if aConfig[24] == 'S'
+			nAtual -= _aProdFil[nRow][nPosVen]
+		endif
+		nDiv := _aProdFil[nRow][nPosCon]
+		if nDiv == 0
+			nDiv := 0.0001		// protege contra divisão por zero, mesmo critério de fGrpCalNec
+		endif
+		nPrj := Round( ( nAtual - _aProdFil[nRow][nPosEMi] + _aProdFil[nRow][nPosQtd] ) / nDiv, 0 )
+		if nPrj > 999
+			nPrj := 999
+		elseif nPrj < 0
+			nPrj := 0
+		endif
+		_aProdFil[nRow][nPosDur] := nPrj
+
+		aInfPrd := { nSpinBx /*nDias*/,;
+					 _aProdFil[nRow][nPosLdT] /*nLdTime*/,;
+					 nPrj,;
+					 _aProdFil[nRow][nPosCon] /*nConMed*/,;
+					 _aProdFil[nRow][nPosLtM] /*nLotMin*/,;
+					 _aProdFil[nRow][nPosQtE] /*nQtdEmb*/,;
+					 _aProdFil[nRow][nPosLtE] /*nLotEco*/,;
+					 _aProdFil[nRow][nPosEMi] /*nEstSeg*/,;
+					 _aProdFil[nRow][nPosEmE] /*nQtdEst*/,;
+					 _aProdFil[nRow][nPosVen] /*nQtdEmp*/,;
+					 _aProdFil[nRow][nPosQtd] /*nQtdPed*/,;
+					 _aProdFil[nRow][nPosSol] /*nQtdSol*/,;
+					 _aProdFil[nRow][nPosOrd] /*nQtdOrd*/ }
+		_aProdFil[nRow][nPosNec] := fCalNec( aInfPrd, cPerfil, .T. /*lSkipLot*/ )
+
+	endif
+
+return Nil
+
+/*/{Protheus.doc} avEntCen
+Valida a combinação da entrega centralizada da compra multi-filial (MV_X_PNC23 = 2) com o modo de cálculo multi-filial
+Individual por Filial (configuração da filial corrente). Nessa combinação o pedido é gerado inteiro para a filial
+corrente, mas cada filial só enxerga os pedidos e solicitações em aberto dela mesma: ao recarregar a análise, as
+demais filiais voltam a sugerir a compra da demanda já atendida, com risco de compra em dobro. Sem pergunta, exibe o
+aviso uma única vez para cada combinação de filiais e modo de cálculo (não repete a cada atualização da análise);
+com pergunta, pede a confirmação do usuário para continuar
+@type function
+@version 26.0005
+@author Jean Carlos Pandolfo Saggin
+@since 30/10/2026
+@param lPergunta, logical, .T. pergunta se o usuário quer continuar; .F. (padrão) apenas avisa
+@return logical, lSegue - .F. somente quando o usuário optou por não continuar
+/*/
+static function avEntCen( lPergunta )
+
+	local lSegue   := .T. as logical
+	local cDoc     := "pedido" as character
+	local cChave   := "" as character
+	local cFalha   := "" as character
+	local cConseq  := "" as character
+	local cSolucao := "" as character
+	local nX       := 0 as numeric
+
+	default lPergunta := .F.
+
+	if entCent() .and. ! aConfig[33] == '2'
+
+		if Type( '_cPedSol' ) == 'C' .and. _cPedSol == '2'
+			cDoc := "solicitação"
+		endif
+		cFalha   := 'A compra multi-filial está com a entrega centralizada na filial '+ AllTrim( cFilAnt ) +' (parâmetro MV_X_PNC23 = 2), '+;
+					'mas o modo de cálculo multi-filial desta filial está como Individual por Filial.'
+		cConseq  := 'O '+ cDoc +' é gerado inteiro para a filial '+ AllTrim( cFilAnt ) +' e cada filial só considera os pedidos e '+;
+					'solicitações em aberto dela mesma. Ao recarregar a análise (F5 ou na próxima abertura do painel), as demais '+;
+					'filiais voltam a sugerir a compra da demanda já atendida por esse '+ cDoc +', com risco de compra em dobro.'
+		cSolucao := 'Altere o Modo de Cálculo Multi-Filial para Pool/Consolidado nos parâmetros internos (F12) da filial '+;
+					AllTrim( cFilAnt ) +', ou volte o parâmetro MV_X_PNC23 para 1 (entrega distribuída: cada filial recebe a sua demanda).'
+
+		if lPergunta
+			lSegue := MsgYesNo( cFalha +'<br><br>'+ cConseq +'<br><br>'+ cSolucao +'<br><br>Deseja gerar o '+ cDoc +' mesmo assim?',;
+								'Entrega centralizada' )
+		else
+			// Avisa uma única vez para cada combinação de filiais e modo de cálculo
+			for nX := 1 to len( _aFil )
+				cChave += AllTrim( _aFil[nX] ) +','
+			next nX
+			cChave := aConfig[33] +'|'+ cChave
+			if Type( 'cAvEntCen' ) == 'C' .and. ! cChave == cAvEntCen
+				cAvEntCen := cChave
+				hlp( 'ENTREGA CENTRALIZADA', cFalha +' '+ cConseq, cSolucao )
+			endif
+		endif
+
+	elseif ! lPergunta .and. Type( 'cAvEntCen' ) == 'C'
+		// Combinação corrigida: volta a avisar se o problema reaparecer
+		cAvEntCen := ""
+	endif
+
+return lSegue
+
+/*/{Protheus.doc} peForCar
+Chama o ponto de entrada GMPAICOM01 na troca do fornecedor do carrinho de compras (ajuste da condição de pagamento e
+dos dados do carrinho) somente quando ele existir no ambiente, evitando erro na troca do fornecedor nos clientes que
+não possuem o ponto de entrada compilado
+@type function
+@version 26.0006
+@author Jean Carlos Pandolfo Saggin
+@since 30/10/2026
+@param cGetCon, character, (referência) condição de pagamento
+@param cGetDes, character, (referência) descrição da condição de pagamento
+@param cGetFor, character, fornecedor
+@param cGetLoj, character, loja do fornecedor
+/*/
+static function peForCar( cGetCon, cGetDes, cGetFor, cGetLoj )
+
+	if ExistBlock( 'GMPAICOM01' )
+		ExecBlock( 'GMPAICOM01', .F., .F., @cGetCon, @cGetDes, cGetFor, cGetLoj, @aCarFil, @aHeaCar )
+	endif
+
+return Nil
+
+/*/{Protheus.doc} pflManut
+Outras Ações > Perfis de Cálculo: abre o cadastro de perfis (U_JSPERFIL) posicionado no perfil em uso e, quando algum
+perfil mudou, descarta as fórmulas em cache, atualiza os perfis do combo (mantendo o perfil em uso ou voltando ao
+padrão, quando ele foi excluído) e recalcula a sugestão de compra
+@type function
+@version 27.0001
+@author Jean Carlos Pandolfo Saggin
+@since 02/11/2026
+/*/
+static function pflManut()
+
+	local aItens := {} as array
+	local bTroca as codeblock
+	local nPos   := 0 as numeric
+
+	if U_JSPERFIL( cPerfil )
+		hFormula := Nil
+		if Empty( U_JSPFLFRM( cPerfil ) )
+			cPerfil := U_JSPFLDEF()
+		endif
+		aItens := U_JSPFLCBO( cPerfil )
+		nPos   := aScan( aItens, {|x| Left( x, Len( AllTrim( cPerfil ) ) + 1 ) == AllTrim( cPerfil ) +'=' } )
+		// Atualiza o combo sem disparar o recálculo da troca de perfil, feito uma única vez logo abaixo
+		bTroca := oCboPer:bChange
+		oCboPer:bChange := {|| .T. }
+		oCboPer:SetItems( aItens )
+		if nPos > 0
+			oCboPer:Select( nPos )
+		endif
+		oCboPer:bChange := bTroca
+		oCboPer:Refresh()
+		pflTroca()
+	endif
+
+return Nil
+
+/*/{Protheus.doc} pflTroca
+Recalcula em memória a sugestão de compra com o perfil de cálculo em uso (troca no combo ou fórmula alterada)
+@type function
+@version 27.0001
+@author Jean Carlos Pandolfo Saggin
+@since 02/11/2026
+/*/
+static function pflTroca()
+
+	Processa( {|| chgFilter( 3 ), oBrwPro:SetArray( aColPro ), oBrwPro:UpdateBrowse() }, 'Aguarde!',;
+			  'Recalculando a sugestão de compra com o perfil '+ AllTrim( cPerfil ) +'...' )
 
 return Nil
 
@@ -13548,7 +14151,6 @@ user function JSSUPPLY( lForce, aData, oBrw )
 	local aColumns := {} as array
 	local oBrowse  as object
 	local nX       := 0 as numeric
-	local nAux     := 0 as numeric
 	local lMPs     := isInCallStack( 'U_JSORDPRD' )
 	local cOldFor  := "" as character
 	local cCodPrF  := "" as character	// A5_CODPRF do fornecedor selecionado no dialog (capturado ainda com FORPRO posicionado)
@@ -13670,21 +14272,10 @@ user function JSSUPPLY( lForce, aData, oBrw )
 					aCarCom[ aScan( aCarCom, {|x| AllTrim( x[carPos('C7_PRODUTO')] ) == AllTrim( aData[ oBrw:nAt ][ nPosPrd ] ) } ) ][ carPos('PRECO') ] := aData[obrw:nAt][nPosNeg]
 					aCarCom[ aScan( aCarCom, {|x| AllTrim( x[carPos('C7_PRODUTO')] ) == AllTrim( aData[ oBrw:nAt ][ nPosPrd ] ) } ) ][ carPos('TOTAL') ] := aData[oBrw:At()][nPosNec] * aData[oBrw:nAt][nPosNeg]
 				endif
-				for nX := 1 to len( _aFil )
-					nAux := aScan(_aProdFil,{|x| x[nPosPrd] == aData[ oBrw:nAt ][ nPosPrd ] .and. x[len(x)] == _aFil[nX] })
-					_aProdFil[ nAux ][nPosNeg] := aData[oBrw:nAt][nPosNeg]
-					_aProdFil[ nAux ][nPosUlt] := aData[oBrw:nAt][nPosUlt]
-					_aProdFil[ nAux ][nPosLdT] := aData[oBrw:nAt][nPosLdT]
-				next nX
-
-				for nX := 1 to len( _aFil )
-					nAux := aScan(_aProdFil,{|x| x[nPosPrd] == aData[ oBrw:nAt ][ nPosPrd ] .and. x[len(x)] == _aFil[nX] })
-					if aScan( aCarFil, {|x| x[carPos('C7_PRODUTO')] == aData[ oBrw:nAt ][ nPosPrd ] .and. x[len(x)] == _aFil[nX] } ) > 0
-						aCarFil[ aScan( aCarFil, {|x| x[carPos('C7_PRODUTO')] == aData[ oBrw:nAt ][ nPosPrd ] .and. x[len(x)] == _aFil[nX] } ) ][carPos('PRECO')] := _aProdFil[nAux][nPosNeg]
-						aCarFil[ aScan( aCarFil, {|x| x[carPos('C7_PRODUTO')] == aData[ oBrw:nAt ][ nPosPrd ] .and. x[len(x)] == _aFil[nX] } ) ][carPos('TOTAL')] := ;
-							aCarFil[ aScan( aCarFil, {|x| x[carPos('C7_PRODUTO')] == aData[ oBrw:nAt ][ nPosPrd ] .and. x[len(x)] == _aFil[nX] } ) ][carPos('PRECO')] * aCarFil[nAux][carPos('QUANT')]
-					endif
-				next nX
+				// Dados do novo fornecedor em todas as filiais do produto e preço nas linhas do produto no carrinho, com o total
+				// pela quantidade de cada linha (inclusive a linha única da entrega centralizada - MV_X_PNC23)
+				aEval( idxProd( aData[oBrw:nAt][nPosPrd] ), {|x| _aProdFil[x][nPosNeg] := aData[oBrw:nAt][nPosNeg], _aProdFil[x][nPosUlt] := aData[oBrw:nAt][nPosUlt], _aProdFil[x][nPosLdT] := aData[oBrw:nAt][nPosLdT] } )
+				carPrc( aData[oBrw:nAt][nPosPrd], aData[oBrw:nAt][nPosNeg] )
 
 			endif
 		
@@ -14569,7 +15160,14 @@ static function chgFilter( nLocal )
 
 	endif
 
-	if nLocal == 3 .or. nLocal == 0		// SpinBox de dias de estoque
+	if nLocal == 3 .or. nLocal == 0		// Perfil de cálculo (e recálculos em memória)
+		// Troca do perfil de cálculo ou fórmula alterada: recalcula a sugestão bruta de cada filial com o perfil em uso
+		// (no modo individual por filial, fGrpCalNec soma a sugestão já calculada de cada filial, sem usar o perfil)
+		if nLocal == 3
+			for nX := 1 to len( _aProdFil )
+				recFilNec( nX )
+			next nX
+		endif
 		
 		for nX := 1 to len( aFullPro )
 			// Componentes com sugestão materializada pela análise reversa não são recalculados pelo spinbox de dias

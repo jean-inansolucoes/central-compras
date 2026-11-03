@@ -255,9 +255,39 @@ static function applyAux( aCampos )
         M->CONSLT := 'N'
     endif
 
-    lSuccess := saveCfg( aCampos )
+    // Entrega centralizada da compra multi-filial (MV_X_PNC23 = 2) com o cálculo individual por filial: grava somente
+    // depois da confirmação do usuário, ciente do risco de compra em dobro
+    if vldModNec()
+        lSuccess := saveCfg( aCampos )
+    endif
 
 return lSuccess
+
+/*/{Protheus.doc} vldModNec
+Valida o modo de cálculo multi-filial contra a entrega da compra multi-filial da filial (parâmetro MV_X_PNC23): com a
+entrega centralizada (2), o modo Individual por Filial faz o painel voltar a sugerir, nas demais filiais, a compra já
+pedida para a filial de entrega (cada filial só considera os pedidos em aberto dela mesma), com risco de compra em
+dobro. Nesse caso pede a confirmação do usuário antes de gravar
+@type function
+@version 26.0005
+@author Jean Carlos Pandolfo Saggin
+@since 30/10/2026
+@return logical, lGrava - .F. quando o usuário optou por não gravar
+/*/
+static function vldModNec()
+
+    local lGrava := .T. as logical
+
+    if ! Left( M->MODNEC, 1 ) == '2' .and. AllTrim( SuperGetMv( 'MV_X_PNC23',, '1' ) ) == '2'
+        lGrava := MsgYesNo( 'Esta filial está com a entrega da compra multi-filial centralizada (parâmetro MV_X_PNC23 = 2) e o '+;
+                            'Modo de Cálculo Multi-Filial está como Individual por Filial.<br><br>'+;
+                            'Nessa combinação o pedido é gerado inteiro para esta filial, mas cada filial só considera os pedidos em '+;
+                            'aberto dela mesma: ao recarregar a análise, as demais filiais voltam a sugerir a compra já pedida, com '+;
+                            'risco de compra em dobro. O recomendado é o modo Pool/Consolidado.<br><br>'+;
+                            'Deseja gravar os parâmetros mesmo assim?', 'Entrega centralizada' )
+    endif
+
+return lGrava
 
 /*/{Protheus.doc} loadCfg
 Carrega na tela (memvars M->) os valores atualmente gravados na PNC_CONFIG_<empresa> para a filial

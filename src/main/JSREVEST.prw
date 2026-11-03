@@ -37,7 +37,7 @@ abate nível a nível o estoque e as OPs em aberto dos intermediários (netting glo
 materializa o resultado nas tabelas PNC_RVCALC_<empresa> (resultado por produto) e
 PNC_RVTRC_<empresa> (trace da sequência de cálculo para auditoria).
 Pré-condição: deve ser executada dentro da pilha de U_GMINDPRO (depende das variáveis Private
-aConfig, cZBM e cPerfDef para o cálculo de necessidade via U_JSCALNEC).
+aConfig e cPerfDef para o cálculo de necessidade via U_JSCALNEC).
 @type function
 @version 20.0002
 @author Jean Carlos Pandolfo Saggin
@@ -137,7 +137,6 @@ user function JSREVSCH( aParam )
     local aPerAna  := {} as array
 
     Private aConfig  := {} as array
-    Private cZBM     := "" as character
     Private cPerfDef := "" as character
 
     Default aParam := {}
@@ -173,16 +172,15 @@ user function JSREVSCH( aParam )
         Return Nil
     endif
 
-    // Valida existência da tabela de perfis de cálculo (necessária para U_JSCALNEC dentro de U_JSREVEST/loadMiss)
-    cZBM := AllTrim( GetMv( 'MV_X_PNC16' ) )
-    if Empty( cZBM ) .or. ! U_JSPERCHK()
-        ConOut( FunName() + ' - ' + DtoC( dHoje ) + ' - ' + Time() + ' - AUSENCIA DE CONFIGURACAO PARA A TABELA DE PERFIS DE CALCULO' )
+    // Perfis de cálculo (necessários para U_JSCALNEC dentro de U_JSREVEST/loadMiss): migração do cadastro antigo e perfil padrão
+    if ! U_JSPFLCHK( .T. /* lAuto */ )
+        FWLogMsg( 'WARN', /*cTransactionId*/, 'SMARTSUPPLY', 'JSREVEST', '', '01', FunName() + ' - ' + DtoC( dHoje ) + ' - ' + Time() + ' - Perfis de cálculo indisponíveis: análise reversa não executada' )
         if ! lManual
             RESET ENVIRONMENT
         endif
         Return Nil
     endif
-    cPerfDef := StrZero( 1, TAMSX3( cZBM +'_ID' )[1] )
+    cPerfDef := U_JSPFLDEF()
 
     aPerAna := U_JSPERANA( aConfig, dHoje )
 

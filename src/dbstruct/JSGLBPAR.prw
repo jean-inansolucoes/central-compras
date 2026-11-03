@@ -43,6 +43,7 @@ User Function JSGLBPAR( lCheck )
     aAdd( aTab, { "04", "PNC_PROD_"+ cEmpAnt, "" } )
     aAdd( aTab, { "05", "PNC_LABEL_"+ cEmpAnt, "" } )          // Cadastro de rótulos de produtos (JSROTULO)
     aAdd( aTab, { "06", "PNC_LABEL_PROD_"+ cEmpAnt, "" } )     // Vínculo produto x rótulo
+    aAdd( aTab, { "07", "PNC_PERFIL_"+ cEmpAnt, "" } )         // Cadastro de perfis de cálculo (JSPERFIL)
 
     // Checagem das estruturas definidas no fonte (parâmetros internos, tabelas próprias e índices)
     lStruct := chkStruct()
@@ -855,14 +856,6 @@ static function getParams()
                     AllTrim(SuperGetMv( "MV_X_PNC15",, "000000|" ));        // Conteúdo
                     } )
     aAdd( aParams, {; 
-                    "MV_X_PNC16",;                                          // Parâmetro
-                    "C",;                                                   // Tipo
-                    "Alias da tabela de perfis de calculo              ",;  // Descrição 1
-                    "",;                                                    // Descrição 2
-                    "",;                                                    // Descrição 3
-                    AllTrim(SuperGetMv( "MV_X_PNC16",, "" ));               // Conteúdo
-                    } )
-    aAdd( aParams, {; 
                     "MV_X_PNC17",;                                          // Parâmetro
                     "C",;                                                   // Tipo
                     "Série das notas de complemento de valor financeiro",;  // Descrição 1
@@ -909,5 +902,13 @@ static function getParams()
                     "(0 = não exibe; máximo 10)",;                          // Descrição 2
                     "",;                                                    // Descrição 3
                     SuperGetMv( "MV_X_PNC22",, 3 );                         // Conteúdo
+                    } )
+    aAdd( aParams, {; 
+                    "MV_X_PNC23",;                                          // Parâmetro
+                    "C",;                                                   // Tipo
+                    "Entrega da compra multi-filial: 1=Distribuída ",;      // Descrição 1
+                    "(cada filial recebe a sua demanda) ou ",;              // Descrição 2
+                    "2=Centralizada na filial corrente",;                   // Descrição 3
+                    AllTrim(SuperGetMv( "MV_X_PNC23",, "1" ));              // Conteúdo
                     } )
 return aParams
