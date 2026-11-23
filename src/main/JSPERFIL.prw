@@ -197,10 +197,10 @@ User Function JSPFLFRM( cId )
 Return cFormula
 
 /*/{Protheus.doc} JSPFLCBO
-Itens do combo de seleção do perfil de cálculo no painel ("ID=ID - Descrição"): perfis ativos, mais o perfil
-informado mesmo quando bloqueado (para continuar exibindo o perfil em uso)
+Itens do combo de seleção do perfil de cálculo no painel ("ID=Descrição", que o combo exibe como "ID - Descrição"):
+perfis ativos, mais o perfil informado mesmo quando bloqueado (para continuar exibindo o perfil em uso)
 @type function
-@version 27.0001
+@version 27.0007
 @author Jean Carlos Pandolfo Saggin
 @since 02/11/2026
 @param cAtual, character, perfil em uso no painel
@@ -219,7 +219,8 @@ User Function JSPFLCBO( cAtual )
         While ! ( cAlias )->( EOF() )
             cId := AllTrim( ( cAlias )->ID )
             If ! ( cAlias )->BLOQ == '1' .or. cId == AllTrim( cAtual )
-                aAdd( aItens, cId +'='+ cId +' - '+ AllTrim( ( cAlias )->DESCRI ) )
+                // Só a descrição após o '=': o combo já exibe o ID antes dela ("01 - Consumo Histórico")
+                aAdd( aItens, cId +'='+ AllTrim( ( cAlias )->DESCRI ) )
             EndIf
             ( cAlias )->( DBSkip() )
         EndDo

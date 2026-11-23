@@ -7,6 +7,10 @@
 #define CEOL Chr(13)+Chr(10)
 #define SIZE_FIELD 0.5							// Proporção em relação ao tamanho real dos campos em relação ao espaço que deve utilizar na tela da grid de produtos
 
+// Uso do indicador de produto (SBZ) por empresa + filial, conforme o parâmetro MV_ARQPROD (U_JSUSASBZ) - static de
+// escopo de arquivo, para ler o parâmetro uma única vez por filial durante a execução
+Static hArqPrd
+
 /*/{Protheus.doc} JSGETVER
 Retorna a versão do aplicativo.
 @type function
@@ -255,6 +259,11 @@ user function JSDETVER()
     aAdd( aDetVer, { '26','0006','30/10/2026', 'Correção na troca do fornecedor dentro do carrinho de compras, que podia falhar nos ambientes sem o ponto de entrada de ajuste da condição de pagamento' } )
     aAdd( aDetVer, { '27','0001','02/11/2026', 'Novo cadastro de perfis de cálculo, único para a empresa e acessado em Outras Ações > Perfis de Cálculo, que substitui o cadastro antigo do dicionário de dados (os perfis existentes são migrados automaticamente no primeiro acesso, com as mesmas fórmulas): a fórmula da necessidade de compra é montada com as variáveis do cálculo, números, operadores e parênteses, com validação ao salvar; o perfil da análise passa a ser escolhido numa lista e a troca de perfil ou de fórmula recalcula a sugestão de cada filial' } )
     aAdd( aDetVer, { '27','0002','03/11/2026', 'Nova consulta (F3) do campo Perfil de Cálculo no cadastro de produtos, que lista os perfis do novo cadastro de perfis (ativos, com a fórmula em texto) num modal para seleção, no lugar da consulta do cadastro antigo' } )
+    aAdd( aDetVer, { '27','0003','11/11/2026', 'Edição do estoque mínimo e do estoque máximo na grid principal com mais de uma filial selecionada: em vez de bloquear a alteração, o painel pergunta se ela vale para a filial atual ou para todas as filiais selecionadas e grava, em cada filial, no indicador de produto quando existir (senão no cadastro do produto), atualizando a coluna com a soma das filiais; quando a gravação também for alterar outras filiais (produto sem indicador na filial escolhida e cadastro do produto compartilhado), avisa quais filiais serão afetadas e pede confirmação' } )
+    aAdd( aDetVer, { '27','0004','16/11/2026', 'Estoque mínimo e estoque máximo da grid principal com mais de uma filial selecionada: a coluna passa a somar o indicador de produto de cada filial que o possui e a contar o cadastro do produto uma única vez para as filiais sem indicador, também logo após a edição; o modo de cálculo Pool/Consolidado passa a usar esse mesmo estoque mínimo consolidado, em vez do mínimo da primeira filial' } )
+    aAdd( aDetVer, { '27','0005','23/11/2026', 'Estoque mínimo e estoque máximo passam a respeitar o parâmetro padrão MV_ARQPROD: com SBZ, cada filial analisada usa o indicador de produto quando cadastrado (senão o cadastro do produto); com SB1, usa somente o cadastro do produto, sem consultar o indicador. Vale para o cálculo da sugestão de compra, a grid principal, a tela Quantidades x Filial, a análise reversa de estruturas e a edição na grid' } )
+    aAdd( aDetVer, { '27','0006','23/11/2026', 'Correção para que, ao cancelar a alteração de estoque mínimo ou máximo na grid (na escolha das filiais ou no aviso de alteração em outras filiais), a célula volte ao valor anterior à edição e o cursor saia da célula, em vez de permanecer em edição' } )
+    aAdd( aDetVer, { '27','0007','23/11/2026', 'Correção no combo de perfil de cálculo do painel, que exibia o código do perfil duas vezes (ex.: 01 - 01 - Consumo Histórico)' } )
 
 return aDetVer
 
@@ -670,6 +679,39 @@ user function JSPAITYP( cTipos )
 
 return cRet
 
+/*/{Protheus.doc} JSUSASBZ
+Indica se a filial corrente (cFilAnt) usa o indicador de produto (SBZ) para o estoque mínimo/máximo, conforme o
+parâmetro padrão MV_ARQPROD: com 'SBZ', vale o indicador da filial quando houver registro do produto (senão, o
+cadastro do produto - SB1); com 'SB1' (padrão do parâmetro), somente o cadastro do produto, sem consultar a SBZ.
+Exige a tabela SBZ no dicionário de dados com os campos BZ_EMIN e BZ_EMAX. O resultado fica guardado por empresa e
+filial durante a execução, para não ler o parâmetro a cada produto
+@type function
+@version 27.0005
+@author Jean Carlos Pandolfo Saggin
+@since 23/11/2026
+@return logical, lUsaSBZ - .T. quando a filial corrente usa o indicador de produto (SBZ)
+/*/
+user function JSUSASBZ()
+
+    local lUsaSBZ := .F. as logical
+    local cChvFil := cEmpAnt + cFilAnt as character
+
+    if ValType( hArqPrd ) != 'O'
+        hArqPrd := HMNew()
+    endif
+    if ! HMGet( hArqPrd, cChvFil, @lUsaSBZ )
+        lUsaSBZ := Upper( AllTrim( SuperGetMv( 'MV_ARQPROD', .F., 'SB1' ) ) ) == 'SBZ'
+        if lUsaSBZ .and. FWAliasInDic( 'SBZ' )
+            DBSelectArea( 'SBZ' )
+            lUsaSBZ := SBZ->( FieldPos( 'BZ_EMIN' ) ) > 0 .and. SBZ->( FieldPos( 'BZ_EMAX' ) ) > 0
+        else
+            lUsaSBZ := .F.
+        endif
+        HMSet( hArqPrd, cChvFil, lUsaSBZ )
+    endif
+
+return lUsaSBZ
+
 /*/{Protheus.doc} JSQRYINF
 Função para montagem de query de análise do MRP para Painel de Compras
 @type function
@@ -840,16 +882,22 @@ user function JSQRYINF( aConf, aFilters, cPedSol, aCustom, aMPs, cAIWhere, aFilR
         cQuery += "  AND B2.B2_LOCAL  IN ( '"+ cLocais +"' ) " + CEOL
         cQuery += "  AND B2.D_E_L_E_T_ = ' ' ),0) EMPENHO, " + CEOL
         cQuery += "B1.B1_PE, " + CEOL
-        // Estoque mínimo/máximo: indicador de produto (SBZ) da filial quando cadastrado, senão o cadastro geral
-        // (SB1) - mesma regra de getMinMax (GMPAICOM). Mantém os nomes B1_EMIN/B1_EMAX para os consumidores
-        cQuery += "COALESCE((SELECT BZ.BZ_EMIN FROM "+ RetSqlName( 'SBZ' ) +" BZ " + CEOL
-        cQuery += "WHERE BZ.BZ_FILIAL  = '"+ FWxFilial( 'SBZ' ) +"' " + CEOL
-        cQuery += "  AND BZ.BZ_COD     = B1.B1_COD " + CEOL
-        cQuery += "  AND BZ.D_E_L_E_T_ = ' ' ), B1.B1_EMIN) B1_EMIN, " + CEOL
-        cQuery += "COALESCE((SELECT BZ.BZ_EMAX FROM "+ RetSqlName( 'SBZ' ) +" BZ " + CEOL
-        cQuery += "WHERE BZ.BZ_FILIAL  = '"+ FWxFilial( 'SBZ' ) +"' " + CEOL
-        cQuery += "  AND BZ.BZ_COD     = B1.B1_COD " + CEOL
-        cQuery += "  AND BZ.D_E_L_E_T_ = ' ' ), B1.B1_EMAX) B1_EMAX, " + CEOL
+        // Estoque mínimo/máximo da filial analisada, conforme o parâmetro MV_ARQPROD (U_JSUSASBZ): com SBZ, o indicador
+        // de produto da filial quando cadastrado, senão o cadastro do produto (SB1); com SB1, somente o cadastro do
+        // produto - mesma regra de getMinMax (GMPAICOM). Mantém os nomes B1_EMIN/B1_EMAX para os consumidores
+        if U_JSUSASBZ()
+            cQuery += "COALESCE((SELECT BZ.BZ_EMIN FROM "+ RetSqlName( 'SBZ' ) +" BZ " + CEOL
+            cQuery += "WHERE BZ.BZ_FILIAL  = '"+ FWxFilial( 'SBZ' ) +"' " + CEOL
+            cQuery += "  AND BZ.BZ_COD     = B1.B1_COD " + CEOL
+            cQuery += "  AND BZ.D_E_L_E_T_ = ' ' ), B1.B1_EMIN) B1_EMIN, " + CEOL
+            cQuery += "COALESCE((SELECT BZ.BZ_EMAX FROM "+ RetSqlName( 'SBZ' ) +" BZ " + CEOL
+            cQuery += "WHERE BZ.BZ_FILIAL  = '"+ FWxFilial( 'SBZ' ) +"' " + CEOL
+            cQuery += "  AND BZ.BZ_COD     = B1.B1_COD " + CEOL
+            cQuery += "  AND BZ.D_E_L_E_T_ = ' ' ), B1.B1_EMAX) B1_EMAX, " + CEOL
+        else
+            cQuery += "B1.B1_EMIN B1_EMIN, " + CEOL
+            cQuery += "B1.B1_EMAX B1_EMAX, " + CEOL
+        endif
         
         cQuery += "COALESCE((SELECT SUM(C7BLOQ.C7_QUANT - C7BLOQ.C7_QUJE) FROM "+ RetSqlName( "SC7" ) +" C7BLOQ " + CEOL
         cQuery += "WHERE C7BLOQ.C7_FILIAL = '"+ FWxFilial( 'SC7' ) +"' " + CEOL

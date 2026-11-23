@@ -378,6 +378,7 @@ static function loadMiss( aFalta, aCfgRev, aPerRev, oSnap, oPais )
     local lTemLTF  := SA2->( FieldPos( 'A2_X_LTIME' ) ) > 0
     local lConsidLT := aCfgRev[31] == 'S'	// Considera o lead time do fornecedor na previsão de demanda de compra da análise reversa (parâmetro CONSLT)
     local lTrfMis  := U_JSTRFFIL( cFilAnt )
+    local lArqBZ   := U_JSUSASBZ() as logical	// Indicador de produto (SBZ) da filial em uso (parâmetro MV_ARQPROD)
     local nDiasMis := 0 as numeric
     local nConMed  := 0 as numeric
     local nVenda   := 0 as numeric
@@ -514,12 +515,17 @@ static function loadMiss( aFalta, aCfgRev, aPerRev, oSnap, oPais )
     // Posição de estoque, carteiras e dados cadastrais dos produtos faltantes
     for nChunk := 1 to len( aChunks )
 
-        // Estoque mínimo: indicador de produto (SBZ) da filial quando cadastrado, senão o cadastro geral (SB1)
+        // Estoque mínimo conforme o parâmetro MV_ARQPROD: com SBZ, o indicador de produto da filial quando cadastrado,
+        // senão o cadastro do produto (SB1); com SB1, somente o cadastro do produto
         cQuery := "SELECT B1.B1_COD, B1.B1_LM, B1.B1_QE, B1.B1_LE, B1.B1_PE, " + CEOL
-        cQuery += "COALESCE((SELECT BZ.BZ_EMIN FROM "+ RetSqlName( 'SBZ' ) +" BZ " + CEOL
-        cQuery += "WHERE BZ.BZ_FILIAL  = '"+ FWxFilial( 'SBZ' ) +"' " + CEOL
-        cQuery += "  AND BZ.BZ_COD     = B1.B1_COD " + CEOL
-        cQuery += "  AND BZ.D_E_L_E_T_ = ' ' ), B1.B1_EMIN) B1_EMIN, " + CEOL
+        if lArqBZ
+            cQuery += "COALESCE((SELECT BZ.BZ_EMIN FROM "+ RetSqlName( 'SBZ' ) +" BZ " + CEOL
+            cQuery += "WHERE BZ.BZ_FILIAL  = '"+ FWxFilial( 'SBZ' ) +"' " + CEOL
+            cQuery += "  AND BZ.BZ_COD     = B1.B1_COD " + CEOL
+            cQuery += "  AND BZ.D_E_L_E_T_ = ' ' ), B1.B1_EMIN) B1_EMIN, " + CEOL
+        else
+            cQuery += "B1.B1_EMIN B1_EMIN, " + CEOL
+        endif
         if lPerca
             cQuery += "B1.B1_X_PERCA, " + CEOL
         endif

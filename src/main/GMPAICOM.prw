@@ -29,6 +29,10 @@
 // pela pilha de execucao do chamador (uma Private so existe se o CHAMADOR a declarou)
 Static hFormula
 
+// Origem do estoque mínimo/máximo de cada produto por filial (indicador SBZ da filial ou cadastro SB1), para que a
+// consolidação das filiais selecionadas some cada registro uma única vez - montado a cada carga da grid (mmMapOri)
+Static hOriMM
+
 /*/{Protheus.doc} GMPAICOM
 Rotina para gestão de compras, elaboração inteligente de pedidos e acompanhamento de carteira de fornecedores
 @type function
@@ -92,6 +96,7 @@ User Function GMPAICOM()
 	Private aHeaPro   := {}
 	Private aHeaSol   := {} as array
 	Private _nQtBlq   := 0 as numeric
+	Private _aMMAnt   := {} as array		// Estoque mínimo/máximo da célula antes da edição na grid: { produto, campo, valor } (U_PCOMPRE)
 	Private aHeaCar   := aClone( aAuxHea[1] )		// Header do grid do carrinho de compras
 	Private aAltCar   := aClone( aAuxHea[2] )		// Campos editáveis do carrinho de compras
 	Private aCarFil   := {} as array
@@ -3663,6 +3668,9 @@ Static Function fLoadInf( aMPs, lAll, lEnd )
 	local aFilVaz   := {} as array
 	local aRotQry   := {} as array	// Filtro por rótulos (aFilRot) aplicado na leitura dos produtos
 	local cEntTit   := "" as character		// Indicação da entrega centralizada (MV_X_PNC23) no título da janela de produtos
+	local hOriCon   := Nil					// Origens do estoque mínimo/máximo já somadas por produto na consolidação das filiais
+	local cOriMM    := "" as character		// Produto + origem do estoque mínimo/máximo da filial (mmOrigem)
+	local lOriSom   := .F. as logical
 	
 	default aMPs := {} 
 	default lAll := .T. 
@@ -3917,6 +3925,13 @@ Static Function fLoadInf( aMPs, lAll, lEnd )
 		// Data e quantidade da última entrada de compra de cada produto/filial: consulta separada da query principal, em lote
 		ultEntPrd( _aProdFil )
 
+		// Origem do estoque mínimo/máximo de cada filial (indicador ou cadastro do produto): a consolidação das filiais
+		// (coluna da grid e modo Pool) soma cada registro uma única vez - o cadastro compartilhado não é multiplicado
+		hOriMM := Nil
+		if len( _aFil ) > 1
+			mmMapOri()
+		endif
+
 		// Calcula a necessidade de compra consolidada de cada produto entre as filiais selecionadas
 		// (modo Individual ou Pool, conforme aConfig[33]/MODNEC) - uma unica vez por produto, antes
 		// do laco de consolidacao abaixo, que ja espera _aProdFil[...][nPosNec] com o valor final
@@ -3928,6 +3943,7 @@ Static Function fLoadInf( aMPs, lAll, lEnd )
 		next nX
 
 		aLinPro := {}
+		hOriCon := HMNew()
 		for nX := 1 to len( _aProdFil )
 			
 			if ! _aProdFil[nX][nPosPrd] == cProdAnt
@@ -3945,6 +3961,10 @@ Static Function fLoadInf( aMPs, lAll, lEnd )
 				next nLinPro
 				aAdd( aColPro, aClone( aLinPro ) )
 				aLinPro := {}
+				// Origem do estoque mínimo/máximo da primeira filial do produto, já contida na linha consolidada
+				if len( _aFil ) > 1
+					HMSet( hOriCon, AllTrim( _aProdFil[nX][nPosPrd] ) +'|'+ mmOrigem( _aProdFil[nX][nPosPrd], _aProdFil[nX][len(_aProdFil[nX])] ), .T. )
+				endif
 
 			else
 				
@@ -3960,8 +3980,19 @@ Static Function fLoadInf( aMPs, lAll, lEnd )
 				aColPro[aScan( aColPro, {|x| x[nPosPrd] == _aProdFil[nX][nPosPrd] } )][nPosOrd] += _aProdFil[nX][nPosOrd]       // Quantidade Em Produção (OPs)
 				aColPro[aScan( aColPro, {|x| x[nPosPrd] == _aProdFil[nX][nPosPrd] } )][nPosEmE] += _aProdFil[nX][nPosEmE]		// Quantidade de estoque atual
 				aColPro[aScan( aColPro, {|x| x[nPosPrd] == _aProdFil[nX][nPosPrd] } )][nPosCon] += _aProdFil[nX][nPosCon]		// Consumo médio
-				aColPro[aScan( aColPro, {|x| x[nPosPrd] == _aProdFil[nX][nPosPrd] } )][nPosEMi] += _aProdFil[nX][nPosEMi]		// Estoque mínimo
-				aColPro[aScan( aColPro, {|x| x[nPosPrd] == _aProdFil[nX][nPosPrd] } )][nPosEMx] += _aProdFil[nX][nPosEMx]		// Estoque máximo
+				// Estoque mínimo/máximo: soma cada registro de origem uma única vez - o indicador (SBZ) de cada filial entra na
+				// soma; o cadastro do produto (SB1) compartilhado pelas filiais sem indicador conta uma vez só
+				if len( _aFil ) > 1
+					cOriMM := AllTrim( _aProdFil[nX][nPosPrd] ) +'|'+ mmOrigem( _aProdFil[nX][nPosPrd], _aProdFil[nX][len(_aProdFil[nX])] )
+					if ! HMGet( hOriCon, cOriMM, @lOriSom )
+						HMSet( hOriCon, cOriMM, .T. )
+						aColPro[aScan( aColPro, {|x| x[nPosPrd] == _aProdFil[nX][nPosPrd] } )][nPosEMi] += _aProdFil[nX][nPosEMi]		// Estoque mínimo
+						aColPro[aScan( aColPro, {|x| x[nPosPrd] == _aProdFil[nX][nPosPrd] } )][nPosEMx] += _aProdFil[nX][nPosEMx]		// Estoque máximo
+					endif
+				else
+					aColPro[aScan( aColPro, {|x| x[nPosPrd] == _aProdFil[nX][nPosPrd] } )][nPosEMi] += _aProdFil[nX][nPosEMi]		// Estoque mínimo
+					aColPro[aScan( aColPro, {|x| x[nPosPrd] == _aProdFil[nX][nPosPrd] } )][nPosEMx] += _aProdFil[nX][nPosEMx]		// Estoque máximo
+				endif
 				// Última entrada de compra: a mais recente entre as filiais. A quantidade acompanha a data e, quando
 				// mais de uma filial teve a última entrada na mesma data, as quantidades são somadas
 				if nPosUEn > 2 .and. ! Empty( _aProdFil[nX][nPosUEn] )
@@ -4805,8 +4836,10 @@ User Function PCOMVLD()
 	Private lMsErroAuto := .F.
 
 	if oBrwPro:oBrowse != Nil
-		// Estoque mínimo/máximo: grava no indicador de produto (SBZ) da filial quando existir, senão segue para o
-		// cadastro geral (SB1) abaixo - mesma regra da leitura em U_JSQRYINF
+		// Estoque mínimo/máximo: tratado por completo em grvMinMax - em cada filial de destino, indicador de produto (SBZ)
+		// quando existir, senão cadastro geral (SB1), mesma regra da leitura em U_JSQRYINF. Com mais de uma filial
+		// selecionada, pergunta se a alteração vale para a filial atual ou para todas as filiais selecionadas e, se a
+		// gravação também for alterar outras filiais (tabela compartilhada), avisa quais são e pede confirmação
 		if cField $ 'B1_EMIN|B1_EMAX'
 			lGrvInd := grvMinMax( cField, aColPro[oBrwPro:nAt][nPosPrd], aColPro[oBrwPro:At()][gtMain(cField)], @lReturn )
 		endif
@@ -7314,7 +7347,8 @@ Calcula a necessidade de compra consolidada de um produto entre todas as filiais
 calculadas por filial em _aProdFil (fLoadInf grava com lSkipLot=.T., sem ajuste de lote ainda) e
 aplica U_JSAPLLOT uma unica vez sobre a soma; modo '2' (Pool/Consolidado) soma estoque, empenho,
 pedido, solicitacao, producao e consumo medio de todas as filiais antes de calcular, e chama
-fCalNec uma unica vez sobre o total agrupado. Em ambos os modos, distribui o resultado final de
+fCalNec uma unica vez sobre o total agrupado - com o estoque minimo consolidado da grid (mmSomaOri:
+indicador de cada filial somado, cadastro do produto compartilhado uma vez so). Em ambos os modos, distribui o resultado final de
 volta em _aProdFil[...][nPosNec] (proporcionalmente, ajustando a maior fatia para a soma bater
 exatamente), para que a tela "Qtde x Filial" (PCOMPRE) e o carrinho (aCarFil) permanecam
 consistentes com o total mostrado na grid principal. Quando o produto so existe em 1 filial
@@ -7346,6 +7380,7 @@ Static Function fGrpCalNec( cProduto )
 	local nSol      := 0  as numeric
 	local nOrd      := 0  as numeric
 	local nCon      := 0  as numeric
+	local nEstMin   := 0  as numeric
 
 	// Localiza todas as linhas de _aProdFil do produto (ignora analise reversa, origem 'E')
 	for nX := 1 to len( _aProdFil )
@@ -7371,9 +7406,11 @@ Static Function fGrpCalNec( cProduto )
 		if nCon == 0
 			nCon := 0.0001		// protege contra divisao por zero, mesmo guard usado no calculo original
 		endif
+		// Estoque mínimo do grupo: mesma consolidação da coluna da grid (cada registro de origem uma única vez)
+		nEstMin := mmSomaOri( aIdx, nPosEMi )
 
 		nQtdAtual := nEmE - iif( aConfig[24] == 'S', nVen, 0 )
-		nPrjEst   := Round( ( nQtdAtual - _aProdFil[ aIdx[1] ][nPosEMi] + nQtd ) / nCon, 0 )
+		nPrjEst   := Round( ( nQtdAtual - nEstMin + nQtd ) / nCon, 0 )
 		if nPrjEst > 999
 			nPrjEst := 999
 		elseif nPrjEst < 0
@@ -7387,7 +7424,7 @@ Static Function fGrpCalNec( cProduto )
 					 _aProdFil[ aIdx[1] ][nPosLtM],;
 					 _aProdFil[ aIdx[1] ][nPosQtE],;
 					 _aProdFil[ aIdx[1] ][nPosLtE],;
-					 _aProdFil[ aIdx[1] ][nPosEMi],;
+					 nEstMin,;
 					 nEmE,;
 					 nVen,;
 					 nQtd,;
@@ -11800,57 +11837,570 @@ static function cmpVal( xA, xB )
 return nRet
 
 /*/{Protheus.doc} grvMinMax
-Grava a alteração de estoque mínimo/máximo feita na grid seguindo a mesma regra da leitura (U_JSQRYINF):
-indicador de produto (SBZ) da filial quando existir; sem indicador, devolve .F. para o chamador gravar no
-cadastro geral (SB1). Com mais de uma filial selecionada, a coluna exibe a soma das filiais e a alteração é
-bloqueada (não há como saber em qual filial gravar)
+Grava a alteração de estoque mínimo/máximo feita na grid seguindo a mesma regra da leitura (U_JSQRYINF): em cada
+filial de destino, grava no indicador de produto (SBZ) quando o ambiente usa indicador e existe registro do produto
+para a filial; sem registro (ou sem indicador), grava no cadastro geral do produto (SB1). Com mais de uma filial
+selecionada, a coluna exibe o total consolidado das filiais (mmSomaOri) e o usuário escolhe se a alteração vale só para a filial atual ou para
+todas as filiais selecionadas (mmFilDst); se a gravação também for alterar filiais fora da escolha (tabela
+compartilhada, como o SB1 de um produto sem indicador na filial), avisa quais são e pede confirmação (mmConfExt). Ao
+final, a coluna é recalculada com os valores gravados em cada filial. Cancelando qualquer uma das mensagens, a célula
+volta ao valor de antes da edição (guardado em U_PCOMPRE) e a edição é encerrada, sem gravar nada
 @type function
-@version 23.0019
+@version 27.0006
 @author Jean Carlos Pandolfo Saggin
 @since 14/10/2026
 @param cField, character, campo editado (B1_EMIN ou B1_EMAX)
 @param cProd, character, código do produto
 @param nValue, numeric, novo valor
 @param lReturn, logical, (referência) retorno da validação da edição
-@return logical, lTratado - .T. quando a alteração já foi tratada aqui (gravada na SBZ ou bloqueada)
+@return logical, lTratado - .T.: a alteração é sempre tratada aqui (gravada na SBZ/SB1 ou cancelada pelo usuário, com o
+valor anterior devolvido à célula)
 /*/
 static function grvMinMax( cField, cProd, nValue, lReturn )
 
-	local lTratado := .F. as logical
+	local lTratado := .T. as logical
+	local lUsaInd  := mmUsaInd() as logical
+	local lGrava   := .T. as logical
 	local cCpoBZ   := 'BZ_'+ SubStr( cField, 4 ) as character	// B1_EMIN -> BZ_EMIN | B1_EMAX -> BZ_EMAX
 	local cFilBkp  := cFilAnt as character
 	local nPosFul  := aScan( aFullPro, {|x| x[nPosPrd] == cProd } ) as numeric
+	local aFilDst  := {} as array
+	local aPlano   := {} as array
+	local nX       := 0 as numeric
 
+	// Filiais em que a alteração será gravada: com mais de uma filial selecionada, o usuário escolhe
 	if len( _aFil ) > 1
-		hlp( 'MINMAX_FILIAL',;
-			 'O estoque mínimo/máximo é definido por filial e não pode ser alterado com mais de uma filial selecionada.',;
-			 'Selecione apenas a filial desejada no filtro (botão Filiais) e faça a alteração novamente.' )
-		// Desfaz a edição na grid, voltando ao valor carregado
-		if nPosFul > 0
-			aColPro[oBrwPro:nAt][gtMain(cField)] := aFullPro[nPosFul][gtMain(cField)]
-		endif
-		lReturn  := .F.
-		lTratado := .T.
+		aFilDst := mmFilDst( cField, cProd )
 	else
-		// Indicador de produto da filial analisada (pode ser diferente da filial logada)
-		cFilAnt := _aFil[1]
-		DBSelectArea( 'SBZ' )
-		SBZ->( DBSetOrder( 1 ) )		// BZ_FILIAL + BZ_COD
-		if SBZ->( FieldPos( cCpoBZ ) ) > 0 .and. SBZ->( DBSeek( FWxFilial( 'SBZ' ) + cProd ) )
-			if SBZ->( FieldGet( FieldPos( cCpoBZ ) ) ) != nValue
-				RecLock( 'SBZ', .F. )
-				SBZ->( FieldPut( FieldPos( cCpoBZ ), nValue ) )
-				SBZ->( MsUnlock() )
-			endif
-			if nPosFul > 0
-				aFullPro[nPosFul] := aClone( aColPro[oBrwPro:nAt] )
-			endif
-			lTratado := .T.
-		endif
-		cFilAnt := cFilBkp
+		aFilDst := { _aFil[1] }
 	endif
 
+	if len( aFilDst ) > 0
+		// Onde gravar em cada filial de destino (SBZ ou SB1), uma única vez por tabela compartilhada
+		aPlano := mmPlano( cProd, aFilDst, lUsaInd )
+		// Filiais escolhidas pelo usuário (mais de uma filial selecionada): se a gravação também alterar filiais fora da
+		// escolha (ex.: produto sem indicador na filial e cadastro do produto compartilhado), avisa e pede confirmação
+		if len( _aFil ) > 1
+			lGrava := mmConfExt( cField, cProd, aFilDst, aPlano, lUsaInd )
+		endif
+	else
+		lGrava := .F.
+	endif
+
+	if ! lGrava
+		// Cancelado pelo usuário: devolve à célula o valor de antes da edição (guardado em U_PCOMPRE) e encerra a edição
+		// normalmente (retorno .T.), para o cursor sair da célula em vez de ficar preso nela. Sem o valor guardado para
+		// este produto/campo, usa o valor carregado na grid (vetor de backup)
+		if len( _aMMAnt ) == 3 .and. _aMMAnt[1] == cProd .and. _aMMAnt[2] == cField
+			aColPro[oBrwPro:nAt][gtMain(cField)] := _aMMAnt[3]
+		elseif nPosFul > 0
+			aColPro[oBrwPro:nAt][gtMain(cField)] := aFullPro[nPosFul][gtMain(cField)]
+		endif
+		lReturn := .T.
+	else
+		for nX := 1 to len( aPlano )
+			cFilAnt := aPlano[nX][2]
+			if aPlano[nX][3]
+				DBSelectArea( 'SBZ' )
+				SBZ->( DBSetOrder( 1 ) )		// BZ_FILIAL + BZ_COD
+				if SBZ->( DBSeek( FWxFilial( 'SBZ' ) + cProd ) ) .and. SBZ->( FieldGet( FieldPos( cCpoBZ ) ) ) != nValue
+					RecLock( 'SBZ', .F. )
+					SBZ->( FieldPut( FieldPos( cCpoBZ ), nValue ) )
+					SBZ->( MsUnlock() )
+				endif
+			else
+				mmGrvSB1( cField, cProd, nValue )
+			endif
+			cFilAnt := cFilBkp
+		next nX
+
+		// Coluna da grid e vetor por filial com os valores efetivamente gravados (soma das filiais selecionadas)
+		mmAtuGrd( cField, cProd, lUsaInd )
+	endif
+	// Valor de antes da edição vale só para esta edição
+	_aMMAnt := {}
+
 return lTratado
+
+/*/{Protheus.doc} mmPlano
+Monta o plano de gravação do estoque mínimo/máximo: para cada filial de destino, a tabela onde o valor deve ser
+gravado (mmChave), com uma única entrada por registro compartilhado entre as filiais de destino
+@type function
+@version 27.0003
+@author Jean Carlos Pandolfo Saggin
+@since 11/11/2026
+@param cProd, character, código do produto
+@param aFilDst, array, filiais de destino
+@param lUsaInd, logical, .T. quando o ambiente utiliza indicador de produto (mmUsaInd)
+@return array, aPlano - por entrada: { chave (mmChave), filial a posicionar para gravar, .T. = SBZ / .F. = SB1, filiais de destino atendidas }
+/*/
+static function mmPlano( cProd, aFilDst, lUsaInd )
+
+	local aPlano  := {} as array
+	local cFilBkp := cFilAnt as character
+	local cChave  := "" as character
+	local cFilGrv := "" as character
+	local lSBZ    := .F. as logical
+	local nPos    := 0 as numeric
+	local nX      := 0 as numeric
+
+	for nX := 1 to len( aFilDst )
+		cChave := mmChave( aFilDst[nX], cProd, lUsaInd )
+		lSBZ   := Left( cChave, 3 ) == 'SBZ'
+		// SBZ: grava a partir da filial de destino. SB1 compartilhado com a filial logada: grava a partir dela (como nas
+		// demais colunas da grid); SB1 exclusivo: a partir da filial de destino
+		cFilGrv := aFilDst[nX]
+		if ! lSBZ .and. 'SB1'+ FWxFilial( 'SB1' ) == cChave
+			cFilGrv := cFilBkp
+		endif
+		nPos := aScan( aPlano, {|x| x[1] == cChave } )
+		if nPos == 0
+			aAdd( aPlano, { cChave, cFilGrv, lSBZ, { aFilDst[nX] } } )
+		else
+			aAdd( aPlano[nPos][4], aFilDst[nX] )
+		endif
+	next nX
+
+return aPlano
+
+/*/{Protheus.doc} mmChave
+Tabela de onde a filial lê o estoque mínimo/máximo do produto (mesma regra de U_JSQRYINF): indicador de produto
+(SBZ) da filial quando ela usa indicador (MV_ARQPROD = SBZ) e existe registro do produto, senão cadastro geral do
+produto (SB1).
+A chave leva a filial da tabela (xFilial), o que identifica as filiais que compartilham o mesmo registro
+@type function
+@version 27.0003
+@author Jean Carlos Pandolfo Saggin
+@since 11/11/2026
+@param cFil, character, filial
+@param cProd, character, código do produto
+@param lUsaInd, logical, .T. quando o ambiente utiliza indicador de produto (mmUsaInd)
+@return character, cChave - 'SBZ' + filial da SBZ ou 'SB1' + filial do SB1
+/*/
+static function mmChave( cFil, cProd, lUsaInd )
+
+	local cChave  := "" as character
+	local cFilBkp := cFilAnt as character
+
+	cFilAnt := cFil
+	// Indicador de produto somente com o parâmetro MV_ARQPROD = SBZ na filial
+	if lUsaInd .and. U_JSUSASBZ()
+		DBSelectArea( 'SBZ' )
+		SBZ->( DBSetOrder( 1 ) )		// BZ_FILIAL + BZ_COD
+		if SBZ->( DBSeek( FWxFilial( 'SBZ' ) + cProd ) )
+			cChave := 'SBZ'+ FWxFilial( 'SBZ' )
+		endif
+	endif
+	if Empty( cChave )
+		cChave := 'SB1'+ FWxFilial( 'SB1' )
+	endif
+	cFilAnt := cFilBkp
+
+return cChave
+
+/*/{Protheus.doc} mmConfExt
+Com as filiais de destino escolhidas pelo usuário (mais de uma filial selecionada), verifica se a gravação do estoque
+mínimo/máximo também vai alterar filiais da empresa fora da escolha: a filial de destino sem indicador de produto
+(SBZ) grava no cadastro do produto (SB1) que, compartilhado, vale para todas as filiais sem indicador próprio. Nesse
+caso, avisa quais filiais também serão alteradas e pede confirmação antes de gravar
+@type function
+@version 27.0003
+@author Jean Carlos Pandolfo Saggin
+@since 11/11/2026
+@param cField, character, campo editado (B1_EMIN ou B1_EMAX)
+@param cProd, character, código do produto
+@param aFilDst, array, filiais de destino escolhidas pelo usuário
+@param aPlano, array, plano de gravação (mmPlano)
+@param lUsaInd, logical, .T. quando o ambiente utiliza indicador de produto (mmUsaInd)
+@return logical, lGrava - .T. quando nenhuma outra filial é afetada ou o usuário confirmou a gravação
+/*/
+static function mmConfExt( cField, cProd, aFilDst, aPlano, lUsaInd )
+
+	local lGrava  := .T. as logical
+	local aFilEmp := getFilData( {} ) as array
+	local cTitCpo := AllTrim( aHeaPro[gtMain(cField)-2][1] ) as character
+	local cFilEmp := "" as character
+	local cChave  := "" as character
+	local cDstB1  := "" as character
+	local cExtB1  := "" as character
+	local cExtBZ  := "" as character
+	local cMsg    := "" as character
+	local cNaFil  := "na filial " as character
+	local cSoFil  := "somente a filial escolhida, cadastre antes o indicador do produto (SBZ) nessa filial." as character
+	local lArqBZ  := lUsaInd .and. U_JSUSASBZ() as logical	// Indicador de produto em uso (parâmetro MV_ARQPROD = SBZ)
+	local nDstB1  := 0 as numeric
+	local nPos    := 0 as numeric
+	local nX      := 0 as numeric
+	local nY      := 0 as numeric
+
+	// Filiais de destino sem indicador próprio do produto (gravação no cadastro do produto)
+	for nX := 1 to len( aPlano )
+		if ! aPlano[nX][3]
+			for nY := 1 to len( aPlano[nX][4] )
+				if ! Empty( cDstB1 )
+					cDstB1 += ', '
+				endif
+				cDstB1 += AllTrim( aPlano[nX][4][nY] )
+				nDstB1++
+			next nY
+		endif
+	next nX
+
+	// Demais filiais da empresa que leem o valor de um dos registros que serão gravados
+	for nX := 1 to len( aFilEmp )
+		cFilEmp := PadR( aFilEmp[nX][2], len( cFilAnt ) )
+		if aScan( aFilDst, {|x| AllTrim( x ) == AllTrim( cFilEmp ) } ) == 0
+			cChave := mmChave( cFilEmp, cProd, lUsaInd )
+			nPos   := aScan( aPlano, {|x| x[1] == cChave } )
+			if nPos > 0
+				if aPlano[nPos][3]
+					if ! Empty( cExtBZ )
+						cExtBZ += ', '
+					endif
+					cExtBZ += aFilEmp[nX][2] +' - '+ aFilEmp[nX][3]
+				else
+					if ! Empty( cExtB1 )
+						cExtB1 += ', '
+					endif
+					cExtB1 += aFilEmp[nX][2] +' - '+ aFilEmp[nX][3]
+				endif
+			endif
+		endif
+	next nX
+
+	if nDstB1 > 1
+		cNaFil := "nas filiais "
+		cSoFil := "somente as filiais escolhidas, cadastre antes o indicador do produto (SBZ) nessas filiais."
+	endif
+
+	if ! Empty( cExtB1 ) .or. ! Empty( cExtBZ )
+		cMsg := 'A alteração de '+ cTitCpo +' do produto '+ AllTrim( cProd ) +' - '+ AllTrim( aColPro[oBrwPro:nAt][nPosDes] ) +;
+				' não vai ficar restrita à escolha feita.'+ CEOL
+		if ! Empty( cExtB1 )
+			cMsg += CEOL
+			if lArqBZ
+				cMsg += 'O produto não tem indicador de produto (SBZ) '+ cNaFil + cDstB1 +', então o valor será gravado no cadastro do produto (SB1), '+;
+						'que é compartilhado. A alteração também vai valer para estas filiais, que não têm indicador próprio do produto: '+ cExtB1 +'.'+ CEOL + CEOL
+				cMsg += 'Para alterar '+ cSoFil + CEOL
+			else
+				cMsg += 'O ambiente não utiliza indicador de produto (parâmetro MV_ARQPROD diferente de SBZ), então o valor será gravado no cadastro do produto (SB1), '+;
+						'que é compartilhado. A alteração também vai valer para estas filiais: '+ cExtB1 +'.'+ CEOL
+			endif
+		endif
+		if ! Empty( cExtBZ )
+			cMsg += CEOL +'O indicador de produto (SBZ) é compartilhado entre filiais. A alteração também vai valer para estas filiais: '+ cExtBZ +'.'+ CEOL
+		endif
+		cMsg += CEOL +'Deseja continuar?'
+		lGrava := Aviso( 'Alteração em outras filiais', cMsg, { 'Continuar', 'Cancelar' }, 3 ) == 1
+	endif
+
+return lGrava
+
+/*/{Protheus.doc} mmFilDst
+Pergunta ao usuário, quando há mais de uma filial selecionada, em quais filiais a alteração de estoque mínimo/máximo
+feita na grid deve ser gravada: somente na filial atual (logada) ou em todas as filiais selecionadas no filtro
+@type function
+@version 27.0003
+@author Jean Carlos Pandolfo Saggin
+@since 11/11/2026
+@param cField, character, campo editado (B1_EMIN ou B1_EMAX)
+@param cProd, character, código do produto
+@return array, aFilDst - filiais de destino (vazio quando o usuário cancela)
+/*/
+static function mmFilDst( cField, cProd )
+
+	local aFilDst := {} as array
+	local cTitCpo := AllTrim( aHeaPro[gtMain(cField)-2][1] ) as character
+	local cSelec  := "" as character
+	local cMsg    := "" as character
+	local nOpc    := 0 as numeric
+	local nX      := 0 as numeric
+
+	for nX := 1 to len( _aFil )
+		if nX > 1
+			cSelec += ', '
+		endif
+		cSelec += AllTrim( _aFil[nX] )
+	next nX
+
+	cMsg := 'Você está tentando editar '+ cTitCpo +' para o produto '+ AllTrim( cProd ) +' - '+ AllTrim( aColPro[oBrwPro:nAt][nPosDes] ) +;
+			' com mais do que uma filial selecionada. Para qual filial gostaria de aplicar a alteração?'+ CEOL + CEOL
+	cMsg += 'Filial Atual: '+ AllTrim( cFilAnt ) +' - '+ fName( cFilAnt ) + CEOL
+	cMsg += 'Filiais Selecionadas: '+ cSelec + CEOL + CEOL
+	cMsg += 'O valor informado será gravado em cada filial escolhida. Com mais de uma filial selecionada, a coluna soma o indicador de cada filial; '+;
+			'o cadastro do produto, quando compartilhado pelas filiais sem indicador, conta uma vez só.'
+	if aScan( _aFil, {|x| x == cFilAnt } ) == 0
+		cMsg += CEOL +'A filial atual não está entre as filiais selecionadas: o total exibido na grid só muda se a alteração também valer para alguma delas.'
+	endif
+
+	nOpc := Aviso( 'Mais de uma filial selecionada', cMsg, { 'Filial Atual', 'Filiais Selecionadas', 'Cancelar' }, 3 )
+	if nOpc == 1
+		aFilDst := { cFilAnt }
+	elseif nOpc == 2
+		aFilDst := aClone( _aFil )
+	endif
+
+return aFilDst
+
+/*/{Protheus.doc} mmUsaInd
+Indica se a estrutura do indicador de produto (SBZ) para o estoque mínimo/máximo está no dicionário de dados (tabela
+com os campos BZ_EMIN e BZ_EMAX). O uso em cada filial depende ainda do parâmetro MV_ARQPROD = SBZ (U_JSUSASBZ,
+avaliado em mmChave, mmValFil e mmMapOri): usando, o indicador vale para as filiais que têm registro do produto na
+SBZ; as demais filiais usam o cadastro geral do produto (SB1), a mesma regra da leitura (U_JSQRYINF)
+@type function
+@version 27.0005
+@author Jean Carlos Pandolfo Saggin
+@since 11/11/2026
+@return logical, lUsaInd
+/*/
+static function mmUsaInd()
+
+	local lUsaInd := .F. as logical
+
+	if FWAliasInDic( 'SBZ' )
+		DBSelectArea( 'SBZ' )
+		lUsaInd := SBZ->( FieldPos( 'BZ_EMIN' ) ) > 0 .and. SBZ->( FieldPos( 'BZ_EMAX' ) ) > 0
+	endif
+
+return lUsaInd
+
+/*/{Protheus.doc} mmGrvSB1
+Grava o estoque mínimo/máximo no cadastro geral do produto (SB1) da filial corrente pela rotina padrão (MATA010),
+somente quando o valor gravado é diferente do novo valor. Falhas da rotina padrão são exibidas ao usuário
+@type function
+@version 27.0003
+@author Jean Carlos Pandolfo Saggin
+@since 11/11/2026
+@param cField, character, campo editado (B1_EMIN ou B1_EMAX)
+@param cProd, character, código do produto
+@param nValue, numeric, novo valor
+@return logical, lOk - .F. quando a rotina padrão recusou a alteração
+/*/
+static function mmGrvSB1( cField, cProd, nValue )
+
+	local lOk     := .T. as logical
+	local aVetPrd := {} as array
+
+	Private lMsErroAuto := .F.
+
+	DBSelectArea( 'SB1' )
+	SB1->( DBSetOrder( 1 ) )		// B1_FILIAL + B1_COD
+	if SB1->( DBSeek( FWxFilial( 'SB1' ) + cProd ) ) .and. SB1->( FieldGet( FieldPos( cField ) ) ) != nValue
+		aAdd( aVetPrd, { "B1_FILIAL", FWxFilial( 'SB1' ), Nil } )
+		aAdd( aVetPrd, { "B1_COD"   , cProd, Nil } )
+		aAdd( aVetPrd, { cField     , nValue, Nil } )
+		MSExecAuto( {|x, y| Mata010( x, y ) }, aVetPrd, 4 )
+		if lMsErroAuto
+			lOk := .F.
+			MostraErro()
+		endif
+	endif
+
+return lOk
+
+/*/{Protheus.doc} mmAtuGrd
+Atualiza o estoque mínimo/máximo do produto no vetor por filial (_aProdFil) com o valor efetivamente gravado em cada
+filial selecionada e devolve à coluna da grid o total consolidado: cada registro de origem entra uma única vez na
+soma - o indicador (SBZ) de cada filial é somado; o cadastro do produto (SB1) compartilhado pelas filiais sem
+indicador conta uma vez só (mesma regra da carga da grid). Relê o banco porque uma tabela compartilhada pode ter
+alterado o valor de outras filiais além das escolhidas, e porque uma gravação recusada mantém o valor anterior
+@type function
+@version 27.0004
+@author Jean Carlos Pandolfo Saggin
+@since 11/11/2026
+@param cField, character, campo editado (B1_EMIN ou B1_EMAX)
+@param cProd, character, código do produto
+@param lUsaInd, logical, .T. quando o ambiente utiliza indicador de produto (mmUsaInd)
+/*/
+static function mmAtuGrd( cField, cProd, lUsaInd )
+
+	local nCol    := gtMain( cField ) as numeric
+	local nPosFul := aScan( aFullPro, {|x| x[nPosPrd] == cProd } ) as numeric
+	local aIdx    := idxProd( cProd ) as array
+	local aOrig   := {} as array
+	local cFil    := "" as character
+	local cOri    := "" as character
+	local nSoma   := 0 as numeric
+	local nX      := 0 as numeric
+
+	if len( aIdx ) > 0
+		for nX := 1 to len( aIdx )
+			cFil := _aProdFil[aIdx[nX]][len(_aProdFil[aIdx[nX]])]
+			_aProdFil[aIdx[nX]][nCol] := mmValFil( cFil, cField, cProd, lUsaInd )
+			// Cada registro de origem (indicador da filial ou cadastro do produto) entra uma única vez na soma
+			cOri := mmChave( cFil, cProd, lUsaInd )
+			if aScan( aOrig, {|x| x == cOri } ) == 0
+				aAdd( aOrig, cOri )
+				nSoma += _aProdFil[aIdx[nX]][nCol]
+			endif
+		next nX
+		aColPro[oBrwPro:nAt][nCol] := nSoma
+	endif
+	if nPosFul > 0
+		aFullPro[nPosFul] := aClone( aColPro[oBrwPro:nAt] )
+	endif
+
+return Nil
+
+/*/{Protheus.doc} mmValFil
+Estoque mínimo/máximo gravado para o produto numa filial: indicador de produto (SBZ) da filial quando ela usa
+indicador (MV_ARQPROD = SBZ) e existe registro; senão, o cadastro geral do produto (SB1) - mesma regra de U_JSQRYINF
+@type function
+@version 27.0003
+@author Jean Carlos Pandolfo Saggin
+@since 11/11/2026
+@param cFil, character, filial
+@param cField, character, campo (B1_EMIN ou B1_EMAX)
+@param cProd, character, código do produto
+@param lUsaInd, logical, .T. quando o ambiente utiliza indicador de produto (mmUsaInd)
+@return numeric, nValor
+/*/
+static function mmValFil( cFil, cField, cProd, lUsaInd )
+
+	local nValor  := 0 as numeric
+	local cFilBkp := cFilAnt as character
+	local lAchou  := .F. as logical
+
+	cFilAnt := cFil
+	// Indicador de produto somente com o parâmetro MV_ARQPROD = SBZ na filial
+	if lUsaInd .and. U_JSUSASBZ()
+		DBSelectArea( 'SBZ' )
+		SBZ->( DBSetOrder( 1 ) )		// BZ_FILIAL + BZ_COD
+		lAchou := SBZ->( DBSeek( FWxFilial( 'SBZ' ) + cProd ) )
+		if lAchou
+			nValor := SBZ->( FieldGet( FieldPos( 'BZ_'+ SubStr( cField, 4 ) ) ) )
+		endif
+	endif
+	if ! lAchou
+		DBSelectArea( 'SB1' )
+		SB1->( DBSetOrder( 1 ) )		// B1_FILIAL + B1_COD
+		if SB1->( DBSeek( FWxFilial( 'SB1' ) + cProd ) )
+			nValor := SB1->( FieldGet( FieldPos( cField ) ) )
+		endif
+	endif
+	cFilAnt := cFilBkp
+
+return nValor
+
+/*/{Protheus.doc} mmMapOri
+Monta, a cada carga da grid com mais de uma filial selecionada, o mapa de origem do estoque mínimo/máximo usado na
+consolidação das filiais (mmOrigem): para cada filial selecionada, se ela usa indicador de produto (MV_ARQPROD = SBZ)
+e a filial da SBZ e do SB1 (xFilial); e, numa única consulta, os produtos com indicador (SBZ) cadastrado nessas filiais
+@type function
+@version 27.0005
+@author Jean Carlos Pandolfo Saggin
+@since 16/11/2026
+/*/
+static function mmMapOri()
+
+	local lUsaInd := mmUsaInd() as logical
+	local lArqBZ  := .F. as logical
+	local cFilBkp := cFilAnt as character
+	local cXFilBZ := "" as character
+	local cInFil  := "" as character
+	local cQuery  := "" as character
+	local cAlias  := "" as character
+	local aFilBZ  := {} as array
+	local nX      := 0 as numeric
+
+	hOriMM := HMNew()
+	for nX := 1 to len( _aFil )
+		cFilAnt := _aFil[nX]
+		cXFilBZ := ""
+		// Indicador de produto somente com o parâmetro MV_ARQPROD = SBZ na filial
+		lArqBZ  := lUsaInd .and. U_JSUSASBZ()
+		if lArqBZ
+			cXFilBZ := FWxFilial( 'SBZ' )
+			if aScan( aFilBZ, {|x| x == cXFilBZ } ) == 0
+				aAdd( aFilBZ, cXFilBZ )
+			endif
+		endif
+		HMSet( hOriMM, '#'+ AllTrim( _aFil[nX] ), { lArqBZ, cXFilBZ, FWxFilial( 'SB1' ) } )
+	next nX
+	cFilAnt := cFilBkp
+
+	if len( aFilBZ ) > 0
+		for nX := 1 to len( aFilBZ )
+			if nX > 1
+				cInFil += ","
+			endif
+			cInFil += "'"+ aFilBZ[nX] +"'"
+		next nX
+		cQuery := "SELECT BZ.BZ_FILIAL, BZ.BZ_COD FROM "+ RetSqlName( 'SBZ' ) +" BZ "
+		cQuery += "WHERE BZ.BZ_FILIAL IN ( "+ cInFil +" ) "
+		cQuery += "  AND BZ.D_E_L_E_T_ = ' ' "
+		cAlias := MPSysOpenQuery( cQuery )
+		while ! ( cAlias )->( EOF() )
+			HMSet( hOriMM, AllTrim( ( cAlias )->BZ_FILIAL ) +'|'+ AllTrim( ( cAlias )->BZ_COD ), .T. )
+			( cAlias )->( DBSkip() )
+		end
+		( cAlias )->( DBCloseArea() )
+	endif
+
+return Nil
+
+/*/{Protheus.doc} mmOrigem
+Registro de onde a filial lê o estoque mínimo/máximo do produto, no mesmo formato de mmChave ('SBZ' ou 'SB1' seguido
+da filial da tabela): filiais que leem o mesmo registro têm a mesma origem e entram uma única vez na soma das filiais.
+Usa o mapa da carga (mmMapOri); sem o mapa para a filial, consulta o banco (mmChave)
+@type function
+@version 27.0004
+@author Jean Carlos Pandolfo Saggin
+@since 16/11/2026
+@param cProd, character, código do produto
+@param cFil, character, filial
+@return character, cOrigem
+/*/
+static function mmOrigem( cProd, cFil )
+
+	local cOrigem := "" as character
+	local aXFil   := {} as array
+	local lTemBZ  := .F. as logical
+
+	if ValType( hOriMM ) == 'O' .and. HMGet( hOriMM, '#'+ AllTrim( cFil ), @aXFil )
+		if aXFil[1] .and. HMGet( hOriMM, AllTrim( aXFil[2] ) +'|'+ AllTrim( cProd ), @lTemBZ )
+			cOrigem := 'SBZ'+ aXFil[2]
+		else
+			cOrigem := 'SB1'+ aXFil[3]
+		endif
+	else
+		cOrigem := mmChave( cFil, cProd, mmUsaInd() )
+	endif
+
+return cOrigem
+
+/*/{Protheus.doc} mmSomaOri
+Total consolidado do estoque mínimo/máximo de um produto entre as filiais selecionadas: soma o valor de cada filial
+contando cada registro de origem uma única vez - o indicador (SBZ) de cada filial é somado; o cadastro do produto (SB1)
+compartilhado pelas filiais sem indicador conta uma vez só. Mesma regra da coluna da grid (fLoadInf e mmAtuGrd)
+@type function
+@version 27.0004
+@author Jean Carlos Pandolfo Saggin
+@since 16/11/2026
+@param aIdx, array, posições do produto em _aProdFil
+@param nCol, numeric, coluna do estoque mínimo ou máximo
+@return numeric, nSoma
+/*/
+static function mmSomaOri( aIdx, nCol )
+
+	local aOrig := {} as array
+	local cOri  := "" as character
+	local nSoma := 0 as numeric
+	local nX    := 0 as numeric
+
+	if len( aIdx ) == 1
+		nSoma := _aProdFil[aIdx[1]][nCol]
+	else
+		for nX := 1 to len( aIdx )
+			cOri := mmOrigem( _aProdFil[aIdx[nX]][nPosPrd], _aProdFil[aIdx[nX]][len(_aProdFil[aIdx[nX]])] )
+			if aScan( aOrig, {|x| x == cOri } ) == 0
+				aAdd( aOrig, cOri )
+				nSoma += _aProdFil[aIdx[nX]][nCol]
+			endif
+		next nX
+	endif
+
+return nSoma
 
 /*/{Protheus.doc} PCOMPRE
 Função de pré-validação para edição de colunas do browse
@@ -11880,6 +12430,7 @@ user function PCOMPRE(oBrw, oCol, cPre )
 	local bInit    :={|| EnchoiceBar( oQtdFil, bOk, bCancel,,aButtons )}
 	local aColumns := {} as array
 	local cProduto := aColPro[oBrwPro:At()][nPosPrd]
+	local cColId   := AllTrim( oBrwPro:GetColumn(oBrwPro:ColPos()):GetID() ) as character
 	local cFil     := "" as character
 	local nX       := 0 as numeric
 	local oSize    as object
@@ -12170,6 +12721,13 @@ user function PCOMPRE(oBrw, oCol, cPre )
 		// Só permite editar o preço de tabela diretamente na grid para usuários autorizados (mesma trava de "Aplicar" na Formação de Preços)
 		lCanEdit := RetCodUsr() $ AllTrim( SuperGetMv( 'MV_X_PNC15',, '000000' ) ) .or. FWIsAdmin()
 
+	elseif cColId == 'B1_EMIN' .or. cColId == 'B1_EMAX'
+
+		// Estoque mínimo/máximo: guarda o valor da célula ao entrar na edição para devolvê-lo se o usuário cancelar a
+		// gravação nas mensagens de grvMinMax (escolha das filiais ou aviso de alteração em outras filiais)
+		_aMMAnt := { cProduto, cColId, aColPro[oBrwPro:At()][gtMain(cColId)] }
+		lCanEdit := .T.
+
 	endif
 
 return lCanEdit
@@ -12373,11 +12931,12 @@ static function getSnpMed( cFil, cProd )
 return aRet
 
 /*/{Protheus.doc} getMinMax
-Retorna o estoque mínimo/máximo de um produto numa filial específica: quando existir indicador
-de produto cadastrado (SBZ) para a filial, usa BZ_EMIN/BZ_EMAX; senão, cai no cadastro geral do
-produto (SB1.B1_EMIN/B1_EMAX). Fonte usada pela tela "Quantidades x Filial" (PCOMPRE).
+Retorna o estoque mínimo/máximo de um produto numa filial específica, com a mesma regra da leitura da grid (U_JSQRYINF)
+e da edição (mmValFil): com o parâmetro MV_ARQPROD = SBZ na filial, o indicador de produto (SBZ) da filial quando
+cadastrado, senão o cadastro do produto (SB1); com MV_ARQPROD = SB1, somente o cadastro do produto. Fonte usada pela
+tela "Quantidades x Filial" (PCOMPRE)
 @type function
-@version 23.0010
+@version 27.0005
 @author Jean Carlos Pandolfo Saggin
 @since 25/08/2026
 @param cFil, character, filial a ser considerada
@@ -12386,21 +12945,10 @@ produto (SB1.B1_EMIN/B1_EMAX). Fonte usada pela tela "Quantidades x Filial" (PCO
 /*/
 static function getMinMax( cFil, cProd )
 
-	local aRet   := { 0, 0 } as array
-	local cQuery := "" as character
-	local cTmp   := "" as character
+	local lUsaInd := mmUsaInd() as logical
+	local aRet    := {} as array
 
-	cQuery := "SELECT COALESCE(BZ.BZ_EMIN,B1.B1_EMIN) EMIN, COALESCE(BZ.BZ_EMAX,B1.B1_EMAX) EMAX " + CEOL
-	cQuery += "FROM "+ RetSqlName('SB1') +" B1 " + CEOL
-	cQuery += "LEFT JOIN "+ RetSqlName('SBZ') +" BZ " + CEOL
-	cQuery += " ON BZ.BZ_FILIAL = '"+ cFil +"' AND BZ.BZ_COD = B1.B1_COD AND BZ.D_E_L_E_T_ = ' ' " + CEOL
-	cQuery += "WHERE B1.B1_FILIAL = '"+ FWxFilial('SB1') +"' AND B1.B1_COD = '"+ cProd +"' AND B1.D_E_L_E_T_ = ' ' " + CEOL
-
-	cTmp := MPSysOpenQuery( cQuery )
-	if ! ( cTmp )->( EOF() )
-		aRet := { ( cTmp )->EMIN, ( cTmp )->EMAX }
-	endif
-	( cTmp )->( DBCloseArea() )
+	aRet := { mmValFil( cFil, 'B1_EMIN', cProd, lUsaInd ), mmValFil( cFil, 'B1_EMAX', cProd, lUsaInd ) }
 
 return aRet
 
